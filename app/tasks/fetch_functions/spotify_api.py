@@ -1,0 +1,107 @@
+from typing import Any, Literal, get_args, TypeGuard
+
+from app.tasks.fetch_functions import (
+    DataSourceSingleItemFetchFunctionFactory,
+    DataSourceBatchFetchFunctionFactory,
+    SingleItemFetchFunction,
+    BatchFetchFunction,
+)
+from app.utils.spotify_api import spotify_api_client
+from app.tasks.input_validation.spotify_api import (
+    AlbumsParams,
+    ArtistAlbumsParams,
+    TracksParams,
+    ISRCTrackSearchParams,
+)
+
+type SequentialTask = Literal["artist-albums", "playlists", "isrc-track-search"]
+type BatchTask = Literal["tracks", "artists", "albums"]
+
+
+def is_sequential_task_identifier(input: str) -> TypeGuard[SequentialTask]:
+    return input in get_args(SequentialTask)
+
+
+def is_batch_task_type(input: str) -> TypeGuard[BatchTask]:
+    return input in get_args(BatchTask)
+
+
+class SpotifyAPISingleItemFetchFunctionFactory(
+    DataSourceSingleItemFetchFunctionFactory
+):
+    """
+    A factory class for creating single-item fetch functions for the Spotify API.
+    """
+
+    def create(
+        self, task_type: str, task_params: dict[str, Any] | None
+    ) -> SingleItemFetchFunction:
+        params_dict = task_params or {}
+
+        if not is_sequential_task_identifier(task_type):
+            raise ValueError(f"Unsupported sequential task type: {task_type}")
+
+        if task_type == "artist-albums":
+            params = ArtistAlbumsParams(**params_dict)
+
+            def fetch_artist_albums(artist_id: str) -> Any:
+                return spotify_api_client.artist_albums(
+                    artist_id,
+                    include_albums=params.albums,
+                    include_singles=params.singles,
+                    include_compilations=params.compilations,
+                    include_appears_on=params.appears_on,
+                    region=params.region,
+                )
+
+            return fetch_artist_albums
+
+        elif task_type == "playlists":
+            return spotify_api_client.playlist
+
+        elif task_type == "isrc-track-search":
+            params = ISRCTrackSearchParams(**params_dict)
+
+            def fetch_tracks_for_isrc(isrc: str) -> Any:
+                return spotify_api_client.search_tracks_for_isrc(
+                    isrc,
+                    region=params.region,
+                )
+
+            return fetch_tracks_for_isrc
+
+
+class SpotifyAPIBatchFetchFunctionFactory(DataSourceBatchFetchFunctionFactory):
+    """
+    A factory class for creating batch fetch functions for the Spotify API.
+    """
+
+    def create(
+        self, task_type: str, task_params: dict[str, Any] | None
+    ) -> BatchFetchFunction:
+        params_dict = task_params or {}
+
+        if not is_batch_task_type(task_type):
+            raise ValueError(f"Unsupported batch task type: {task_type}")
+
+        if task_type == "tracks":
+            params = TracksParams(**params_dict)
+
+            def fetch_tracks(track_ids: list[str]) -> Any:
+                return spotify_api_client.tracks(track_ids, region=params.region)
+
+            return fetch_tracks
+
+        elif task_type == "artists":
+            return spotify_api_client.artists
+
+        elif task_type == "albums":
+            params = AlbumsParams(**params_dict)
+
+            def fetch_albums(album_ids: list[str]) -> Any:
+                return spotify_api_client.albums(
+                    album_ids,
+                    region=params.region,
+                )
+
+            return fetch_albums

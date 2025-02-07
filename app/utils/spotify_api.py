@@ -1,5 +1,5 @@
 from functools import cache
-from pydantic import BaseModel, ValidationError, validate_call
+from pydantic import ValidationError, validate_call
 from base64 import b64encode
 from datetime import datetime, timedelta, timezone
 import re
@@ -259,13 +259,6 @@ class SpotifyAPIClient:
         return seconds_to_wait
 
     @validate_call
-    async def audio_features(self, track_ids: List[str]):
-        raw = await self._make_request(
-            f"audio-features", params={"ids": ",".join(track_ids)}
-        )
-        return get_list_data_from_response(raw, "audio_features")
-
-    @validate_call
     async def tracks(self, track_ids: List[str], region: Optional[str] = None):
         params = {"ids": ",".join(track_ids)}
         if region:
@@ -321,7 +314,7 @@ class SpotifyAPIClient:
         include_compilations: bool,
         include_appears_on: bool,
         region: Optional[str] = None,
-        max_offset=None,
+        max_offset: int | None = None,
     ):
         albums: List[Optional[Dict]] = []
         next_page = True

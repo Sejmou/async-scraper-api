@@ -14,15 +14,33 @@ file_dir = Path(__file__).parent
 
 class Settings(BaseSettings):
     database_url: str = "sqlite:///./app.db"
+
     echo_sql: bool = True
+
     test: bool = False
+
     project_name: str = "Scraper API v2"
+
     log_level: str = "DEBUG"
+
     api_client_log_dir: str = f"{file_dir.parent.resolve()}/logs/api_clients"
     """
-    The directory where logs from any API clients used in the application will be stored.
+    The directory where logs from any API clients used in the application are stored.
 
     Defaults to the `logs` directory in the parent directory of the directory containing this file.
+    """
+
+    task_output_dir: str = f"{file_dir.parent.resolve()}/task_outputs"
+    """
+    The directory where the output files for tasks are stored. During processing, each task will have its own JSONL file named after the task ID.
+    The JSONL files are compressed using zstd and uploaded to S3 once they reach a certain size or when all inputs have been processed.
+    """
+
+    task_progress_dbs_dir: str = f"{file_dir.parent.resolve()}/task_progress"
+    """
+    The directory where the SQLite databases for task progress tracking are stored.
+    1 database file is created and maintained/accessed for each `TaskProcessor` for a particular task ID.
+    Each file stores the input items that have not been processed yet as well as the inputs that either resulted in an error or produced no output at all.
     """
 
 

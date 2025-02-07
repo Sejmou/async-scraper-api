@@ -1,12 +1,11 @@
 from datetime import datetime
 from typing import Literal, get_args
-from sqlalchemy import ForeignKey, String, DateTime, Integer, JSON, func, Enum
+from sqlalchemy import String, DateTime, Integer, JSON, func, Enum
 from sqlalchemy.orm import (
     DeclarativeBase,
     MappedAsDataclass,
     Mapped,
     mapped_column,
-    relationship,
 )
 
 type JSONValue = str | int | float | bool | None | list[JSONValue] | dict[
@@ -28,7 +27,7 @@ DataSource = Literal["spotify-api"]
 The supported data sources for fetching data.
 """
 
-DataFetchingTaskStatus = Literal["pending", "running", "success", "error", "paused"]
+DataFetchingTaskStatus = Literal["pending", "running", "done", "error", "paused"]
 
 
 class DataFetchingTask(Base):
@@ -89,39 +88,9 @@ class DataFetchingTask(Base):
     The S3 prefix in the S3 bucket under which output data of the job is stored once all pending inputs are processed or an error occurs that cannot be recovered from and requires user intervention.
     """
 
-    inputs: Mapped[list["TaskInput"]] = relationship(
-        back_populates="task", cascade="all, delete-orphan"
-    )
+    params: Mapped[dict[str, JSONValue] | None] = mapped_column(JSON, default=None)
     """
-    The inputs for a task.
-    
-    Note that only pending inputs, or inputs that resulted in errors or no output are stored here for efficiency reasons - inputs may be in the millions.
-    For inputs that are processed successfully, the output is stored in S3 and merely the `success_count` is increased.
-    """
-
-    total_input_count: Mapped[int] = mapped_column(Integer)
-    """
-    The number of inputs that were initially added to the task. Should be passed upon initialization of the task and be equal to the length of the `inputs` list.
-    """
-
-    task_meta: Mapped[JSONValue] = mapped_column(JSON, default=None)
-    """
-    Related metadata for the task. This can be information like the region for which data should be fetched etc.
-    """
-
-    success_count: Mapped[int] = mapped_column(default=0)
-    """
-    The number of inputs that have been processed successfully.
-    """
-
-    error_count: Mapped[int] = mapped_column(default=0)
-    """
-    The number of inputs that have caused an error during processing.
-    """
-
-    no_output_count: Mapped[int] = mapped_column(default=0)
-    """
-    The number of inputs that have been processed successfully, but have not returned any output.
+    Optional additional parameters for the task.
     """
 
     created_at: Mapped[datetime] = mapped_column(
@@ -140,36 +109,7 @@ class DataFetchingTask(Base):
 
     def __repr__(self) -> str:
         # NOTE: cannot use len(self.inputs) here as it would load all inputs from the database on every call to __repr__ - i.e., every time the object is printed, we would refetch all inputs from the database!
-        return f"Task for {self.task_type!r} endpoint (ID: {self.id!r}, metadata: {self.task_meta!r}, S3 prefix: {self.s3_prefix!r}, {self.success_count}/{self.total_input_count} processed successfully)"
-
-
-TaskItemProcessingStatus = Literal["pending", "success", "error", "no_output"]
-
-
-class TaskInput(Base):
-    __tablename__ = "task_input"
-
-    id: Mapped[int] = mapped_column(init=False, primary_key=True)
-    task_id: Mapped[int] = mapped_column(ForeignKey("task.id"), init=False)
-    task: Mapped["DataFetchingTask"] = relationship(back_populates="inputs", init=False)
-    data: Mapped[JSONValue] = mapped_column(JSON)
-
-    # this looks hacky as hell, but is apparently required to make this work in such a way that most sensible type is used in DB automatically AND type hints are correct
-    # see also: https://stackoverflow.com/a/76277425/13727176
-    status: Mapped[TaskItemProcessingStatus] = mapped_column(
-        Enum(
-            *get_args(TaskItemProcessingStatus),
-            name="task_item_processing_status",
-            create_constraint=True,
-            validate_strings=True,
-        )
-    )
-    processed_at: Mapped[datetime] = mapped_column(
-        DateTime, default=None, nullable=True
-    )
-
-    def __repr__(self) -> str:
-        return f"Input for task ID {self.task_id!r} ({self.status}): {self.data!r}"
+        return f"Task for {self.task_type!r} endpoint (ID: {self.id!r}, metadata: {self.params!r}, S3 prefix: {self.s3_prefix!r}"
 
 
 class APIRequestMeta(Base):

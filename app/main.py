@@ -13,7 +13,7 @@ from app.db.models import (
     DataFetchingTask,
     TaskInput,
     DataFetchingTaskStatus,
-    TaskItemProcessingStatus,
+    TaskInputProcessingStatus,
 )
 
 logging.basicConfig(
