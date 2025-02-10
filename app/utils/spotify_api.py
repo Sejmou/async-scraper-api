@@ -1,4 +1,3 @@
-from functools import cache
 from pydantic import ValidationError, validate_call
 from base64 import b64encode
 from datetime import datetime, timedelta, timezone
@@ -7,11 +6,11 @@ from typing import Any, Dict, Optional, List, TypeGuard, Union
 from cachetools import TTLCache, cached
 from logging import Logger
 from app.utils.api_bans import APIBanHandler, ban_handler
-from utils.misc import get_ip
 from app.config import SpotifyAPICredentials, settings, setup_logger, api_client_config
 import aiohttp
 from asyncio import sleep
 from utils.request_meta import APIRequestMetaSchema, persist_request_meta_in_db
+from app.config import PUBLIC_IP
 
 
 class CredentialsBlockedException(Exception):
@@ -148,11 +147,6 @@ class SpotifyAPIClient:
         self.global_request_timeout_override = global_request_timeout_override
         self._ban_handler = ban_handler
 
-    # we assume that the public IP of the host doesn't change during the lifetime of the application, hence we cache it after retrieving it once
-    @cache
-    async def get_public_ip(self):
-        return await get_ip()
-
     def _get_endpoint_name(self, endpoint_path: str) -> str:
         # for endpoints like /artists/{id}/albums, we cannot use the endpoint name as is
         # because it contains the artist ID, which is unique for each artist
@@ -192,7 +186,7 @@ class SpotifyAPIClient:
 
         req_meta = APIRequestMetaSchema(
             url=str(response.url),
-            ip=(await self.get_public_ip()),
+            ip=PUBLIC_IP,
             status_code=response.status,
             sent_at=sent_at,
             received_at=received_at,
