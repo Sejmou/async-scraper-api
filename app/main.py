@@ -1,20 +1,12 @@
 import logging
 import sys
 from contextlib import asynccontextmanager
-
 import uvicorn
 from fastapi import FastAPI
-from sqlalchemy import select
 
 from app.routers.spotify_api import router as spotify_api_router
-from app.config import settings
+from app.config import PUBLIC_IP, settings
 from app.db import sessionmanager
-from app.db.models import (
-    DataFetchingTask,
-    TaskInput,
-    DataFetchingTaskStatus,
-    TaskInputProcessingStatus,
-)
 
 logging.basicConfig(
     stream=sys.stdout,
@@ -28,6 +20,7 @@ async def lifespan(app: FastAPI):
     Function that handles startup and shutdown events.
     To understand more, read https://fastapi.tiangolo.com/advanced/events/
     """
+    print(f"Running on public IP {PUBLIC_IP}")
     yield
     if sessionmanager._engine is not None:
         # Close the DB connection
@@ -43,7 +36,7 @@ async def root():
 
 
 # Routers
-app.include_router(users_router)
+app.include_router(spotify_api_router)
 
 
 if __name__ == "__main__":

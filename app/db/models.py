@@ -1,11 +1,12 @@
 from datetime import datetime
 from typing import Literal, get_args
-from sqlalchemy import String, DateTime, Integer, JSON, func, Enum
+from sqlalchemy import String, DateTime, Integer, JSON, func, Enum, ForeignKey
 from sqlalchemy.orm import (
     DeclarativeBase,
     MappedAsDataclass,
     Mapped,
     mapped_column,
+    relationship,
 )
 
 type JSONValue = str | int | float | bool | None | list[JSONValue] | dict[
@@ -88,6 +89,25 @@ class DataFetchingTask(Base):
     The S3 prefix in the S3 bucket under which output data of the job is stored once all pending inputs are processed or an error occurs that cannot be recovered from and requires user intervention.
     """
 
+    file_uploads: Mapped[list["S3FileUpload"]] = relationship(
+        back_populates="task", cascade="all, delete-orphan", init=False
+    )
+    """
+    The files that have been uploaded to S3 as part of this task.
+    """
+
+    lines_written_to_current_output_file: Mapped[int] = mapped_column(
+        Integer, default=0
+    )
+    """
+    The number of lines written to the current output file.
+    """
+
+    success_count: Mapped[int] = mapped_column(Integer, default=0)
+    """
+    The number of items for which data has been fetched successfully so far.
+    """
+
     params: Mapped[dict[str, JSONValue] | None] = mapped_column(JSON, default=None)
     """
     Optional additional parameters for the task.
@@ -110,6 +130,35 @@ class DataFetchingTask(Base):
     def __repr__(self) -> str:
         # NOTE: cannot use len(self.inputs) here as it would load all inputs from the database on every call to __repr__ - i.e., every time the object is printed, we would refetch all inputs from the database!
         return f"Task for {self.task_type!r} endpoint (ID: {self.id!r}, metadata: {self.params!r}, S3 prefix: {self.s3_prefix!r}"
+
+
+class S3FileUpload(Base):
+    id: Mapped[int] = mapped_column(init=False, primary_key=True)
+    task_id: Mapped[int] = mapped_column(ForeignKey("task.id"), init=False)
+
+    s3_key: Mapped[str] = mapped_column(String)
+
+    s3_bucket: Mapped[str] = mapped_column(String)
+
+    s3_endpoint_url: Mapped[str] = mapped_column(String)
+
+    size_bytes: Mapped[int] = mapped_column(Integer)
+
+    output_count: Mapped[int] = mapped_column(Integer)
+    """
+    The number of input items for which a non-None output was written to this file (should be equal to the row count).
+    """
+
+    task: Mapped[DataFetchingTask] = relationship(
+        back_populates="uploaded_files", init=False
+    )
+    """
+    The task this file was uploaded as part of.
+    """
+
+    uploaded_at: Mapped[datetime] = mapped_column(
+        DateTime, default=func.current_timestamp()
+    )
 
 
 class APIRequestMeta(Base):

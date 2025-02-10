@@ -5,6 +5,8 @@ from app.tasks.fetch_functions import (
     DataSourceBatchFetchFunctionFactory,
     SingleItemFetchFunction,
     BatchFetchFunction,
+    ParamsInput,
+    convert_to_basemodel_instance_of_type,
 )
 from app.utils.spotify_api import spotify_api_client
 from app.tasks.input_validation.spotify_api import (
@@ -34,15 +36,16 @@ class SpotifyAPISingleItemFetchFunctionFactory(
     """
 
     def create(
-        self, task_type: str, task_params: dict[str, Any] | None
+        self, task_type: str, task_params: ParamsInput
     ) -> SingleItemFetchFunction:
-        params_dict = task_params or {}
 
         if not is_sequential_task_identifier(task_type):
             raise ValueError(f"Unsupported sequential task type: {task_type}")
 
         if task_type == "artist-albums":
-            params = ArtistAlbumsParams(**params_dict)
+            params = convert_to_basemodel_instance_of_type(
+                task_params, ArtistAlbumsParams
+            )
 
             def fetch_artist_albums(artist_id: str) -> Any:
                 return spotify_api_client.artist_albums(
@@ -60,7 +63,9 @@ class SpotifyAPISingleItemFetchFunctionFactory(
             return spotify_api_client.playlist
 
         elif task_type == "isrc-track-search":
-            params = ISRCTrackSearchParams(**params_dict)
+            params = convert_to_basemodel_instance_of_type(
+                task_params, ISRCTrackSearchParams
+            )
 
             def fetch_tracks_for_isrc(isrc: str) -> Any:
                 return spotify_api_client.search_tracks_for_isrc(
@@ -76,16 +81,13 @@ class SpotifyAPIBatchFetchFunctionFactory(DataSourceBatchFetchFunctionFactory):
     A factory class for creating batch fetch functions for the Spotify API.
     """
 
-    def create(
-        self, task_type: str, task_params: dict[str, Any] | None
-    ) -> BatchFetchFunction:
-        params_dict = task_params or {}
+    def create(self, task_type: str, task_params: ParamsInput) -> BatchFetchFunction:
 
         if not is_batch_task_type(task_type):
             raise ValueError(f"Unsupported batch task type: {task_type}")
 
         if task_type == "tracks":
-            params = TracksParams(**params_dict)
+            params = convert_to_basemodel_instance_of_type(task_params, TracksParams)
 
             def fetch_tracks(track_ids: list[str]) -> Any:
                 return spotify_api_client.tracks(track_ids, region=params.region)
@@ -96,7 +98,7 @@ class SpotifyAPIBatchFetchFunctionFactory(DataSourceBatchFetchFunctionFactory):
             return spotify_api_client.artists
 
         elif task_type == "albums":
-            params = AlbumsParams(**params_dict)
+            params = convert_to_basemodel_instance_of_type(task_params, AlbumsParams)
 
             def fetch_albums(album_ids: list[str]) -> Any:
                 return spotify_api_client.albums(

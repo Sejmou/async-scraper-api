@@ -9,6 +9,8 @@ from pydantic_settings import (
     YamlConfigSettingsSource,
 )
 
+from app.utils.misc import get_public_ip
+
 file_dir = Path(__file__).parent
 
 
@@ -43,8 +45,30 @@ class Settings(BaseSettings):
     Each file stores the input items that have not been processed yet as well as the inputs that either resulted in an error or produced no output at all.
     """
 
+    s3_endpoint_url: str
+    """
+    The endpoint URL for the S3-compatible storage service where the output data of the tasks is stored.
+    """
+
+    s3_bucket: str
+    """
+    The name of the S3 bucket where the output data of the tasks is stored.
+    """
+
+    s3_key_id: str
+    """
+    The access key ID for the S3 bucket where the output data of the tasks is stored.
+    """
+
+    s3_secret: str
+    """
+    The secret access key for the S3 bucket where the output data of the tasks is stored.
+    """
+
 
 settings = Settings()  # type: ignore
+
+PUBLIC_IP = get_public_ip()
 
 if not os.path.exists(settings.api_client_log_dir):
     os.makedirs(settings.api_client_log_dir)
