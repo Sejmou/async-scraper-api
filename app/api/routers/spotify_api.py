@@ -1,205 +1,186 @@
-from typing import List, Optional
-from fastapi import APIRouter, BackgroundTasks, HTTPException
-from pydantic import BaseModel, model_validator, ValidationError
-from app.utils.spotify_api import SpotifyAPIClient, CredentialsBlockedException
+from typing import Callable
+from fastapi import APIRouter, BackgroundTasks
+from sqlalchemy.ext.asyncio import AsyncSession as AsyncDBSession
+from pydantic import BaseModel
+
+from app.config import SpotifyAPICredentials, settings, setup_logger, api_client_config
+from app.db.models import JSONValue
+from app.utils.spotify_api import SpotifyAPIClient
+from app.api.dependencies.core import DBSessionDep
+from app.api.utils import check_api_ban
+from app.utils.api_bans import ban_handler
+from app.tasks.input_validation.spotify_api import (
+    TracksPayload,
+    TracksParams,
+    ArtistsPayload,
+    ArtistAlbumsPayload,
+    ArtistAlbumsParams,
+    AlbumsPayload,
+    AlbumsParams,
+    PlaylistsPayload,
+    ISRCTrackSearchPayload,
+    ISRCTrackSearchParams,
+)
+from app.tasks import create_new_task, run_in_background
+from app.tasks.processing import TaskProcessor, DataFetchingTask
 
 router = APIRouter(prefix="/spotify-api")
 
 
-def handle_credentials_blocked_exception(e: CredentialsBlockedException):
-    info_dict = {
-        "message": e.message,
-    }
-    if e.blocked_until:
-        info_dict["blocked_until"] = e.blocked_until.isoformat()
-    raise HTTPException(503, info_dict)
+async def create_sp_api_task[T: JSONValue](
+    task_type: str,
+    inputs: list[T],
+    params: BaseModel | None,
+    subprefix: str,
+    session: AsyncDBSession,
+    batch_size: int | None = None,
+) -> tuple[DataFetchingTask, TaskProcessor[T]]:
+    return await create_new_task(
+        data_source="spotify-api",
+        task_type=task_type,
+        inputs=inputs,
+        params=params,
+        s3_bucket=settings.s3_bucket,
+        s3_prefix=f"spotify/{subprefix}",
+        session=session,
+        batch_size=batch_size,
+    )
+
+
+def check_sp_api_ban(endpoint: str) -> Callable:
+    # Hardcode data_source to "spotify_api"
+    return check_api_ban(data_source="spotify-api", endpoint=endpoint)
+
+
+_logger = setup_logger("spotify_api_client", file_dir=settings.api_client_log_dir)
+_api_creds = api_client_config.spotify_api
+
+spotify_api_client = SpotifyAPIClient(
+    credentials=SpotifyAPICredentials(
+        client_id=_api_creds.client_id, client_secret=_api_creds.client_secret
+    ),
+    logger=_logger,
+    ban_handler=ban_handler,
+)
 
 
 @router.post("/tracks", status_code=202)
-def schedule_fetching_of_tracks(
-    payload: LoadTracksPayload,
+@check_sp_api_ban(endpoint="tracks")
+async def fetch_tracks(
+    payload: TracksPayload,
     background_tasks: BackgroundTasks,
+    session: DBSessionDep,
 ):
-    track_ids = payload.track_ids
-    region = payload.region
-    client = SpotifyAPIClient(app_logger)
-    try:
-        client.raise_if_endpoint_blocked("tracks")
-    except CredentialsBlockedException as e:
-        handle_credentials_blocked_exception(e)
-    background_tasks.add_task(fetch_and_upload_tracks, client, track_ids, region)
-    region_str = f" in region {region}" if region else ""
-    return {
-        "message": f"Fetching tracks{region_str} from Spotify API for {len(track_ids)} IDs."
-    }
-
-
-@router.post("/audio-features", status_code=202)
-def schedule_fetching_of_audio_features(
-    payload: LoadAudioFeaturesPayload, background_tasks: BackgroundTasks
-):
-    track_ids = payload.track_ids
-    client = SpotifyAPIClient(app_logger)
-    try:
-        client.raise_if_endpoint_blocked("audio-features")
-    except CredentialsBlockedException as e:
-        handle_credentials_blocked_exception(e)
-    background_tasks.add_task(fetch_and_upload_audio_features, client, track_ids)
-    return {
-        "message": f"Fetching audio features from Spotify API for {len(track_ids)} tracks."
-    }
+    task, processor = await create_sp_api_task(
+        inputs=payload.track_ids,
+        params=TracksParams(region=payload.region),
+        task_type="tracks",
+        subprefix=f"tracks_{payload.region}",
+        session=session,
+        batch_size=50,
+    )
+    run_in_background(processor, background_tasks)
+    return task
 
 
 @router.post("/artists", status_code=202)
-def schedule_fetching_of_artists(
-    payload: LoadArtistDataPayload,
+@check_sp_api_ban(endpoint="artists")
+async def fetch_artists(
+    payload: ArtistsPayload,
     background_tasks: BackgroundTasks,
+    session: DBSessionDep,
 ):
-    artist_ids = payload.artist_ids
-    client = SpotifyAPIClient(app_logger)
-    try:
-        client.raise_if_endpoint_blocked("artists")
-    except CredentialsBlockedException as e:
-        handle_credentials_blocked_exception(e)
-    background_tasks.add_task(fetch_and_upload_artists, client, artist_ids)
-    return {
-        "message": f"Fetching artist metadata from Spotify API for {len(artist_ids)} artists."
-    }
-
-
-@router.post("/related-artists", status_code=202)
-def schedule_fetching_of_related_artists(
-    payload: LoadArtistDataPayload,
-    background_tasks: BackgroundTasks,
-):
-    artist_ids = payload.artist_ids
-    client = SpotifyAPIClient(app_logger)
-    try:
-        client.raise_if_endpoint_blocked("artists")
-    except CredentialsBlockedException as e:
-        handle_credentials_blocked_exception(e)
-    background_tasks.add_task(fetch_and_upload_related_artists, client, artist_ids)
-    return {
-        "message": f"Fetching related artists from Spotify API for {len(artist_ids)} artists."
-    }
+    task, processor = await create_sp_api_task(
+        inputs=payload.artist_ids,
+        params=None,
+        task_type="artists",
+        subprefix="artists",
+        session=session,
+        batch_size=50,
+    )
+    run_in_background(processor, background_tasks)
+    return task
 
 
 @router.post("/artist-albums", status_code=202)
-def schedule_fetching_of_artist_albums(
-    payload: LoadArtistAlbumsPayload,
+@check_sp_api_ban(endpoint="artists")
+async def fetch_artist_albums(
+    payload: ArtistAlbumsPayload,
     background_tasks: BackgroundTasks,
+    session: DBSessionDep,
 ):
-    artist_ids = payload.artist_ids
-    albums = payload.albums
-    singles = payload.singles
-    compilations = payload.compilations
-    appears_on = payload.appears_on
-    region = payload.region
-
-    include_group_strs = []
-    if albums:
-        include_group_strs.append("album")
-    if singles:
-        include_group_strs.append("single")
-    if compilations:
-        include_group_strs.append("compilation")
-    if appears_on:
-        include_group_strs.append("appears_on")
-    includes_str = f"(include_groups aka release types: {','.join(include_group_strs)})"
-
-    client = SpotifyAPIClient(app_logger)
-    try:
-        client.raise_if_endpoint_blocked("artists")
-    except CredentialsBlockedException as e:
-        handle_credentials_blocked_exception(e)
-
-    background_tasks.add_task(
-        fetch_and_upload_artist_albums,
-        client,
-        artist_ids,
-        albums=albums,
-        singles=singles,
-        compilations=compilations,
-        appears_on=appears_on,
-        region=region,
+    task, processor = await create_sp_api_task(
+        inputs=payload.artist_ids,
+        params=ArtistAlbumsParams(
+            region=payload.region,
+            albums=payload.albums,
+            singles=payload.singles,
+            compilations=payload.compilations,
+            appears_on=payload.appears_on,
+        ),
+        task_type="artist_albums",
+        subprefix=f"artist_albums_{payload.region}",
+        session=session,
+        batch_size=50,
     )
-    return {
-        "message": f"Fetching albums from Spotify API for {len(artist_ids)} artists {includes_str}."
-    }
+
+    run_in_background(processor, background_tasks)
+    return task
 
 
 @router.post("/albums", status_code=202)
-def schedule_fetching_of_albums(
-    payload: LoadAlbumsPayload,
+@check_sp_api_ban(endpoint="albums")
+async def fetch_albums(
+    payload: AlbumsPayload,
     background_tasks: BackgroundTasks,
+    session: DBSessionDep,
 ):
-    album_ids = payload.album_ids
-    region = payload.region
-
-    client = SpotifyAPIClient(app_logger)
-    try:
-        client.raise_if_endpoint_blocked("albums")
-    except CredentialsBlockedException as e:
-        handle_credentials_blocked_exception(e)
-    background_tasks.add_task(
-        fetch_and_upload_albums,
-        client,
-        album_ids,
-        region=region,
+    task, processor = await create_sp_api_task(
+        inputs=payload.album_ids,
+        params=AlbumsParams(region=payload.region),
+        task_type="albums",
+        subprefix=f"albums_{payload.region}",
+        session=session,
+        batch_size=50,
     )
-
-    region_str = f" and region {region}" if region else ""
-    return {
-        "message": f"Fetching album metadata from Spotify API for {len(album_ids)} album IDs{region_str}."
-    }
+    run_in_background(processor, background_tasks)
+    return task
 
 
 @router.post("/playlists", status_code=202)
-def schedule_fetching_of_playlists(
-    payload: LoadPlaylistsPayload,
+@check_sp_api_ban(endpoint="playlists")
+async def fetch_playlists(
+    payload: PlaylistsPayload,
     background_tasks: BackgroundTasks,
+    session: DBSessionDep,
 ):
-    playlist_ids = payload.playlist_ids
-    timeout_between_requests = payload.timeout_between_requests
-
-    client = SpotifyAPIClient(app_logger)
-    try:
-        client.raise_if_endpoint_blocked("playlists")
-    except CredentialsBlockedException as e:
-        handle_credentials_blocked_exception(e)
-    background_tasks.add_task(
-        fetch_and_upload_playlists,
-        client,
-        playlist_ids,
+    task, processor = await create_sp_api_task(
+        inputs=payload.playlist_ids,
+        params=None,
+        task_type="playlists",
+        subprefix="playlists",
+        session=session,
+        batch_size=50,
     )
+    run_in_background(processor, background_tasks)
 
-    return {
-        "message": f"Fetching playlist metadata from Spotify API for {len(playlist_ids)} playlist IDs"
-        + (
-            f" with timeout between requests of {timeout_between_requests} seconds"
-            if timeout_between_requests
-            else ""
-        )
-        + "."
-    }
+    return task
 
 
 @router.post("/track-search-isrcs", status_code=202)
-def schedule_fetching_of_tracks_by_isrcs(
-    payload: SearchTracksForISRCsPayload,
+@check_sp_api_ban(endpoint="search")
+async def search_tracks_by_isrc(
+    payload: ISRCTrackSearchPayload,
     background_tasks: BackgroundTasks,
+    session: DBSessionDep,
 ):
-    isrcs = payload.isrcs
-    region = payload.region
-    client = SpotifyAPIClient(app_logger)
-    try:
-        client.raise_if_endpoint_blocked("search")
-    except CredentialsBlockedException as e:
-        handle_credentials_blocked_exception(e)
-    background_tasks.add_task(
-        search_tracks_for_isrcs_and_upload_matches, client, isrcs, region
+    task, processor = await create_sp_api_task(
+        inputs=payload.isrcs,
+        params=ISRCTrackSearchParams(region=payload.region),
+        task_type="track_search_isrcs",
+        subprefix=f"tracks_{payload.region}",
+        session=session,
+        batch_size=50,
     )
-    region_str = f" in region {region}" if region else ""
-    return {
-        "message": f"Searching for tracks in Spotify API for {len(isrcs)} ISRCs{region_str}."
-    }
+    run_in_background(processor, background_tasks)
+    return task

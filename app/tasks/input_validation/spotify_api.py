@@ -1,3 +1,4 @@
+from typing import Literal
 from pydantic import BaseModel, model_validator
 
 
@@ -24,7 +25,7 @@ class ISRCSInputItems(BaseModel):
 
 # shared params for tasks that require a region to be specified
 class RegionSpecificParams(BaseModel):
-    region: str | None = None
+    region: Literal["de", "us"] | None = None
 
 
 # specific params for different types of tasks

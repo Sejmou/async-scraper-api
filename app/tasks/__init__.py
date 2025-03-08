@@ -1,3 +1,4 @@
+from fastapi import BackgroundTasks
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession as AsyncDBSession
 
@@ -16,14 +17,45 @@ from app.tasks.processing import (
 
 
 task_processors: dict[int, TaskProcessor] = {}
-"""
-A dictionary for keeping track of task processors that are currently running.
-"""
 
 
-async def create_new_task[
-    T: JSONValue
-](
+def run_in_background(task_processor: TaskProcessor, background_tasks: BackgroundTasks):
+    """
+    Run the given task processor in the background using the provided FastAPI background tasks manager.
+    """
+    task_id = task_processor.task_id
+    task_processors[task_id] = task_processor
+
+    async def run_task():
+        await task_processor.run()
+        del task_processors[task_id]
+
+    background_tasks.add_task(run_task)
+
+
+def pause_task(task_id: int):
+    """
+    Pause a task processor with the given ID.
+    """
+    task_processor = task_processors.get(task_id)
+    if task_processor:
+        task_processor.pause()
+    else:
+        raise ValueError(f"No task processor found with ID {task_id}")
+
+
+def resume_task(task_id: int, background_tasks: BackgroundTasks):
+    """
+    Resume a task processor with the given ID.
+    """
+    task_processor = task_processors.get(task_id)
+    if task_processor:
+        run_in_background(task_processor, background_tasks)
+    else:
+        raise ValueError(f"No task processor found with ID {task_id}")
+
+
+async def create_new_task[T: JSONValue](
     data_source: DataSource,
     task_type: str,
     inputs: list[T],
@@ -32,7 +64,7 @@ async def create_new_task[
     s3_prefix: str,
     session: AsyncDBSession,
     batch_size: int | None = None,
-) -> DataFetchingTask:
+) -> tuple[DataFetchingTask, TaskProcessor[T]]:
     """
     A utility function for doing all the setup required to create a new data fetching task.
 
@@ -97,7 +129,5 @@ async def create_new_task[
 
     # the task processor maintains its own input queue for the task (not stored in the main task DB for performance reasons), so we need to add the inputs to it separately
     processor.add_inputs(inputs)
-    # TODO: f*ck, that's ugly - probably I should separate task processing from state management!?
-    processor.close()
 
-    return task
+    return task, processor

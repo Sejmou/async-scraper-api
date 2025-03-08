@@ -103,6 +103,12 @@ class TaskProcessor[T: JSONValue](ABC):
         The queue for input items that haven't produced any output.
         """
 
+        self._pause_requested = False
+        """
+        A flag that is set whenever the pause() method is called. Action should be taken as soon as safely possible to pause the task.
+        Once it is paused, the task's status should be updated in the DB accordingly.
+        """
+
     def __enter__(self):
         """
         Called when entering a context (at the start of a `with` statement using an instance of this class).
@@ -120,6 +126,10 @@ class TaskProcessor[T: JSONValue](ABC):
         Called when exiting the context created via `with` statement. Applies cleanup to avoid memory leaks.
         """
         self.close()
+
+    @property
+    def task_id(self) -> int:
+        return self._task_id
 
     @property
     def remaining_inputs(self) -> list[T]:
@@ -182,17 +192,27 @@ class TaskProcessor[T: JSONValue](ABC):
             await db_session.commit()
 
             try:
-                task = asyncio.create_task(self._process_inputs_until_done(db_session))
-                await task
+                await self._process_inputs(db_session)
                 db_task.status = "done"
-            except asyncio.CancelledError:
-                db_task.status = "paused"
             except Exception:
                 db_task.status = "error"
                 await db_session.commit()
 
+    def pause(self):
+        self._pause_requested = True
+
+    async def _persist_paused_state(self, db_session: AsyncDBSession):
+        db_task = await db_session.get(DataFetchingTask, self._task_id)
+        if db_task is None:
+            raise ValueError(
+                f"Could not pause task: No task with ID {self._task_id} exists!"
+            )
+        db_task.status = "paused"
+        await db_session.commit()
+        return
+
     @abstractmethod
-    async def _process_inputs_until_done(self, db_session: AsyncDBSession):
+    async def _process_inputs(self, db_session: AsyncDBSession):
         """
         Processes the input items that have previously been added via add_inputs. Runs indefinitely until all input items have been processed.
 
@@ -303,8 +323,12 @@ class SequentialTaskProcessor[T: JSONValue](TaskProcessor[T]):
         )
         self._fetch_fn = fetch_fn
 
-    async def _process_inputs_until_done(self, db_session: AsyncDBSession):
+    async def _process_inputs(self, db_session: AsyncDBSession):
         while self.remaining_count > 0:
+            if self._pause_requested:
+                await self._persist_paused_state(db_session)
+                return
+
             input_item = self._input_q.get()
             item_processed = False  # use this to make sure task_done() is only called if the input_item was actually processed
             try:
@@ -342,8 +366,12 @@ class BatchTaskProcessor[T: JSONValue](TaskProcessor[T]):
         self._fetch_fn = fetch_fn
         self._batch_size = batch_size
 
-    async def _process_inputs_until_done(self, db_session: AsyncDBSession):
+    async def _process_inputs(self, db_session: AsyncDBSession):
         while self.remaining_count > 0:
+            if self._pause_requested:
+                await self._persist_paused_state(db_session)
+                return
+
             batch: list[T] = []
             for _ in range(self._batch_size):
                 if self.remaining_count == 0:

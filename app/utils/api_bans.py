@@ -5,7 +5,9 @@ from datetime import datetime, timezone
 
 
 class TemporaryBanError(Exception):
-    pass
+    def __init__(self, message: str, blocked_until: datetime):
+        super().__init__(message)
+        self.blocked_until = blocked_until
 
 
 class APIBanHandler:
@@ -27,7 +29,8 @@ class APIBanHandler:
             block = await db_session.scalar(stmt)
             if block:
                 raise TemporaryBanError(
-                    f"API endpoint {data_source} {endpoint} is blocked until {block.blocked_until}"
+                    f"'{endpoint}' endpoint of {data_source} is blocked until {block.blocked_until}",
+                    blocked_until=block.blocked_until,
                 )
 
     async def block(

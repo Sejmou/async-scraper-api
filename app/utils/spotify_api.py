@@ -5,8 +5,8 @@ import re
 from typing import Any, Dict, Optional, List, TypeGuard, Union
 from cachetools import TTLCache, cached
 from logging import Logger
-from app.utils.api_bans import APIBanHandler, ban_handler
-from app.config import SpotifyAPICredentials, settings, setup_logger, api_client_config
+from app.utils.api_bans import APIBanHandler
+from app.config import SpotifyAPICredentials
 import aiohttp
 from asyncio import sleep
 from utils.request_meta import APIRequestMetaSchema, persist_request_meta_in_db
@@ -25,7 +25,7 @@ def is_dict_or_none(d: Union[Dict, None]) -> TypeGuard[Optional[Dict]]:
 
 
 def is_list_of_dicts_or_none(
-    lst: List[Union[Dict, None]]
+    lst: List[Union[Dict, None]],
 ) -> TypeGuard[List[Optional[Dict]]]:
     return all(is_dict_or_none(item) for item in lst)
 
@@ -137,7 +137,7 @@ class SpotifyAPIClient:
         self,
         credentials: SpotifyAPICredentials,
         logger: Logger,
-        ban_handler: APIBanHandler = ban_handler,
+        ban_handler: APIBanHandler,
         global_request_timeout_override: Optional[float] = None,
     ):
         self.logger = logger
@@ -452,14 +452,3 @@ class SpotifyAPIClient:
 
     # the audio features and related artists endpoints, amongst other ones, were deactivated for regular people by Spotify with a BS 'explanation' (I hate greedy corporations lol) - RIP :(
     # https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api
-
-
-_logger = setup_logger("spotify_api_client", file_dir=settings.api_client_log_dir)
-_api_creds = api_client_config.spotify_api
-
-spotify_api_client = SpotifyAPIClient(
-    credentials=SpotifyAPICredentials(
-        client_id=_api_creds.client_id, client_secret=_api_creds.client_secret
-    ),
-    logger=_logger,
-)
