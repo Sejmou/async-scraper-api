@@ -8,3 +8,4 @@ persist-queue==1.0.0
 aioboto3==13.4.0
 types-aioboto3[essential]==13.4.0
 requests==2.32.3
+aiosqlite==0.20.0

@@ -15,7 +15,14 @@ file_dir = Path(__file__).parent
 
 
 class Settings(BaseSettings):
-    database_url: str = "sqlite:///./app.db"
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    database_url: str = "sqlite+aiosqlite:///./app.db"
+    """
+    The URL for the database used by the application. Defaults to an SQLite database named `app.db` in the current directory, using the `aiosqlite` driver (which supports async operations, unlike the default 'pysqlite' driver).
+
+    Any driver specified here must support async operations, as the application uses async database operations via SQLAlchemy's async extension.
+    """
 
     echo_sql: bool = True
 

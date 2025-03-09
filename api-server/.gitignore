@@ -1,3 +1,7 @@
+# top secret stuff
+api-client-config.yml
+.env
+
 # SQLite DB files
 *.db
 

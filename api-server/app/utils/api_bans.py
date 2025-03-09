@@ -1,4 +1,4 @@
-from app.db.models import APIEndpointBlock
+from app.db.models import APIEndpointBlock, DataSource
 from app.db import sessionmanager
 from sqlalchemy import select
 from datetime import datetime, timezone
@@ -35,7 +35,7 @@ class APIBanHandler:
 
     async def block(
         self,
-        data_source: str,
+        data_source: DataSource,
         endpoint: str,
         block_until: datetime,
         details: dict | None = None,

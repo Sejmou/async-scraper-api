@@ -202,7 +202,7 @@ class SpotifyAPIClient:
                     blocked_until = received_at + timedelta(seconds=retry_after)
                     details = {"retry_after": retry_after}
                     await self._ban_handler.block(
-                        data_source="spotify_api",
+                        data_source="spotify-api",
                         endpoint=endpoint_name,
                         block_until=blocked_until,
                         details=details,

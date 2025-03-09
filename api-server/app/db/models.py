@@ -133,6 +133,8 @@ class DataFetchingTask(Base):
 
 
 class S3FileUpload(Base):
+    __tablename__ = "s3_file_upload"
+
     id: Mapped[int] = mapped_column(init=False, primary_key=True)
     task_id: Mapped[int] = mapped_column(ForeignKey("task.id"), init=False)
 
@@ -150,7 +152,7 @@ class S3FileUpload(Base):
     """
 
     task: Mapped[DataFetchingTask] = relationship(
-        back_populates="uploaded_files", init=False
+        back_populates="file_uploads", init=False
     )
     """
     The task this file was uploaded as part of.

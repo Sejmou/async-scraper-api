@@ -3,12 +3,10 @@ from fastapi import APIRouter, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession as AsyncDBSession
 from pydantic import BaseModel
 
-from app.config import SpotifyAPICredentials, settings, setup_logger, api_client_config
+from app.config import settings
 from app.db.models import JSONValue
-from app.utils.spotify_api import SpotifyAPIClient
 from app.api.dependencies.core import DBSessionDep
 from app.api.utils import check_api_ban
-from app.utils.api_bans import ban_handler
 from app.tasks.input_validation.spotify_api import (
     TracksPayload,
     TracksParams,
@@ -50,18 +48,6 @@ async def create_sp_api_task[T: JSONValue](
 def check_sp_api_ban(endpoint: str) -> Callable:
     # Hardcode data_source to "spotify_api"
     return check_api_ban(data_source="spotify-api", endpoint=endpoint)
-
-
-_logger = setup_logger("spotify_api_client", file_dir=settings.api_client_log_dir)
-_api_creds = api_client_config.spotify_api
-
-spotify_api_client = SpotifyAPIClient(
-    credentials=SpotifyAPICredentials(
-        client_id=_api_creds.client_id, client_secret=_api_creds.client_secret
-    ),
-    logger=_logger,
-    ban_handler=ban_handler,
-)
 
 
 @router.post("/tracks", status_code=202)

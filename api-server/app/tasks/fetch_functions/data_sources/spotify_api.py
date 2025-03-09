@@ -1,6 +1,6 @@
 from typing import Any, Literal, get_args, TypeGuard
 
-from app.tasks.fetch_functions import (
+from app.tasks.fetch_functions.common import (
     DataSourceSingleItemFetchFunctionFactory,
     DataSourceBatchFetchFunctionFactory,
     SingleItemFetchFunction,
@@ -8,7 +8,7 @@ from app.tasks.fetch_functions import (
     ParamsInput,
     convert_to_basemodel_instance_of_type,
 )
-from app.utils.spotify_api import spotify_api_client
+from app.api_clients import spotify_api_client
 from app.tasks.input_validation.spotify_api import (
     AlbumsParams,
     ArtistAlbumsParams,
