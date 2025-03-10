@@ -3,13 +3,12 @@ from base64 import b64encode
 from datetime import datetime, timedelta, timezone
 import re
 from typing import Any, Dict, Optional, List, TypeGuard, Union
-from cachetools import TTLCache, cached
 from logging import Logger
 from app.utils.api_bans import APIBanHandler
 from app.config import SpotifyAPICredentials
 import aiohttp
 from asyncio import sleep
-from utils.request_meta import APIRequestMetaSchema, persist_request_meta_in_db
+from app.utils.request_meta import APIRequestMetaSchema, persist_request_meta_in_db
 from app.config import PUBLIC_IP
 
 
@@ -70,7 +69,8 @@ class SpotifyAPIAccessTokenManager:
 
     _client_id: str
     _client_secret: str
-    _token_cache: TTLCache = TTLCache(maxsize=1, ttl=59 * 60)
+    _token: str | None = None
+    _token_expires_at: datetime = datetime.now(timezone.utc)
 
     def __init__(self, client_id: str, client_secret: str):
         self._client_id = client_id
@@ -81,7 +81,8 @@ class SpotifyAPIAccessTokenManager:
         Call this whenever the access token returned by the `access_token` property is no longer valid.
         This will force a new access token to be fetched on the next access.
         """
-        self._token_cache.clear()
+        self._token = None
+        self._token_expires_at = datetime.now(timezone.utc)
 
     @property
     async def access_token(self) -> str:
@@ -89,26 +90,31 @@ class SpotifyAPIAccessTokenManager:
         Get an access token from the Spotify API using the specified client ID and secret
         (i.e. with the ['client credentials' flow](https://developer.spotify.com/documentation/web-api/tutorials/client-credentials-flow)).
         """
+        if self._token and self._token_expires_at > (
+            datetime.now(timezone.utc) + timedelta(seconds=60)
+        ):
+            return self._token
 
-        # using cache=self._token_cache with @cached directly on the access_token function doesn't work, hence we need this inner function
-        @cached(cache=self._token_cache)
-        async def get_token():
-            url: str = "https://accounts.spotify.com/api/token"
-            headers: dict = {
-                "Content-Type": "application/x-www-form-urlencoded",
-                "Authorization": f"Basic {b64encode(f'{self._client_id}:{self._client_secret}'.encode()).decode()}",
-            }
-            data: dict = {"grant_type": "client_credentials"}
-            async with aiohttp.ClientSession() as session:
-                async with session.post(url, headers=headers, data=data) as response:
-                    response.raise_for_status()
-                    token = (await response.json())["access_token"]
-                    assert isinstance(
-                        token, str
-                    ), f"Expected access token to be a string, but got: {token}"
-                    return token
-
-        return await get_token()
+        url: str = "https://accounts.spotify.com/api/token"
+        headers: dict = {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Authorization": f"Basic {b64encode(f'{self._client_id}:{self._client_secret}'.encode()).decode()}",
+        }
+        data: dict = {"grant_type": "client_credentials"}
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, headers=headers, data=data) as response:
+                response.raise_for_status()
+                resp_json = await response.json()
+                token = resp_json["access_token"]
+                expires_in = resp_json["expires_in"]
+                assert isinstance(
+                    token, str
+                ), f"Expected access token to be a string, but got: {token}"
+                self._token = token
+                self._token_expires_at = datetime.now(timezone.utc) + timedelta(
+                    seconds=expires_in
+                )
+                return token
 
 
 class SpotifyAPIClient:
@@ -237,7 +243,7 @@ class SpotifyAPIClient:
         last_relevant_request_at = (
             self._last_request_overall
             if self.global_request_timeout_override
-            else self._last_request_per_endpoint[endpoint]
+            else self._last_request_per_endpoint.get(endpoint)
         )
         if not last_relevant_request_at:
             return None
@@ -247,7 +253,7 @@ class SpotifyAPIClient:
         )
         seconds_to_wait = (
             earliest_time_for_next_request - datetime.now(timezone.utc)
-        ).seconds
+        ).total_seconds()
         if seconds_to_wait < 0:
             return None
         return seconds_to_wait

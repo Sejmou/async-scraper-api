@@ -1,5 +1,3 @@
-from abc import ABC, abstractmethod
-
 from app.tasks.fetch_functions.common import (
     DataSourceSingleItemFetchFunctionFactory,
     SingleItemFetchFunction,

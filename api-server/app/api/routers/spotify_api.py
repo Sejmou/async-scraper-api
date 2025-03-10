@@ -20,7 +20,8 @@ from app.tasks.input_validation.spotify_api import (
     ISRCTrackSearchParams,
 )
 from app.tasks import create_new_task, run_in_background
-from app.tasks.processing import TaskProcessor, DataFetchingTask
+from app.tasks.processing import TaskProcessor, DataFetchingTask as DBTask
+from app.api.models import DataFetchingTask as TaskModel
 
 router = APIRouter(prefix="/spotify-api")
 
@@ -32,7 +33,7 @@ async def create_sp_api_task[T: JSONValue](
     subprefix: str,
     session: AsyncDBSession,
     batch_size: int | None = None,
-) -> tuple[DataFetchingTask, TaskProcessor[T]]:
+) -> tuple[DBTask, TaskProcessor[T]]:
     return await create_new_task(
         data_source="spotify-api",
         task_type=task_type,
@@ -50,7 +51,7 @@ def check_sp_api_ban(endpoint: str) -> Callable:
     return check_api_ban(data_source="spotify-api", endpoint=endpoint)
 
 
-@router.post("/tracks", status_code=202)
+@router.post("/tracks", status_code=202, response_model=TaskModel)
 @check_sp_api_ban(endpoint="tracks")
 async def fetch_tracks(
     payload: TracksPayload,
@@ -66,10 +67,10 @@ async def fetch_tracks(
         batch_size=50,
     )
     run_in_background(processor, background_tasks)
-    return task
+    return TaskModel.model_validate(task)
 
 
-@router.post("/artists", status_code=202)
+@router.post("/artists", status_code=202, response_model=TaskModel)
 @check_sp_api_ban(endpoint="artists")
 async def fetch_artists(
     payload: ArtistsPayload,
@@ -85,10 +86,10 @@ async def fetch_artists(
         batch_size=50,
     )
     run_in_background(processor, background_tasks)
-    return task
+    return TaskModel.model_validate(task)
 
 
-@router.post("/artist-albums", status_code=202)
+@router.post("/artist-albums", status_code=202, response_model=TaskModel)
 @check_sp_api_ban(endpoint="artists")
 async def fetch_artist_albums(
     payload: ArtistAlbumsPayload,
@@ -111,10 +112,10 @@ async def fetch_artist_albums(
     )
 
     run_in_background(processor, background_tasks)
-    return task
+    return TaskModel.model_validate(task)
 
 
-@router.post("/albums", status_code=202)
+@router.post("/albums", status_code=202, response_model=TaskModel)
 @check_sp_api_ban(endpoint="albums")
 async def fetch_albums(
     payload: AlbumsPayload,
@@ -130,10 +131,10 @@ async def fetch_albums(
         batch_size=50,
     )
     run_in_background(processor, background_tasks)
-    return task
+    return TaskModel.model_validate(task)
 
 
-@router.post("/playlists", status_code=202)
+@router.post("/playlists", status_code=202, response_model=TaskModel)
 @check_sp_api_ban(endpoint="playlists")
 async def fetch_playlists(
     payload: PlaylistsPayload,
@@ -150,10 +151,10 @@ async def fetch_playlists(
     )
     run_in_background(processor, background_tasks)
 
-    return task
+    return TaskModel.model_validate(task)
 
 
-@router.post("/track-search-isrcs", status_code=202)
+@router.post("/track-search-isrcs", status_code=202, response_model=TaskModel)
 @check_sp_api_ban(endpoint="search")
 async def search_tracks_by_isrc(
     payload: ISRCTrackSearchPayload,
@@ -169,4 +170,4 @@ async def search_tracks_by_isrc(
         batch_size=50,
     )
     run_in_background(processor, background_tasks)
-    return task
+    return TaskModel.model_validate(task)

@@ -5,6 +5,8 @@ from abc import ABC, abstractmethod
 import asyncio
 from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession as AsyncDBSession
+from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 import persistqueue
 from persistqueue.serializers import json as json_serializer
 
@@ -16,7 +18,12 @@ from app.utils.zstd import compress_file
 from app.utils.s3 import upload_file
 
 TASK_OUTPUT_DIR = settings.task_output_dir
+if not os.path.exists(TASK_OUTPUT_DIR):
+    os.makedirs(TASK_OUTPUT_DIR)
+
 TASK_PROGRESS_DB_DIR = settings.task_progress_dbs_dir
+if not os.path.exists(TASK_PROGRESS_DB_DIR):
+    os.makedirs(TASK_PROGRESS_DB_DIR)
 
 
 class TaskProcessor[T: JSONValue](ABC):
@@ -180,7 +187,11 @@ class TaskProcessor[T: JSONValue](ABC):
 
     async def run(self):
         async with sessionmanager.session() as db_session:
-            db_task = await db_session.get(DataFetchingTask, self._task_id)
+            db_task = await db_session.scalar(
+                select(DataFetchingTask).where(DataFetchingTask.id == self._task_id)
+                # in async SQLAlchemy we need to eagerly load any relationships as well (see also: https://github.com/sqlalchemy/sqlalchemy/discussions/8848#discussioncomment-4188599 and https://docs.sqlalchemy.org/en/14/orm/extensions/asyncio.html#preventing-implicit-io-when-using-asyncsession )
+                .options(joinedload(DataFetchingTask.file_uploads))
+            )
             if db_task is None:
                 raise ValueError(f"Task with ID {self._task_id} does not exist!")
             self._outputs_written_to_current_out_file = (
@@ -193,10 +204,14 @@ class TaskProcessor[T: JSONValue](ABC):
 
             try:
                 await self._process_inputs(db_session)
+                await self._compress_upload_and_delete_data_written_to_current_output_file(
+                    db_session
+                )
                 db_task.status = "done"
-            except Exception:
+            except Exception as e:
                 db_task.status = "error"
                 await db_session.commit()
+                raise e
 
     def pause(self):
         self._pause_requested = True
@@ -234,7 +249,7 @@ class TaskProcessor[T: JSONValue](ABC):
         )
         await db_session.commit()
 
-    async def _process_data_written_to_current_output_file(
+    async def _compress_upload_and_delete_data_written_to_current_output_file(
         self, db_session: AsyncDBSession
     ):
         await self._compress_output_file()
@@ -258,6 +273,7 @@ class TaskProcessor[T: JSONValue](ABC):
             os.path.getmtime(self._output_fp_compressed), tz=timezone.utc
         )
         s3_key = f"{db_task.s3_prefix}/{last_modified.strftime('%Y-%m-%d_%H-%M-%S')}_{PUBLIC_IP}.jsonl.zst"
+        upload_size_bytes = os.path.getsize(self._output_fp_compressed)
         await upload_file(
             local_path=self._output_fp_compressed,
             s3_key=s3_key,
@@ -265,10 +281,10 @@ class TaskProcessor[T: JSONValue](ABC):
         )
         db_task.file_uploads.append(
             S3FileUpload(
-                s3_key=f"{db_task.s3_prefix}/{last_modified.strftime('%Y-%m-%d_%H-%M-%S')}_{PUBLIC_IP}.jsonl.zst",
+                s3_key=s3_key,
                 s3_bucket=db_task.s3_bucket,
                 s3_endpoint_url=settings.s3_endpoint_url,
-                size_bytes=os.path.getsize(self._output_fp_compressed),
+                size_bytes=upload_size_bytes,
                 output_count=self._outputs_written_to_current_out_file,
             )
         )

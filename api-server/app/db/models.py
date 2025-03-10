@@ -90,7 +90,7 @@ class DataFetchingTask(Base):
     """
 
     file_uploads: Mapped[list["S3FileUpload"]] = relationship(
-        back_populates="task", cascade="all, delete-orphan", init=False
+        back_populates="task", cascade="all, delete-orphan", init=False, default=[]
     )
     """
     The files that have been uploaded to S3 as part of this task.

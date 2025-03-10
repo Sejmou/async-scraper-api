@@ -20,12 +20,12 @@ type SequentialTask = Literal["artist-albums", "playlists", "isrc-track-search"]
 type BatchTask = Literal["tracks", "artists", "albums"]
 
 
-def is_sequential_task_identifier(input: str) -> TypeGuard[SequentialTask]:
-    return input in get_args(SequentialTask)
+def is_sequential_task_type(input: str) -> TypeGuard[SequentialTask]:
+    return input in get_args(SequentialTask.__value__)
 
 
 def is_batch_task_type(input: str) -> TypeGuard[BatchTask]:
-    return input in get_args(BatchTask)
+    return input in get_args(BatchTask.__value__)
 
 
 class SpotifyAPISingleItemFetchFunctionFactory(
@@ -39,7 +39,7 @@ class SpotifyAPISingleItemFetchFunctionFactory(
         self, task_type: str, task_params: ParamsInput
     ) -> SingleItemFetchFunction:
 
-        if not is_sequential_task_identifier(task_type):
+        if not is_sequential_task_type(task_type):
             raise ValueError(f"Unsupported sequential task type: {task_type}")
 
         if task_type == "artist-albums":
