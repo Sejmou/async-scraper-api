@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 # TODO: update whenever something major changes in the API
-API_VERSION = 0.1
+API_VERSION = "0.1"
 
 router = APIRouter(prefix="/about")
 

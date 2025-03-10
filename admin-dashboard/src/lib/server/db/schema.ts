@@ -4,6 +4,7 @@ import { createSelectSchema, createInsertSchema } from 'drizzle-zod';
 
 export const server = sqliteTable('server', {
 	id: integer('id').primaryKey(),
+	protocol: text('protocol').notNull(),
 	host: text('host').notNull(),
 	port: integer('port').notNull(),
 	addedAt: text('added_at')

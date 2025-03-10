@@ -9,7 +9,7 @@ export async function load() {
 	type ServerMeta = (typeof serversInDb)[0];
 	const getStatus = async (meta: ServerMeta) => {
 		try {
-			const { version } = await getAPIServerInfo(`http://${meta.host}:${meta.port}`);
+			const { version } = await getAPIServerInfo(meta);
 			return { version, online: true };
 		} catch {
 			return { version: null, online: false };
