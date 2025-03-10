@@ -263,6 +263,7 @@ class TaskProcessor[T: JSONValue](ABC):
                     db_session
                 )
                 db_task.status = "done"
+                self._logger.info("Task completed successfully :)")
             except Exception as e:
                 db_task.status = "error"
                 await db_session.commit()
@@ -347,7 +348,7 @@ class TaskProcessor[T: JSONValue](ABC):
         )
         await db_session.commit()
         self._logger.info(
-            f"Uploaded compressed output file to S3 (endpoint: {s3_endpoint_url}, bucket: {s3_bucket}, key: {s3_key})"
+            f"Uploaded compressed output file to S3. endpoint: {s3_endpoint_url}, bucket: {s3_bucket}, key: {s3_key})"
         )
 
     async def _write_output(self, output: Any, db_session: AsyncDBSession):
