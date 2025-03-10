@@ -1,22 +1,27 @@
 import type { ColumnDef } from '@tanstack/table-core';
+import TableStatus from './table-status.svelte';
+import { renderComponent } from '$lib/components/ui/data-table';
 
 export type APIServerMeta = {
-	ip_and_port: string;
+	host: string;
 	version: string | null;
 	online: boolean;
 };
 
 export const columns: ColumnDef<APIServerMeta>[] = [
 	{
-		accessorKey: 'ip_and_port',
-		header: 'IP Address and Port'
+		accessorKey: 'host',
+		header: 'Host'
 	},
 	{
 		accessorKey: 'version',
 		header: 'API Version'
 	},
 	{
-		accessorKey: 'online',
-		header: 'Status'
+		id: 'status',
+		header: 'Status',
+		cell: ({ row }) => {
+			return renderComponent(TableStatus, { online: row.original.online });
+		}
 	}
 ];

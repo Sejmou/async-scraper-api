@@ -20,7 +20,7 @@ export async function load() {
 		serversInDb.map(async (server) => {
 			const { version, online } = await getStatus(server);
 			return {
-				ip_and_port: `${server.host}:${server.port}`,
+				host: `${server.protocol}://${server.host}:${server.port}`,
 				version,
 				online
 			};
