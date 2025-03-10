@@ -1,0 +1,20 @@
+meta {
+  name: Tracks DE
+  type: http
+  seq: 1
+}
+
+post {
+  url: http://localhost:8000/spotify-api/tracks
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "track_ids": [
+      "4PTG3Z6ehGkBFwjybzWkR8"
+    ],
+    "region": "de"
+  }
+}

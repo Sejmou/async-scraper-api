@@ -1,0 +1,14 @@
+services:
+  minio:
+    image: quay.io/minio/minio:latest
+    container_name: minio
+    ports:
+      - 9000:9000 # S3-compatible API
+      - 9001:9001 # MinIO Console
+    environment:
+      MINIO_ROOT_USER: ${S3_KEY_ID}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET}
+    volumes:
+      - ./data:/data                    # Persistent data storage
+      - ./config:/root/.minio           # Persistent configuration storage
+    command: server /data --console-address ":9001"
