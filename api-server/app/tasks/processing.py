@@ -39,7 +39,6 @@ class TaskProgressMeta(TypedDict):
     failures: int
     inputs_without_output: int
     remaining: int
-    outputs_written_to_current_out_file: int
     current_output_file_size_bytes: int
 
 
@@ -95,11 +94,6 @@ class TaskProcessor[T: JSONValue](ABC):
         self._success_count = written_successfully_previously
         """
         The number of items that have been processed successfully.
-        """
-
-        self._outputs_written_to_current_out_file = 0
-        """
-        The number of outputs for inputs that have been written to the current output file. Resets to 0 when the output file is replaced with a new one (after compression/upload of the current one).
         """
 
         self._input_q = persistqueue.UniqueQ(
@@ -231,7 +225,6 @@ class TaskProcessor[T: JSONValue](ABC):
             "failures": self.failure_count,
             "inputs_without_output": self.inputs_without_output_count,
             "remaining": self.remaining_count,
-            "outputs_written_to_current_out_file": self._outputs_written_to_current_out_file,
             "current_output_file_size_bytes": os.path.getsize(self._output_fp),
         }
 
@@ -257,9 +250,6 @@ class TaskProcessor[T: JSONValue](ABC):
             )
             if db_task is None:
                 raise ValueError(f"Task with ID {self._task_id} does not exist!")
-            self._outputs_written_to_current_out_file = (
-                db_task.lines_written_to_current_output_file
-            )
             if db_task.status == "running":
                 raise ValueError(f"Task with ID {db_task.id} is already running!")
             db_task.status = "running"
@@ -304,16 +294,12 @@ class TaskProcessor[T: JSONValue](ABC):
 
     async def _increment_success_count(self, db_session: AsyncDBSession):
         self._success_count += 1
-        self._outputs_written_to_current_out_file += 1
         db_task = await db_session.get(DataFetchingTask, self._task_id)
         if db_task is None:
             raise ValueError(
                 f"Could not update success count of task: No task with ID {self._task_id} exists!"
             )
         db_task.success_count = self._success_count
-        db_task.lines_written_to_current_output_file = (
-            self._outputs_written_to_current_out_file
-        )
         await db_session.commit()
         self._logger.debug(f"Incremented success count to {self._success_count}")
 
@@ -357,7 +343,6 @@ class TaskProcessor[T: JSONValue](ABC):
                 s3_bucket=s3_bucket,
                 s3_endpoint_url=s3_endpoint_url,
                 size_bytes=upload_size_bytes,
-                output_count=self._outputs_written_to_current_out_file,
             )
         )
         await db_session.commit()
@@ -381,14 +366,6 @@ class TaskProcessor[T: JSONValue](ABC):
             self._output_file.close()
             await self._compress_output_file()
             await self._upload_compressed_output_file(db_session)
-
-            db_task = await db_session.get(DataFetchingTask, self._task_id)
-            if db_task is None:
-                raise ValueError(
-                    f"Could not rotate output file for task: No task with ID {self._task_id} exists!"
-                )
-            self._outputs_written_to_current_out_file = 0
-            db_task.lines_written_to_current_output_file = 0
             await db_session.commit()
 
             self._output_file = open(self._output_fp, "a")

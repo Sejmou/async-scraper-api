@@ -97,7 +97,6 @@ async def create_new_task[T: JSONValue](
         task_type=task_type,
         params=params.model_dump(mode="json") if params else None,
         status="pending",
-        s3_bucket=s3_bucket,
         s3_prefix=s3_prefix,
         batch_size=batch_size or 1,
     )

@@ -79,11 +79,6 @@ class DataFetchingTask(Base):
     Example: `tracks` for fetching track metadata from the Spotify API (assuming `spotify-api` is the `data_source`).
     """
 
-    s3_bucket: Mapped[str] = mapped_column(String)
-    """
-    The bucket in which output data of the job is stored once all pending inputs are processed or an error occurs that cannot be recovered from and requires user intervention.
-    """
-
     s3_prefix: Mapped[str] = mapped_column(String)
     """
     The S3 prefix in the S3 bucket under which output data of the job is stored once all pending inputs are processed or an error occurs that cannot be recovered from and requires user intervention.
@@ -145,11 +140,6 @@ class S3FileUpload(Base):
     s3_endpoint_url: Mapped[str] = mapped_column(String)
 
     size_bytes: Mapped[int] = mapped_column(Integer)
-
-    output_count: Mapped[int] = mapped_column(Integer)
-    """
-    The number of input items for which a non-None output was written to this file (should be equal to the row count).
-    """
 
     task: Mapped[DataFetchingTask] = relationship(
         back_populates="file_uploads", init=False
