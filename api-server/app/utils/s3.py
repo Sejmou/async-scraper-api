@@ -1,6 +1,7 @@
 import os
 from contextlib import asynccontextmanager
 import aioboto3
+from pydantic import BaseModel
 
 from app.config import settings
 
@@ -24,7 +25,15 @@ async def s3_client():
         yield s3
 
 
-async def upload_file(local_path: str, s3_key: str, remove_after_upload=False) -> str:
+class UploadMeta(BaseModel):
+    s3_key: str
+    s3_bucket: str
+    s3_endpoint_url: str
+
+
+async def upload_file(
+    local_path: str, s3_key: str, remove_after_upload=False
+) -> UploadMeta:
     """
     Uploads a local file to S3.
 
@@ -37,4 +46,6 @@ async def upload_file(local_path: str, s3_key: str, remove_after_upload=False) -
         await bucket.upload_file(local_path, s3_key)
         if remove_after_upload:
             os.remove(local_path)
-        return s3_key
+        return UploadMeta(
+            s3_key=s3_key, s3_bucket=S3_BUCKET, s3_endpoint_url=S3_ENDPOINT_URL
+        )

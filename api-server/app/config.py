@@ -17,7 +17,7 @@ file_dir = Path(__file__).parent
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    database_url: str = "sqlite+aiosqlite:///./app.db"
+    database_url: str = "sqlite+aiosqlite:///./data/app.db"
     """
     The URL for the database used by the application. Defaults to an SQLite database named `app.db` in the current directory, using the `aiosqlite` driver (which supports async operations, unlike the default 'pysqlite' driver).
 
@@ -39,13 +39,20 @@ class Settings(BaseSettings):
     Defaults to the `logs` directory in the parent directory of the directory containing this file.
     """
 
-    task_output_dir: str = f"{file_dir.parent.resolve()}/task_outputs"
+    task_log_dir: str = f"{file_dir.parent.resolve()}/logs/tasks"
+    """
+    The directory where logs from the tasks are stored. Each task will have its own log file named after the task ID.
+
+    Defaults to the `logs` directory in the parent directory of the directory containing this file.
+    """
+
+    task_output_dir: str = f"{file_dir.parent.resolve()}/data/task_outputs"
     """
     The directory where the output files for tasks are stored. During processing, each task will have its own JSONL file named after the task ID.
     The JSONL files are compressed using zstd and uploaded to S3 once they reach a certain size or when all inputs have been processed.
     """
 
-    task_progress_dbs_dir: str = f"{file_dir.parent.resolve()}/task_progress"
+    task_progress_dbs_dir: str = f"{file_dir.parent.resolve()}/data/task_progress_dbs"
     """
     The directory where the SQLite databases for task progress tracking are stored.
     1 database file is created and maintained/accessed for each `TaskProcessor` for a particular task ID.
@@ -74,6 +81,22 @@ class Settings(BaseSettings):
 
 
 settings = Settings()  # type: ignore
+
+DB_DIR = os.path.dirname(settings.database_url)
+if not os.path.exists(DB_DIR):
+    os.makedirs(DB_DIR)
+
+TASK_OUTPUT_DIR = settings.task_output_dir
+if not os.path.exists(TASK_OUTPUT_DIR):
+    os.makedirs(TASK_OUTPUT_DIR)
+
+TASK_PROGRESS_DB_DIR = settings.task_progress_dbs_dir
+if not os.path.exists(TASK_PROGRESS_DB_DIR):
+    os.makedirs(TASK_PROGRESS_DB_DIR)
+
+TASK_LOG_DIR = settings.task_log_dir
+if not os.path.exists(TASK_LOG_DIR):
+    os.makedirs(TASK_LOG_DIR)
 
 PUBLIC_IP = get_public_ip()
 

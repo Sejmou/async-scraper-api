@@ -11,12 +11,7 @@ class DataFetchingTask(BaseModel):
     )
 
     """
-    This class stores information about an instance of a specific type of data fetching task, most importantly its progress but NOT its results (as they are stored in S3).
-
-    Contrary to the 'runtime tasks' defined in the sibling module `runtime.py`,
-    this class should store any information that should be persisted even if the scraper API were to shut down or restart.
-
-    I.e. this data should be sufficient to resume the task at any point in time.
+    This class stores information about an instance of a specific type of data fetching task information that should be persisted even if the scraper API were to shut down or restart.
     """
 
     id: int
@@ -50,11 +45,6 @@ class DataFetchingTask(BaseModel):
     file_uploads: list["S3FileUpload"]
     """
     The files that have been uploaded to S3 as part of this task.
-    """
-
-    lines_written_to_current_output_file: int
-    """
-    The number of lines written to the current output file.
     """
 
     success_count: int
@@ -93,11 +83,6 @@ class S3FileUpload(BaseModel):
     output_count: int
     """
     The number of input items for which a non-None output was written to this file (should be equal to the row count).
-    """
-
-    task: DataFetchingTask
-    """
-    The task this file was uploaded as part of.
     """
 
     uploaded_at: datetime

@@ -3,7 +3,7 @@ import json
 from datetime import datetime, timezone
 from abc import ABC, abstractmethod
 import asyncio
-from typing import Any
+from typing import Any, TypedDict
 from sqlalchemy.ext.asyncio import AsyncSession as AsyncDBSession
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
@@ -13,17 +13,34 @@ from persistqueue.serializers import json as json_serializer
 from app.db import sessionmanager
 from app.tasks.fetch_functions import SingleItemFetchFunction, BatchFetchFunction
 from app.db.models import DataFetchingTask, S3FileUpload, JSONValue
-from app.config import settings, PUBLIC_IP
+from app.config import (
+    PUBLIC_IP,
+    TASK_LOG_DIR,
+    TASK_OUTPUT_DIR,
+    TASK_PROGRESS_DB_DIR,
+    setup_logger,
+)
 from app.utils.zstd import compress_file
 from app.utils.s3 import upload_file
 
-TASK_OUTPUT_DIR = settings.task_output_dir
-if not os.path.exists(TASK_OUTPUT_DIR):
-    os.makedirs(TASK_OUTPUT_DIR)
 
-TASK_PROGRESS_DB_DIR = settings.task_progress_dbs_dir
-if not os.path.exists(TASK_PROGRESS_DB_DIR):
-    os.makedirs(TASK_PROGRESS_DB_DIR)
+class TaskProcessingError(Exception):
+    def __init__(self, message: str, task_id: int) -> None:
+        super().__init__(message)
+        self.task_id = task_id
+
+
+class TaskProgressMeta(TypedDict):
+    """
+    A simple dictionary for storing metadata about the progress of a task. Used only to determine if a task update should be reported (not necessarily up-to-date with actual progress)
+    """
+
+    successes: int
+    failures: int
+    inputs_without_output: int
+    remaining: int
+    outputs_written_to_current_out_file: int
+    current_output_file_size_bytes: int
 
 
 class TaskProcessor[T: JSONValue](ABC):
@@ -39,13 +56,22 @@ class TaskProcessor[T: JSONValue](ABC):
         self,
         task_id: int,
         written_successfully_previously: int = 0,
-        compression_file_size_limit_bytes: int = 500
-        * 1024
-        * 1024,  # assuming 3:1 compression ratio, this should result in 500 MB files
+        compression_file_size_limit_bytes: int = (
+            500 * 1024 * 1024
+        ),  # assuming 3:1 compression ratio, this should result in 500 MB files
     ):
         self._task_id = task_id
         """
         The ID of the task that is being processed by this task processor.
+        """
+
+        self._logger = setup_logger(
+            f"{task_id}", file_dir=TASK_LOG_DIR, log_to_console=False
+        )
+
+        self._logging_interval = 60
+        """
+        The interval (in seconds) at which the task processor logs its progress.
         """
 
         self._output_fp = f"{TASK_OUTPUT_DIR}/{task_id}.jsonl"
@@ -114,6 +140,16 @@ class TaskProcessor[T: JSONValue](ABC):
         """
         A flag that is set whenever the pause() method is called. Action should be taken as soon as safely possible to pause the task.
         Once it is paused, the task's status should be updated in the DB accordingly.
+        """
+
+        self._last_logged_at = datetime.now()
+        """
+        The timestamp of the last time the task processor logged its progress.
+        """
+
+        self._last_progress_meta: TaskProgressMeta = self._create_progress_meta()
+        """
+        The metadata about the progress of the task at the last time it was logged.
         """
 
     def __enter__(self):
@@ -185,6 +221,33 @@ class TaskProcessor[T: JSONValue](ABC):
             self._input_q.put(item)
         self._input_q.task_done()
 
+    @property
+    def progress(self) -> TaskProgressMeta:
+        return self._create_progress_meta()
+
+    def _create_progress_meta(self) -> TaskProgressMeta:
+        return {
+            "successes": self.success_count,
+            "failures": self.failure_count,
+            "inputs_without_output": self.inputs_without_output_count,
+            "remaining": self.remaining_count,
+            "outputs_written_to_current_out_file": self._outputs_written_to_current_out_file,
+            "current_output_file_size_bytes": os.path.getsize(self._output_fp),
+        }
+
+    def log_progress(self):
+        meta = self._create_progress_meta()
+        self._logger.info(f"Current task progress: {json.dumps(meta)}")
+        self._last_logged_at = datetime.now()
+
+    def _log_if_it_is_time(self):
+        if (
+            datetime.now() - self._last_logged_at
+        ).total_seconds() >= self._logging_interval:
+            new_meta = self._create_progress_meta()
+            if new_meta != self._last_progress_meta:
+                self.log_progress()
+
     async def run(self):
         async with sessionmanager.session() as db_session:
             db_task = await db_session.scalar(
@@ -201,8 +264,10 @@ class TaskProcessor[T: JSONValue](ABC):
                 raise ValueError(f"Task with ID {db_task.id} is already running!")
             db_task.status = "running"
             await db_session.commit()
+            self.log_progress()
 
             try:
+                self._logger.info(f"Processing remaining inputs")
                 await self._process_inputs(db_session)
                 await self._compress_upload_and_delete_data_written_to_current_output_file(
                     db_session
@@ -211,10 +276,12 @@ class TaskProcessor[T: JSONValue](ABC):
             except Exception as e:
                 db_task.status = "error"
                 await db_session.commit()
-                raise e
+                self._logger.exception(e)
+                raise TaskProcessingError(str(e), task_id=self._task_id)
 
     def pause(self):
         self._pause_requested = True
+        self._logger.info("Pause requested")
 
     async def _persist_paused_state(self, db_session: AsyncDBSession):
         db_task = await db_session.get(DataFetchingTask, self._task_id)
@@ -224,7 +291,7 @@ class TaskProcessor[T: JSONValue](ABC):
             )
         db_task.status = "paused"
         await db_session.commit()
-        return
+        self._logger.debug("Persisted paused state")
 
     @abstractmethod
     async def _process_inputs(self, db_session: AsyncDBSession):
@@ -248,6 +315,7 @@ class TaskProcessor[T: JSONValue](ABC):
             self._outputs_written_to_current_out_file
         )
         await db_session.commit()
+        self._logger.debug(f"Incremented success count to {self._success_count}")
 
     async def _compress_upload_and_delete_data_written_to_current_output_file(
         self, db_session: AsyncDBSession
@@ -262,6 +330,7 @@ class TaskProcessor[T: JSONValue](ABC):
             output_file_path=self._output_fp_compressed,
             remove_input_file=True,
         )
+        self._logger.info(f"Compressed output file to {self._output_fp_compressed}")
 
     async def _upload_compressed_output_file(self, db_session: AsyncDBSession):
         db_task = await db_session.get(DataFetchingTask, self._task_id)
@@ -274,26 +343,33 @@ class TaskProcessor[T: JSONValue](ABC):
         )
         s3_key = f"{db_task.s3_prefix}/{last_modified.strftime('%Y-%m-%d_%H-%M-%S')}_{PUBLIC_IP}.jsonl.zst"
         upload_size_bytes = os.path.getsize(self._output_fp_compressed)
-        await upload_file(
+        upload_meta = await upload_file(
             local_path=self._output_fp_compressed,
             s3_key=s3_key,
             remove_after_upload=True,
         )
+        s3_bucket = upload_meta.s3_bucket
+        s3_endpoint_url = upload_meta.s3_endpoint_url
+        s3_key = upload_meta.s3_key
         db_task.file_uploads.append(
             S3FileUpload(
                 s3_key=s3_key,
-                s3_bucket=db_task.s3_bucket,
-                s3_endpoint_url=settings.s3_endpoint_url,
+                s3_bucket=s3_bucket,
+                s3_endpoint_url=s3_endpoint_url,
                 size_bytes=upload_size_bytes,
                 output_count=self._outputs_written_to_current_out_file,
             )
         )
         await db_session.commit()
+        self._logger.info(
+            f"Uploaded compressed output file to S3 (endpoint: {s3_endpoint_url}, bucket: {s3_bucket}, key: {s3_key})"
+        )
 
     async def _write_output(self, output: Any, db_session: AsyncDBSession):
         try:
             self._output_file.write(json.dumps(output) + "\n")
             await self._increment_success_count(db_session)
+            self._logger.debug(f"Wrote output to {self._output_fp}")
         except Exception as e:
             self._handle_failure(output)
             raise e
@@ -316,6 +392,7 @@ class TaskProcessor[T: JSONValue](ABC):
             await db_session.commit()
 
             self._output_file = open(self._output_fp, "a")
+            self._logger.info("Rotated output file")
 
     def _handle_failure(self, input_item: T):
         self._failure_q.put(input_item)
@@ -329,20 +406,24 @@ class SequentialTaskProcessor[T: JSONValue](TaskProcessor[T]):
         self,
         task_id: int,
         fetch_fn: SingleItemFetchFunction[T],
-        compression_file_size_limit_bytes: int = 500
-        * 1024
-        * 1024,  # assuming 3:1 compression ratio, this should result in 500 MB files
+        written_successfully_previously: int = 0,
+        compression_file_size_limit_bytes: int = (
+            500 * 1024 * 1024
+        ),  # assuming 3:1 compression ratio, this should result in 500 MB files
     ):
         super().__init__(
             task_id,
-            compression_file_size_limit_bytes,
+            written_successfully_previously=written_successfully_previously,
+            compression_file_size_limit_bytes=compression_file_size_limit_bytes,
         )
         self._fetch_fn = fetch_fn
 
     async def _process_inputs(self, db_session: AsyncDBSession):
         while self.remaining_count > 0:
+            self._log_if_it_is_time()
             if self._pause_requested:
                 await self._persist_paused_state(db_session)
+                self._logger.info("Paused")
                 return
 
             input_item = self._input_q.get()
@@ -371,19 +452,22 @@ class BatchTaskProcessor[T: JSONValue](TaskProcessor[T]):
         task_id: int,
         fetch_fn: BatchFetchFunction[T],
         batch_size: int,
-        compression_file_size_limit_bytes: int = 500
-        * 1024
-        * 1024,  # assuming 3:1 compression ratio, this should result in 500 MB files
+        written_successfully_previously: int = 0,
+        compression_file_size_limit_bytes: int = (
+            500 * 1024 * 1024
+        ),  # assuming 3:1 compression ratio, this should result in 500 MB files
     ):
         super().__init__(
             task_id,
-            compression_file_size_limit_bytes,
+            written_successfully_previously=written_successfully_previously,
+            compression_file_size_limit_bytes=compression_file_size_limit_bytes,
         )
         self._fetch_fn = fetch_fn
         self._batch_size = batch_size
 
     async def _process_inputs(self, db_session: AsyncDBSession):
         while self.remaining_count > 0:
+            self._log_if_it_is_time()
             if self._pause_requested:
                 await self._persist_paused_state(db_session)
                 return

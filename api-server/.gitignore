@@ -3,8 +3,8 @@ api-client-config.yml
 .env
 
 # data and logs
-task_outputs
-task_progress
+data
+logs
 
 # SQLite DB files
 *.db
