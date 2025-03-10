@@ -4,5 +4,5 @@ This project is my attempt at coming up with my own scraper infrastructure that 
 ## Components
 - Scraper API Server (`./api-server`): A RESTful API server written in Python that should be deployed across several machines. Each instance can run scraper jobs independently. Each job first writes data to a local JSONL file which is eventually uploaded to specific prefixes in the specified S3 bucket (in compressed format).
 - API docs (`./api-docs`): A [Bruno](https://www.usebruno.com/) collection of example requests for the API server.
-- [Coming Soon] Local S3 instance (`./local-s3`): A local MinIO S3 instance that can be used for testing purposes and launched via Docker Compose. 
-- [Coming Soon] Admin Dashboard (`./admin-dashboard`): A web application that can be used to control and monitor the scraper instances. It should be able to start/stop jobs and show details about the status of each job.
+- Local S3 instance (`./local-s3`): A local MinIO S3 instance that can be used for testing purposes and launched via Docker Compose. 
+- Admin Dashboard (`./admin-dashboard`): A web application that can be used to control and monitor the scraper instances. It should be able to start/stop jobs and show details about the status of each job.

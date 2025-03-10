@@ -6,6 +6,7 @@ from fastapi import FastAPI
 
 from app.api.routers.spotify_api import router as spotify_api_router
 from app.api.routers.tasks import router as tasks_router
+from app.api.routers.about import router as about_router
 from app.config import PUBLIC_IP, settings
 from app.db import sessionmanager
 
@@ -39,6 +40,7 @@ async def root():
 # Routers
 app.include_router(spotify_api_router)
 app.include_router(tasks_router)
+app.include_router(about_router)
 
 
 if __name__ == "__main__":
