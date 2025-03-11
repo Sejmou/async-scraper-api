@@ -4,7 +4,6 @@
 	import FormDialog from './form-dialog.svelte';
 
 	let { data } = $props();
-	let servers = data.servers;
 </script>
 
 <svelte:head>
@@ -14,6 +13,6 @@
 <main class="mx-auto flex max-w-screen-md flex-col gap-2 p-4 pt-8">
 	<h1 class="text-3xl font-bold">Scrapers</h1>
 	<p class="text-sm text-muted-foreground">Manage servers running the Scraper API.</p>
-	<DataTable data={servers} {columns} />
+	<DataTable data={data.servers} {columns} />
 	<div class="mt-4 flex w-full flex-col items-center"><FormDialog {data} /></div>
 </main>

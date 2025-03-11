@@ -1,0 +1,49 @@
+<script lang="ts">
+	import Ellipsis from 'lucide-svelte/icons/ellipsis';
+	import { Button } from '$lib/components/ui/button';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import * as AlertDialog from '$lib/components/ui/alert-dialog';
+
+	import { enhance } from '$app/forms';
+
+	let { id, host }: { id: number; host: string } = $props();
+	let deleteDialogOpen = $state(false);
+</script>
+
+<DropdownMenu.Root>
+	<DropdownMenu.Trigger>
+		{#snippet child({ props })}
+			<Button {...props} variant="ghost" size="icon" class="relative size-8 p-0">
+				<span class="sr-only">Open menu</span>
+				<Ellipsis />
+			</Button>
+		{/snippet}
+	</DropdownMenu.Trigger>
+	<DropdownMenu.Content>
+		<DropdownMenu.Group>
+			<DropdownMenu.GroupHeading>Actions</DropdownMenu.GroupHeading>
+			<DropdownMenu.Item onSelect={() => (deleteDialogOpen = true)}>
+				Delete
+				<!-- <button class="w-full" onclick={() => (deleteDialogOpen = true)}>Delete</button> -->
+			</DropdownMenu.Item>
+		</DropdownMenu.Group>
+	</DropdownMenu.Content>
+</DropdownMenu.Root>
+
+<AlertDialog.Root bind:open={deleteDialogOpen}>
+	<AlertDialog.Content>
+		<AlertDialog.Header>
+			<AlertDialog.Title>Delete scraper</AlertDialog.Title>
+			<AlertDialog.Description>
+				Are you sure you want to delete the scraper at {host}?
+			</AlertDialog.Description>
+		</AlertDialog.Header>
+		<AlertDialog.Footer>
+			<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+			<form method="POST" action="?/delete" use:enhance>
+				<input type="hidden" name="id" value={id} />
+				<AlertDialog.Action type="submit">Confirm</AlertDialog.Action>
+			</form>
+		</AlertDialog.Footer>
+	</AlertDialog.Content>
+</AlertDialog.Root>

@@ -1,11 +1,12 @@
 import { db } from '$lib/server/db';
 import { server, type ServerInsert } from '$lib/server/db/schema';
-import { asc } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import { getAPIServerInfo } from '$lib/server/scraper-api/about';
 import type { APIServerMeta } from './table-columns';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { formSchemaBatchImport, formSchemaSingleInsert, baseUrlSchema } from './form-schema';
+import { fail } from '@sveltejs/kit';
 
 export async function load() {
 	const serversInDb = await db.select().from(server).orderBy(asc(server.addedAt));
@@ -23,12 +24,14 @@ export async function load() {
 		serversInDb.map(async (server) => {
 			const { version, online } = await getStatus(server);
 			return {
+				id: server.id,
 				host: `${server.protocol}://${server.host}:${server.port}`,
 				version,
 				online
 			};
 		})
 	);
+
 	return {
 		servers: serverMeta,
 		singleInsertForm: await superValidate(zod(formSchemaSingleInsert)),
@@ -144,5 +147,13 @@ export const actions = {
 			type: 'success',
 			text: `Successfully inserted ${valuesToInsert.length} servers into the DB`
 		});
+	},
+	delete: async ({ request }) => {
+		const data = await request.formData();
+		const id = data.get('id');
+		if (!id) {
+			return fail(400);
+		}
+		await db.delete(server).where(eq(server.id, +id));
 	}
 };
