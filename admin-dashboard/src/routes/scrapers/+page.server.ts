@@ -4,9 +4,8 @@ import { asc } from 'drizzle-orm';
 import { getAPIServerInfo } from '$lib/server/scraper-api/about';
 import type { APIServerMeta } from './table-columns';
 import { superValidate, message } from 'sveltekit-superforms';
-import { fail } from '@sveltejs/kit';
 import { zod } from 'sveltekit-superforms/adapters';
-import { formSchema, formSchemaBatchInsert } from './form-schema';
+import { formSchemaBatchImport, formSchemaSingleInsert, baseUrlSchema } from './form-schema';
 
 export async function load() {
 	const serversInDb = await db.select().from(server).orderBy(asc(server.addedAt));
@@ -32,17 +31,22 @@ export async function load() {
 	);
 	return {
 		servers: serverMeta,
-		form: await superValidate(zod(formSchema))
+		singleInsertForm: await superValidate(zod(formSchemaSingleInsert)),
+		batchInsertForm: await superValidate(zod(formSchemaBatchImport))
 	};
 }
 
-const parseServerUrlString: (urlStr: string) => ServerInsert & {
+type ServerInsertMeta = ServerInsert & {
 	originalInput: string;
-} = (urlStr) => {
+};
+
+const validServerUrlStringToInsertMeta: (urlStr: string) => ServerInsertMeta = (urlStr) => {
 	const urlObj = new URL(urlStr);
+	// port property of URL object is empty string if port is equal to default port of protocol (80 for http, 443 for https)
+	const port = urlObj.port ? +urlObj.port : urlObj.protocol === 'https:' ? 443 : 80;
 	return {
 		host: urlObj.hostname,
-		port: +urlObj.port,
+		port,
 		protocol: urlObj.protocol.replace(':', ''),
 		originalInput: urlStr
 	};
@@ -50,7 +54,7 @@ const parseServerUrlString: (urlStr: string) => ServerInsert & {
 
 export const actions = {
 	'add-one': async (event) => {
-		const form = await superValidate(event, zod(formSchema));
+		const form = await superValidate(event, zod(formSchemaSingleInsert));
 		if (!form.valid) {
 			return message(form, {
 				type: 'error',
@@ -58,7 +62,7 @@ export const actions = {
 			});
 		}
 
-		const insert = parseServerUrlString(form.data.baseUrl);
+		const insert = validServerUrlStringToInsertMeta(form.data.baseUrl);
 		try {
 			await db.insert(server).values(insert);
 		} catch (e) {
@@ -87,44 +91,58 @@ export const actions = {
 		return { form };
 	},
 	'batch-import': async ({ request }) => {
-		const data = await request.formData();
-		const scraperUrlsRaw = data.get('scraper-urls')?.toString().split('\n');
-		if (!scraperUrlsRaw) {
-			return fail(400, { message: 'No URLs provided' });
+		const form = await superValidate(request, zod(formSchemaBatchImport));
+		if (!form.valid) {
+			return message(form, {
+				type: 'error',
+				text: 'The data you provided is invalid. Please provide a list of valid URLs, separated by newlines.'
+			});
 		}
-		const result = formSchemaBatchInsert.safeParse(scraperUrlsRaw);
 
-		if (!result.success) {
-			// result.error.issues is an array of error objects
-			const errors = result.error.issues;
-			const errorMessages = errors.map((issue) => {
-				// The path should indicate the index in the array where the error occurred.
-				const index = issue.path[0];
-				const lineNumber = typeof index === 'number' ? index + 1 : 'unknown';
-				return `Line ${lineNumber}: ${issue.message}`;
-			});
-			const invalidCount = errors.length;
-			return fail(400, {
-				message: `${invalidCount} URL${invalidCount === 1 ? '' : 's'} ${invalidCount === 1 ? 'is' : 'are'} invalid:\n${errorMessages.join('\n')}`
+		const urlStrings = form.data.baseUrls
+			.split('\n')
+			.map((str) => str.trim())
+			.filter((str) => str !== '');
+
+		const valuesToInsert: ServerInsertMeta[] = [];
+		const invalidInputs: string[] = [];
+		for (const urlStr of urlStrings) {
+			const zodParseRes = baseUrlSchema.safeParse(urlStr);
+			if (!zodParseRes.success) {
+				invalidInputs.push(urlStr);
+				continue;
+			}
+			valuesToInsert.push(validServerUrlStringToInsertMeta(urlStr));
+		}
+		if (invalidInputs.length > 0) {
+			return message(form, {
+				type: 'error',
+				text: `The following inputs could not be processed:\n${invalidInputs.join(', ')}`
 			});
 		}
-		const urls = result.data;
-		const insertValues = urls.map(parseServerUrlString);
 
 		await db.transaction(async (trx) => {
-			for (const insert of insertValues) {
+			for (const value of valuesToInsert) {
 				try {
-					await trx.insert(server).values(insert);
+					await trx.insert(server).values(value);
 				} catch (e) {
-					console.error('Error inserting server', insert, e);
+					console.error('Error inserting server', value, e);
 					trx.rollback();
-					return fail(400, {
-						message: `Error while inserting '${insert.originalInput}' into DB. Make sure that no server with the same host and port exists in the DB and the URLs you provided.`
-					});
+					return message(
+						form,
+						{
+							type: 'error',
+							text: `Error while inserting '${value.originalInput}' into DB. Make sure that no server with the same host and port exists in the DB and the URLs you provided.`
+						},
+						{ status: 400 }
+					);
 				}
 			}
 		});
 
-		return { message: 'Success' };
+		return message(form, {
+			type: 'success',
+			text: `Successfully inserted ${valuesToInsert.length} servers into the DB`
+		});
 	}
 };

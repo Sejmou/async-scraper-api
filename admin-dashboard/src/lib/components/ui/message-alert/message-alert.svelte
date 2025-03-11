@@ -5,6 +5,7 @@
 	import type { Message } from '.';
 
 	let { type, text }: Message = $props();
+	let lines = text.split('\n');
 </script>
 
 <Alert.Root variant={type === 'error' ? 'destructive' : 'default'}>
@@ -16,5 +17,12 @@
 	<Alert.Title>
 		{#if type === 'error'}Error{:else}Heads up!{/if}
 	</Alert.Title>
-	<Alert.Description>{text}</Alert.Description>
+	<Alert.Description
+		>{#each lines as line}
+			{line}
+			{#if line !== lines[lines.length - 1]}
+				<br />
+			{/if}
+		{/each}
+	</Alert.Description>
 </Alert.Root>

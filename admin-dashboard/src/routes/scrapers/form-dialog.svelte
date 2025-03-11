@@ -7,10 +7,20 @@
 	let batchImport = $state(false);
 
 	import type { Infer, SuperValidated } from 'sveltekit-superforms';
-	import Form from './form.svelte';
-	import type { FormSchema } from './form-schema';
+	import Form from './single-insert-form.svelte';
+	import type { FormSchemaBatchImport, FormSchemaSingleInsert } from './form-schema';
 
-	let { data }: { data: { form: SuperValidated<Infer<FormSchema>> } } = $props();
+	let {
+		data
+	}: {
+		data: {
+			singleInsertForm: SuperValidated<Infer<FormSchemaSingleInsert>>;
+			batchInsertForm: SuperValidated<Infer<FormSchemaBatchImport>>;
+		};
+	} = $props();
+
+	let singleInsertForm = data.singleInsertForm;
+	let batchImportForm = data.batchInsertForm;
 </script>
 
 <Dialog.Root>
@@ -33,9 +43,9 @@
 			</Label>
 		</div>
 		{#if batchImport}
-			<BatchImportForm />
+			<BatchImportForm {batchImportForm} />
 		{:else}
-			<Form {data} />
+			<Form {singleInsertForm} />
 		{/if}
 	</Dialog.Content>
 </Dialog.Root>

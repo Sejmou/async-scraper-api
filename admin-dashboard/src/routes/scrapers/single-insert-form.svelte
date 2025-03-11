@@ -1,15 +1,16 @@
 <script lang="ts">
 	import * as Form from '$lib/components/ui/form';
 	import { Input } from '$lib/components/ui/input';
-	import { MessageAlert } from '$lib/components/ui/message-alert';
-	import { formSchema, type FormSchema } from './form-schema';
+	import { formSchemaSingleInsert, type FormSchemaSingleInsert } from './form-schema';
 	import { type SuperValidated, type Infer, superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
+	import { MessageAlert } from '$lib/components/ui/message-alert';
 
-	let { data }: { data: { form: SuperValidated<Infer<FormSchema>> } } = $props();
+	let { singleInsertForm }: { singleInsertForm: SuperValidated<Infer<FormSchemaSingleInsert>> } =
+		$props();
 
-	const form = superForm(data.form, {
-		validators: zodClient(formSchema)
+	const form = superForm(singleInsertForm, {
+		validators: zodClient(formSchemaSingleInsert)
 	});
 
 	const { form: formData, enhance } = form;

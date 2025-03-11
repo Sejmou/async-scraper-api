@@ -1,25 +1,40 @@
 <script lang="ts">
-	import { Button } from '$lib/components/ui/button';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { enhance } from '$app/forms';
-	import { Label } from '$lib/components/ui/label';
+	import * as Form from '$lib/components/ui/form';
+	import { formSchemaBatchImport, type FormSchemaBatchImport } from './form-schema';
+	import { type SuperValidated, type Infer, superForm } from 'sveltekit-superforms';
+	import { zodClient } from 'sveltekit-superforms/adapters';
+	import { MessageAlert } from '$lib/components/ui/message-alert';
+
+	let { batchImportForm }: { batchImportForm: SuperValidated<Infer<FormSchemaBatchImport>> } =
+		$props();
+
+	const form = superForm(batchImportForm, {
+		validators: zodClient(formSchemaBatchImport)
+	});
+
+	const { form: formData } = form;
+
+	let message = $state(form.message);
 </script>
 
-<form
-	method="POST"
-	action="?/batch-import"
-	use:enhance={() => {
-		return async ({ update }) => {
-			await update();
-		};
-	}}
->
-	<div class="grid w-full gap-1.5">
-		<Label for="scraper-urls">Base URLs</Label>
-		<Textarea name="scraper-urls" placeholder="http://192.0.2.1:8000" id="scraper-urls" />
-		<p class="text-muted-foreground text-sm">
-			Add one URL per line. Please include protocol (http/https), domain, and port.
-		</p>
-	</div>
-	<Button type="submit" class="mt-2">Import</Button>
+<form method="POST" action="?/batch-import" use:enhance>
+	{#if $message !== undefined}
+		{@const { type, text } = $message}
+		<MessageAlert {type} {text} />
+	{/if}
+	<Form.Field {form} name="baseUrls">
+		<Form.Control>
+			{#snippet children({ props })}
+				<Form.Label>Base URLs</Form.Label>
+				<Textarea placeholder="http://192.0.2.1:8000" {...props} bind:value={$formData.baseUrls} />
+			{/snippet}
+		</Form.Control>
+		<Form.Description
+			>Add one URL per line. Please include protocol (http/https), domain, and port.</Form.Description
+		>
+		<Form.FieldErrors />
+	</Form.Field>
+	<Form.Button>Import</Form.Button>
 </form>

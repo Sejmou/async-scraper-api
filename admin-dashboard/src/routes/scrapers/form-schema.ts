@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const baseUrlSchema = z.string().refine(
+export const baseUrlSchema = z.string().refine(
 	(val) => {
 		try {
 			const parsed = new URL(val);
@@ -9,7 +9,8 @@ const baseUrlSchema = z.string().refine(
 			return (
 				(parsed.protocol === 'http:' || parsed.protocol === 'https:') &&
 				!!parsed.hostname &&
-				parsed.port !== '' &&
+				// if port equals default port for protocol (i.e. 80 for http, 443 for https), it will be omitted, hence checking makes no sense
+				// parsed.port !== '' &&
 				parsed.pathname == '/'
 			);
 		} catch {
@@ -21,10 +22,14 @@ const baseUrlSchema = z.string().refine(
 	}
 );
 
-export const formSchema = z.object({
+export const formSchemaSingleInsert = z.object({
 	baseUrl: baseUrlSchema
 });
 
-export type FormSchema = typeof formSchema;
+export const formSchemaBatchImport = z.object({
+	// should be a string containing valid base URLS, separated by '\n'; not sure if zod makes it possible to validate this
+	baseUrls: z.string()
+});
 
-export const formSchemaBatchInsert = z.array(baseUrlSchema);
+export type FormSchemaSingleInsert = typeof formSchemaSingleInsert;
+export type FormSchemaBatchImport = typeof formSchemaBatchImport;
