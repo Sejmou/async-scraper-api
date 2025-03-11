@@ -1,6 +1,42 @@
 <script lang="ts">
+	import { page } from '$app/state';
+	import * as Breadcrumb from '$lib/components/ui/breadcrumb';
 	import '../app.css';
 	let { children } = $props();
+
+	const titleCase = (str: string) => str[0].toUpperCase() + str.slice(1);
+
+	let subroutes = $derived(page.route.id?.split('/').filter(Boolean) || []);
+	let subroutesAndLinks = $derived(
+		subroutes.map((_, i) => {
+			let link = '/' + subroutes.slice(0, i + 1).join('/');
+			return {
+				name: titleCase(subroutes[i]),
+				link
+			};
+		})
+	);
+	let level = $derived(subroutes.length);
 </script>
 
-{@render children()}
+<main class="mx-auto flex max-w-screen-md flex-col gap-2 p-4 pt-8">
+	{#if level > 0}
+		<Breadcrumb.Root>
+			<Breadcrumb.List>
+				<Breadcrumb.Item>
+					<Breadcrumb.Link href="/">Home</Breadcrumb.Link>
+				</Breadcrumb.Item>
+				<Breadcrumb.Separator />
+				{#each subroutesAndLinks as { name, link }, i}
+					<Breadcrumb.Item>
+						<Breadcrumb.Link href={link}>{name}</Breadcrumb.Link>
+					</Breadcrumb.Item>
+					{#if i < subroutesAndLinks.length - 1}
+						<Breadcrumb.Separator />
+					{/if}
+				{/each}
+			</Breadcrumb.List>
+		</Breadcrumb.Root>
+	{/if}
+	{@render children()}
+</main>
