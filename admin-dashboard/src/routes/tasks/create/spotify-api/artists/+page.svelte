@@ -5,5 +5,8 @@
 	let { data } = $props();
 </script>
 
-<PageHeading heading="Spotify Tracks" text="Fetch metadata for tracks from Spotify's public API." />
-<Form tracksPayloadForm={data.tracksPayloadForm} />
+<PageHeading
+	heading="Spotify Artists"
+	text="Fetch metadata for artists from Spotify's public API."
+/>
+<Form artistsPayloadForm={data.artistsPayloadForm} />

@@ -2,23 +2,23 @@ import { z } from 'zod';
 
 // --- Input Items Schemas ---
 
-export const tracksInputItemsSchema = z.object({
+const tracksInputItemsSchema = z.object({
 	track_ids: z.array(z.string())
 });
 
-export const artistsInputItemsSchema = z.object({
+const artistsInputItemsSchema = z.object({
 	artist_ids: z.array(z.string())
 });
 
-export const albumsInputItemsSchema = z.object({
+const albumsInputItemsSchema = z.object({
 	album_ids: z.array(z.string())
 });
 
-export const playlistsInputItemsSchema = z.object({
+const playlistsInputItemsSchema = z.object({
 	playlist_ids: z.array(z.string())
 });
 
-export const isrcsInputItemsSchema = z.object({
+const isrcsInputItemsSchema = z.object({
 	isrcs: z.array(z.string())
 });
 
@@ -30,11 +30,11 @@ const regionSpecificParamsSchema = z.object({
 
 // --- Specific Params Schemas ---
 
-export const tracksParamsSchema = regionSpecificParamsSchema; // no extra fields
-export const albumsParamsSchema = regionSpecificParamsSchema; // no extra fields
-export const isrcTrackSearchParamsSchema = regionSpecificParamsSchema; // no extra fields
+const tracksParamsSchema = regionSpecificParamsSchema; // no extra fields
+const albumsParamsSchema = regionSpecificParamsSchema; // no extra fields
+const isrcTrackSearchParamsSchema = regionSpecificParamsSchema; // no extra fields
 
-export const artistAlbumsParamsSchema = regionSpecificParamsSchema.extend({
+const artistAlbumsParamsSchema = regionSpecificParamsSchema.extend({
 	release_types: z.object({
 		albums: z.boolean().default(false),
 		singles: z.boolean().default(false),
@@ -47,7 +47,9 @@ export const artistAlbumsParamsSchema = regionSpecificParamsSchema.extend({
 
 // Payloads combine input items and optional params via merging.
 export const tracksPayloadSchema = tracksInputItemsSchema.merge(tracksParamsSchema);
+export type TracksPayloadSchema = typeof tracksPayloadSchema;
 export const artistsPayloadSchema = artistsInputItemsSchema;
+export type ArtistsPayloadSchema = typeof artistsPayloadSchema;
 export const albumsPayloadSchema = albumsInputItemsSchema.merge(albumsParamsSchema);
 export const artistAlbumsPayloadSchema = artistsInputItemsSchema.merge(artistAlbumsParamsSchema);
 export const playlistsPayloadSchema = playlistsInputItemsSchema;
