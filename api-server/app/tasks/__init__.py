@@ -1,22 +1,28 @@
+import asyncio
 from fastapi import BackgroundTasks
 from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession as AsyncDBSession
 
 from app.db.models import DataSource, DataFetchingTask, JSONValue
 from app.tasks.fetch_functions import (
     create_single_item_fetch_function,
     create_batch_fetch_function,
-    SingleItemFetchFunction,
-    BatchFetchFunction,
 )
 from app.tasks.processing import (
     BatchTaskProcessor,
     SequentialTaskProcessor,
     TaskProcessor,
 )
+from app.config import app_logger
 
 
 task_processors: dict[int, TaskProcessor] = {}
+
+
+async def run_task(task_processor: TaskProcessor):
+    await task_processor.run()
+    del task_processors[task_processor.task_id]
 
 
 def run_in_background(task_processor: TaskProcessor, background_tasks: BackgroundTasks):
@@ -26,11 +32,7 @@ def run_in_background(task_processor: TaskProcessor, background_tasks: Backgroun
     task_id = task_processor.task_id
     task_processors[task_id] = task_processor
 
-    async def run_task():
-        await task_processor.run()
-        del task_processors[task_id]
-
-    background_tasks.add_task(run_task)
+    background_tasks.add_task(run_task, task_processor)
 
 
 def pause_task(task_id: int):
@@ -55,12 +57,95 @@ def resume_task(task_id: int, background_tasks: BackgroundTasks):
         raise ValueError(f"No task processor found with ID {task_id}")
 
 
+async def correct_stuck_tasks_state_to_pending(db_session: AsyncDBSession):
+    """
+    Corrects the state of tasks that are 'running' according to the DB but have no associated task processor.
+
+    Should be called on server restart.
+    """
+    app_logger.info("Checking for stuck tasks...")
+    tasks = (
+        (
+            await db_session.execute(
+                select(DataFetchingTask).where(DataFetchingTask.status == "running")
+            )
+        )
+        .scalars()
+        .all()
+    )
+    if not tasks:
+        app_logger.info("No stuck tasks found")
+        return
+
+    for task in tasks:
+        if task.id not in task_processors:
+            task.status = "pending"
+            await db_session.commit()
+            app_logger.info(
+                f"Corrected stuck task with ID {task.id} to 'pending' state"
+            )
+
+
+async def resume_pending_tasks(db_session: AsyncDBSession):
+    """
+    Resumes all tasks that are currently in pending state and have no associated task processor.
+
+    Should be called on server restart (after correcting the state of stuck tasks).
+    """
+    app_logger.info("Checking for pending tasks...")
+    tasks = (
+        (
+            await db_session.execute(
+                select(DataFetchingTask).where(DataFetchingTask.status == "pending")
+            )
+        )
+        .scalars()
+        .all()
+    )
+    if not tasks:
+        app_logger.info("No pending tasks")
+        return
+
+    for task in tasks:
+        processor = task_processors.get(task.id) or create_processor(task)
+        task_processors[task.id] = processor
+        app_logger.info(f"Resuming task with ID {task.id}...")
+        asyncio.create_task(run_task(processor))
+
+
+def create_processor(task: DataFetchingTask) -> TaskProcessor:
+    if task.batch_size > 1:
+        batch_fetch_fn = create_batch_fetch_function(
+            task.data_source, task.task_type, task.params
+        )
+        if not batch_fetch_fn:
+            raise ValueError(
+                f"Could not create task processor for task with ID {task.id} (data source: '{task.data_source}', task type: '{task.task_type}') as no suitable batched fetch function was found"
+            )
+        return BatchTaskProcessor(
+            task_id=task.id,
+            fetch_fn=batch_fetch_fn,
+            batch_size=task.batch_size,
+        )
+    else:
+        single_item_fetch_fn = create_single_item_fetch_function(
+            task.data_source, task.task_type, task.params
+        )
+        if not single_item_fetch_fn:
+            raise ValueError(
+                f"Could not create task processor for task with ID {task.id} (data source: '{task.data_source}', task type: '{task.task_type}') as no suitable single-item fetch function was found"
+            )
+        return SequentialTaskProcessor(
+            task_id=task.id,
+            fetch_fn=single_item_fetch_fn,
+        )
+
+
 async def create_new_task[T: JSONValue](
     data_source: DataSource,
     task_type: str,
     inputs: list[T],
     params: BaseModel | None,
-    s3_bucket: str,
     s3_prefix: str,
     session: AsyncDBSession,
     batch_size: int | None = None,
@@ -76,21 +161,20 @@ async def create_new_task[T: JSONValue](
     if batch_size is not None and batch_size <= 1:
         raise ValueError("Batch size must be greater than 1!")
 
-    # Every task (or, more specifically, its processor) requires a fetch function for the passed data source and task type (accepting batches of data if batch_size is > 1, or single items otherwise)
-    # unfortunately, we cannot check the type of function we get back at runtime, so this ugly hack is used instead
-    single_item_fetch_fn: SingleItemFetchFunction[T] | None = None
-    batch_fetch_fn: BatchFetchFunction[T] | None = None
-    try:
-        if batch_size:
-            batch_fetch_fn = create_batch_fetch_function(data_source, task_type, params)
-        else:
-            single_item_fetch_fn = create_single_item_fetch_function(
-                data_source, task_type, params
+    if batch_size:
+        batch_fetch_fn = create_batch_fetch_function(data_source, task_type, params)
+        if not batch_fetch_fn:
+            raise ValueError(
+                f"Could not create task: No batched fetch function found for data source {data_source} and task type {task_type}"
             )
-    except Exception as e:
-        raise ValueError(
-            f"Could not create task for data source {data_source} and task type {task_type} due to error finding suitable fetch function: {e}"
+    else:
+        single_item_fetch_fn = create_single_item_fetch_function(
+            data_source, task_type, params
         )
+        if not single_item_fetch_fn:
+            raise ValueError(
+                f"Could not create task: No single-item fetch function found for data source {data_source} and task type {task_type}"
+            )
 
     task = DataFetchingTask(
         data_source=data_source,
@@ -104,29 +188,10 @@ async def create_new_task[T: JSONValue](
     session.add(task)
     await session.commit()
 
-    if batch_size:
-        if not batch_fetch_fn:
-            # NOTE: this should be impossible, if it happens it's definitely a bug
-            raise ValueError(
-                f"Could not create task processor for task with ID {task.id} as no batched fetch function was found"
-            )
-        processor = BatchTaskProcessor[T](
-            task_id=task.id,
-            fetch_fn=batch_fetch_fn,
-            batch_size=batch_size,
-        )
-    else:
-        if not single_item_fetch_fn:
-            # NOTE: this should be impossible, if it happens it's definitely a bug
-            raise ValueError(
-                f"Could not create task processor for task with ID {task.id} as no single-item fetch function was found"
-            )
-        processor = SequentialTaskProcessor[T](
-            task_id=task.id,
-            fetch_fn=single_item_fetch_fn,
-        )
+    processor = create_processor(task)
 
-    # the task processor maintains its own input queue for the task (not stored in the main task DB for performance reasons), so we need to add the inputs to it separately
+    # the task processor maintains its own input queue for the task (data is not stored in the main task DB for performance reasons)
+    # so, we need to add the inputs to it separately
     processor.add_inputs(inputs)
 
     return task, processor

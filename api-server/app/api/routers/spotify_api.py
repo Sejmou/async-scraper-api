@@ -3,7 +3,6 @@ from fastapi import APIRouter, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession as AsyncDBSession
 from pydantic import BaseModel
 
-from app.config import settings
 from app.db.models import JSONValue
 from app.api.dependencies.core import DBSessionDep
 from app.api.utils import check_api_ban
@@ -39,7 +38,6 @@ async def create_sp_api_task[T: JSONValue](
         task_type=task_type,
         inputs=inputs,
         params=params,
-        s3_bucket=settings.s3_bucket,
         s3_prefix=f"spotify/{subprefix}",
         session=session,
         batch_size=batch_size,

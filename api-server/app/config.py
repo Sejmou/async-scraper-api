@@ -39,9 +39,14 @@ class Settings(BaseSettings):
     Defaults to the `logs` directory in the parent directory of the directory containing this file.
     """
 
+    app_log_dir: str = f"{file_dir.parent.resolve()}/logs"
+    """
+    The directory where 'global' logs from the main application are stored.
+    """
+
     task_log_dir: str = f"{file_dir.parent.resolve()}/logs/tasks"
     """
-    The directory where logs from the tasks are stored. Each task will have its own log file named after the task ID.
+    The directory where logs for the tasks are stored. Each task will have its own log file named after the task ID.
 
     Defaults to the `logs` directory in the parent directory of the directory containing this file.
     """
@@ -83,7 +88,6 @@ class Settings(BaseSettings):
 settings = Settings()  # type: ignore
 
 DB_DIR = os.path.dirname(settings.database_file_path)
-print(DB_DIR)
 if not os.path.exists(DB_DIR):
     os.makedirs(DB_DIR)
 
@@ -94,6 +98,10 @@ if not os.path.exists(TASK_OUTPUT_DIR):
 TASK_PROGRESS_DB_DIR = settings.task_progress_dbs_dir
 if not os.path.exists(TASK_PROGRESS_DB_DIR):
     os.makedirs(TASK_PROGRESS_DB_DIR)
+
+APP_LOG_DIR = settings.app_log_dir
+if not os.path.exists(APP_LOG_DIR):
+    os.makedirs(APP_LOG_DIR)
 
 TASK_LOG_DIR = settings.task_log_dir
 if not os.path.exists(TASK_LOG_DIR):
@@ -202,3 +210,6 @@ def setup_logger(
         logger.addHandler(fh)
 
     return logger
+
+
+app_logger = setup_logger("app", file_dir=APP_LOG_DIR)

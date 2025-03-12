@@ -22,6 +22,7 @@ from app.config import (
 )
 from app.utils.zstd import compress_file
 from app.utils.s3 import upload_file
+from app.utils.files import is_file_empty
 
 
 class TaskProcessingError(Exception):
@@ -263,6 +264,40 @@ class TaskProcessor[T: JSONValue](ABC):
                 raise ValueError(f"Task with ID {self._task_id} does not exist!")
             if db_task.status == "running":
                 raise ValueError(f"Task with ID {db_task.id} is already running!")
+
+            if self.remaining_count == 0:
+                try:
+                    self._logger.info("No inputs to process. Task is already done.")
+                    db_task.status = "done"
+                    await db_session.commit()
+                    if os.path.exists(self._output_fp_compressed):
+                        self._logger.info(
+                            f"Uploading leftover compressed output file {self._output_fp_compressed}"
+                        )
+                        await self._upload_compressed_output_file_delete_local(
+                            db_session
+                        )
+                    if os.path.exists(self._output_fp):
+                        if is_file_empty(self._output_fp):
+                            self._logger.info(
+                                f"Output file {self._output_fp} is empty. Deleting..."
+                            )
+                            os.remove(self._output_fp)
+                        else:
+                            self._logger.info(
+                                f"Output file {self._output_fp} is not empty. Compressing and uploading..."
+                            )
+                            await self._compress_upload_and_delete_data_written_to_current_output_file(
+                                db_session
+                            )
+                    return
+
+                except Exception as e:
+                    db_task.status = "error"
+                    await db_session.commit()
+                    self._logger.exception(e)
+                    raise TaskProcessingError(str(e), task_id=self._task_id)
+
             db_task.status = "running"
             await db_session.commit()
             self.log_progress()
@@ -274,6 +309,7 @@ class TaskProcessor[T: JSONValue](ABC):
                     db_session
                 )
                 db_task.status = "done"
+                await db_session.commit()
                 self._logger.info("Task completed successfully :)")
             except Exception as e:
                 db_task.status = "error"
@@ -307,10 +343,10 @@ class TaskProcessor[T: JSONValue](ABC):
     async def _compress_upload_and_delete_data_written_to_current_output_file(
         self, db_session: AsyncDBSession
     ):
-        await self._compress_output_file()
-        await self._upload_compressed_output_file(db_session)
+        await self._compress_output_file_delete_uncompressed()
+        await self._upload_compressed_output_file_delete_local(db_session)
 
-    async def _compress_output_file(self):
+    async def _compress_output_file_delete_uncompressed(self):
         await asyncio.to_thread(
             compress_file,
             input_file_path=self._output_fp,
@@ -319,7 +355,9 @@ class TaskProcessor[T: JSONValue](ABC):
         )
         self._logger.info(f"Compressed output file to {self._output_fp_compressed}")
 
-    async def _upload_compressed_output_file(self, db_session: AsyncDBSession):
+    async def _upload_compressed_output_file_delete_local(
+        self, db_session: AsyncDBSession
+    ):
         db_task = await db_session.get(DataFetchingTask, self._task_id)
         if db_task is None:
             raise ValueError(
@@ -364,8 +402,8 @@ class TaskProcessor[T: JSONValue](ABC):
             >= self._compression_file_size_limit_bytes
         ):
             self._output_file.close()
-            await self._compress_output_file()
-            await self._upload_compressed_output_file(db_session)
+            await self._compress_output_file_delete_uncompressed()
+            await self._upload_compressed_output_file_delete_local(db_session)
             await db_session.commit()
 
             self._output_file = open(self._output_fp, "a")

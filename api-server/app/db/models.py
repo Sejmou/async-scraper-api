@@ -89,13 +89,6 @@ class DataFetchingTask(Base):
     The files that have been uploaded to S3 as part of this task.
     """
 
-    lines_written_to_current_output_file: Mapped[int] = mapped_column(
-        Integer, default=0
-    )
-    """
-    The number of lines written to the current output file.
-    """
-
     params: Mapped[dict[str, JSONValue] | None] = mapped_column(JSON, default=None)
     """
     Optional additional parameters for the task.
