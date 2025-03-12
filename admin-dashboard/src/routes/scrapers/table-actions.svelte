@@ -38,12 +38,12 @@
 				Are you sure you want to delete the scraper at {host}?
 			</AlertDialog.Description>
 		</AlertDialog.Header>
-		<AlertDialog.Footer>
-			<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
-			<form method="POST" action="?/delete" use:enhance>
+		<form method="POST" action="?/delete" use:enhance>
+			<AlertDialog.Footer>
+				<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
 				<input type="hidden" name="id" value={id} />
 				<AlertDialog.Action type="submit">Confirm</AlertDialog.Action>
-			</form>
-		</AlertDialog.Footer>
+			</AlertDialog.Footer>
+		</form>
 	</AlertDialog.Content>
 </AlertDialog.Root>
