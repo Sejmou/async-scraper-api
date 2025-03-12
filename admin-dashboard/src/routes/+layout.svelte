@@ -7,7 +7,8 @@
 	const titleCase = (str: string) => str[0].toUpperCase() + str.slice(1);
 
 	const breadCrumbsNameOverrides: Record<string, string> = {
-		'spotify-api': 'Spotify API'
+		'spotify-api': 'Spotify API',
+		'duckdb-demo': 'DuckDB Demo'
 	};
 
 	let subroutes = $derived(page.route.id?.split('/').filter(Boolean) || []);

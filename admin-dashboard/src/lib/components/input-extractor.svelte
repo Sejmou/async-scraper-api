@@ -1,6 +1,8 @@
 <script lang="ts">
 	import FileInput from './ui/file-input/file-input.svelte';
 	import { Label } from './ui/label';
+	import * as Dialog from './ui/dialog';
+	import { buttonVariants } from './ui/button';
 
 	const handleFileInput = async (event: Event) => {
 		// const database = get(db);
@@ -31,12 +33,27 @@
 		}
 	};
 
-	let { value = $bindable(), idDescription }: { value: string[]; idDescription: string } = $props();
-	$inspect({ value, idDescription });
+	let { value = $bindable(), inputDescription }: { value: string[]; inputDescription: string } =
+		$props();
+	$inspect({ value, inputDescription });
 </script>
 
-<h2 class="text-lg font-bold">{idDescription}</h2>
 <div class="grid w-full max-w-sm items-center gap-1.5">
-	<Label for="ids-file">Upload file with IDs</Label>
-	<FileInput oninput={handleFileInput} id="ids-file" type="file" />
+	<Label for="ids-file">{inputDescription}</Label>
+	<Dialog.Root>
+		<Dialog.Trigger class={buttonVariants({ variant: 'default' })}>Add</Dialog.Trigger>
+		<Dialog.Content class="max-w-screen-md">
+			<Dialog.Header>
+				<Dialog.Title>Add {inputDescription}</Dialog.Title>
+				<Dialog.Description>
+					You can extract them from a file (<code>.txt</code>, <code>.csv</code>, or
+					<code>.parquet</code>) or by copy-pasting them into a text area.
+				</Dialog.Description>
+			</Dialog.Header>
+			<div class="grid w-full max-w-sm items-center gap-1.5">
+				<Label for="ids-file">Select a file</Label>
+				<FileInput oninput={handleFileInput} id="ids-file" type="file" />
+			</div>
+		</Dialog.Content>
+	</Dialog.Root>
 </div>

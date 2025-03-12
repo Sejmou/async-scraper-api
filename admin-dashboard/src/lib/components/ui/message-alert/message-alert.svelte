@@ -4,7 +4,7 @@
 	import Info from 'lucide-svelte/icons/info';
 	import type { Message } from '.';
 
-	let { type, text }: Message = $props();
+	let { type, title, text }: Message = $props();
 	let lines = text.split('\n');
 </script>
 
@@ -15,7 +15,13 @@
 		<Info class="h-4 w-4" />
 	{/if}
 	<Alert.Title>
-		{#if type === 'error'}Error{:else}Heads up!{/if}
+		{#if title}
+			{title}
+		{:else if type === 'error'}
+			Error
+		{:else}
+			Heads up!
+		{/if}
 	</Alert.Title>
 	<Alert.Description
 		>{#each lines as line}

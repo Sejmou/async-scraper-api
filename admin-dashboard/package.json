@@ -54,6 +54,7 @@
 		"zod": "^3.24.2"
 	},
 	"dependencies": {
+		"@duckdb/duckdb-wasm": "^1.29.0",
 		"@tanstack/table-core": "^8.21.2",
 		"better-sqlite3": "^11.8.0",
 		"drizzle-orm": "^0.38.4",

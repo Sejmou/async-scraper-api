@@ -7,7 +7,7 @@
 	import { type SuperValidated, type Infer, superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import { MessageAlert } from '$lib/components/ui/message-alert';
-	import StringInputIdExtractor from '$lib/components/string-input-id-extractor.svelte';
+	import InputExtractor from '$lib/components/input-extractor.svelte';
 
 	let { tracksPayloadForm }: { tracksPayloadForm: SuperValidated<Infer<TracksPayloadSchema>> } =
 		$props();
@@ -29,11 +29,7 @@
 	<Form.Field {form} name="track_ids">
 		<Form.Control>
 			{#snippet children({ props })}
-				<StringInputIdExtractor
-					{...props}
-					bind:value={$formData.track_ids}
-					idDescription="Track IDs"
-				/>
+				<InputExtractor {...props} bind:value={$formData.track_ids} inputDescription="Track IDs" />
 			{/snippet}
 		</Form.Control>
 		<Form.Description>The track IDs for which metadata should be loaded.</Form.Description>
