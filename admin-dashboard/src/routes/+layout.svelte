@@ -6,12 +6,17 @@
 
 	const titleCase = (str: string) => str[0].toUpperCase() + str.slice(1);
 
+	const breadCrumbsNameOverrides: Record<string, string> = {
+		'spotify-api': 'Spotify API'
+	};
+
 	let subroutes = $derived(page.route.id?.split('/').filter(Boolean) || []);
 	let subroutesAndLinks = $derived(
 		subroutes.map((_, i) => {
 			let link = '/' + subroutes.slice(0, i + 1).join('/');
+			const subRoutePathComponent = subroutes[i];
 			return {
-				name: titleCase(subroutes[i]),
+				name: breadCrumbsNameOverrides[subRoutePathComponent] || titleCase(subRoutePathComponent),
 				link
 			};
 		})
