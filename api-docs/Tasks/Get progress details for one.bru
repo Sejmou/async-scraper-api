@@ -1,0 +1,11 @@
+meta {
+  name: Get progress details for one
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{api_url}}/tasks/{{task_id}}/progress/details
+  body: none
+  auth: none
+}

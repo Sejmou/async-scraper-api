@@ -9,3 +9,7 @@ get {
   body: none
   auth: none
 }
+
+script:post-response {
+  bru.setEnvVar("task_id", res.body.at(-1).id);
+}

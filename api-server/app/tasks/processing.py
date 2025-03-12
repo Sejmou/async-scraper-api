@@ -91,7 +91,7 @@ class TaskProcessor[T: JSONValue](ABC):
         After successful upload of the compressed file, a new output file is created and written to.
         """
 
-        self._successes_q = persistqueue.UniqueQ(
+        self._successes_q = persistqueue.SQLiteQueue(
             path=TASK_PROGRESS_DB_DIR,
             db_file_name=f"{task_id}.db",
             serializer=json_serializer,
@@ -409,6 +409,10 @@ class TaskProcessor[T: JSONValue](ABC):
             self._output_file = open(self._output_fp, "a")
             self._logger.info("Rotated output file")
 
+    async def _handle_success(self, db_session: AsyncDBSession, input_item: T, output):
+        await self._write_output(output, db_session)
+        self._successes_q.put(input_item)
+
     def _handle_failure(self, input_item: T):
         self._failure_q.put(input_item)
 
@@ -444,7 +448,7 @@ class SequentialTaskProcessor[T: JSONValue](TaskProcessor[T]):
             try:
                 output = await self._fetch_fn(input_item)
                 if output:
-                    await self._write_output(output, db_session)
+                    await self._handle_success(db_session, input_item, output)
                     item_processed = True
                 else:
                     self._handle_input_without_output(input_item)
@@ -498,7 +502,7 @@ class BatchTaskProcessor[T: JSONValue](TaskProcessor[T]):
                         )
                     for input_item, output in zip(batch, outputs):
                         if output:
-                            await self._write_output(output, db_session)
+                            await self._handle_success(db_session, input_item, output)
                         else:
                             self._handle_input_without_output(input_item)
                     batch_processed = True
