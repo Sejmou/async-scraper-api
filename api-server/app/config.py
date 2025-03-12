@@ -17,18 +17,18 @@ file_dir = Path(__file__).parent
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    database_url: str = "sqlite+aiosqlite:///./data/app.db"
+    database_file_path: str = f"{file_dir.parent.resolve()}/data/app.db"
     """
-    The URL for the database used by the application. Defaults to an SQLite database named `app.db` in the current directory, using the `aiosqlite` driver (which supports async operations, unlike the default 'pysqlite' driver).
-
-    Any driver specified here must support async operations, as the application uses async database operations via SQLAlchemy's async extension.
+    The path where the SQLite database for the application's core data (excluding task progress state) should be stored.
+    
+    Defaults to an SQLite database named `app.db` in the `data` directory (parent of the directory where this file is located at).
     """
 
     echo_sql: bool = True
 
     test: bool = False
 
-    project_name: str = "Scraper API v2"
+    project_name: str = "Scraper API"
 
     log_level: str = "DEBUG"
 
@@ -82,7 +82,8 @@ class Settings(BaseSettings):
 
 settings = Settings()  # type: ignore
 
-DB_DIR = os.path.dirname(settings.database_url)
+DB_DIR = os.path.dirname(settings.database_file_path)
+print(DB_DIR)
 if not os.path.exists(DB_DIR):
     os.makedirs(DB_DIR)
 

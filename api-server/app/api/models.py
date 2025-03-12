@@ -75,9 +75,4 @@ class S3FileUpload(BaseModel):
 
     size_bytes: int
 
-    output_count: int
-    """
-    The number of input items for which a non-None output was written to this file (should be equal to the row count).
-    """
-
     uploaded_at: datetime

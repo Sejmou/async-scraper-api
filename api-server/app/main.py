@@ -29,7 +29,7 @@ async def lifespan(app: FastAPI):
         await sessionmanager.close()
 
 
-app = FastAPI(lifespan=lifespan, title=settings.project_name, docs_url="/api/docs")
+app = FastAPI(lifespan=lifespan, title=settings.project_name, docs_url="/docs")
 
 
 @app.get("/")

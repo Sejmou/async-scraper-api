@@ -59,9 +59,12 @@ class DatabaseSessionManager:
             await session.close()
 
 
-sessionmanager = DatabaseSessionManager(
-    settings.database_url, {"echo": settings.echo_sql}
-)
+DB_URL = f"sqlite+aiosqlite:///{settings.database_file_path}"
+"""
+The SQLite DB connection string. Uses the `aiosqlite` driver which supports async operations, unlike the default 'pysqlite' driver.
+"""
+
+sessionmanager = DatabaseSessionManager(DB_URL, {"echo": settings.echo_sql})
 
 
 async def get_db_session():
