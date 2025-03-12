@@ -35,12 +35,10 @@ class DataFetchingTask(Base):
     __tablename__ = "task"
 
     """
-    This class stores information about an instance of a specific type of data fetching task, most importantly its progress but NOT its results (as they are stored in S3).
+    This class stores metadata about an instance of a specific type of data fetching task, excluding information about its progress.
+    The task progress is persisted in a dedicated SQLite DB file for each task for efficiency reasons.
 
-    Contrary to the 'runtime tasks' defined in the sibling module `runtime.py`,
-    this class should store any information that should be persisted even if the scraper API were to shut down or restart.
-
-    I.e. this data should be sufficient to resume the task at any point in time.
+    By combining the metadata from here with the progress data from the task progress DB, we can reconstruct the full state of the task at any point in time (e.g. for resuming after a crash/restart of the server).
     """
 
     id: Mapped[int] = mapped_column(init=False, primary_key=True)
@@ -96,11 +94,6 @@ class DataFetchingTask(Base):
     )
     """
     The number of lines written to the current output file.
-    """
-
-    success_count: Mapped[int] = mapped_column(Integer, default=0)
-    """
-    The number of items for which data has been fetched successfully so far.
     """
 
     params: Mapped[dict[str, JSONValue] | None] = mapped_column(JSON, default=None)

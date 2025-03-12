@@ -12,6 +12,8 @@ class DataFetchingTask(BaseModel):
 
     """
     This class stores information about an instance of a specific type of data fetching task information that should be persisted even if the scraper API were to shut down or restart.
+
+    Does NOT include information about the _progress_ of the task. This data is stored in a dedicated task progress SQLite DB file for each task for efficiency reasons.
     """
 
     id: int
@@ -40,11 +42,6 @@ class DataFetchingTask(BaseModel):
     file_uploads: list["S3FileUpload"]
     """
     The files that have been uploaded to S3 as part of this task.
-    """
-
-    success_count: int
-    """
-    The number of items for which data has been fetched successfully so far.
     """
 
     params: dict[str, JSONValue] | None

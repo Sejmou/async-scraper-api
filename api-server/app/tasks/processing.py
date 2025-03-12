@@ -54,7 +54,6 @@ class TaskProcessor[T: JSONValue](ABC):
     def __init__(
         self,
         task_id: int,
-        written_successfully_previously: int = 0,
         compression_file_size_limit_bytes: int = (
             500 * 1024 * 1024
         ),  # assuming 3:1 compression ratio, this should result in 500 MB files
@@ -91,9 +90,16 @@ class TaskProcessor[T: JSONValue](ABC):
         After successful upload of the compressed file, a new output file is created and written to.
         """
 
-        self._success_count = written_successfully_previously
+        self._successes_q = persistqueue.UniqueQ(
+            path=TASK_PROGRESS_DB_DIR,
+            db_file_name=f"{task_id}.db",
+            serializer=json_serializer,
+            # if auto_commit is False, task_done() must be called to persist changes made via put() or get() calls
+            auto_commit=False,
+            name="successes",
+        )
         """
-        The number of items that have been processed successfully.
+        The items that have been processed successfully.
         """
 
         self._input_q = persistqueue.UniqueQ(
@@ -171,22 +177,27 @@ class TaskProcessor[T: JSONValue](ABC):
     @property
     def remaining_inputs(self) -> list[T]:
         """
-        Returns the input items that have not been processed yet.
+        The input items that have not been processed yet.
         """
-
-        items = self._input_q.queue()
-        return items
+        return self._input_q.queue()
 
     @property
     def remaining_count(self) -> int:
         return self._input_q.size
 
     @property
+    def successes(self) -> list[T]:
+        """
+        The input items that have been processed successfully.
+        """
+        return self._successes_q.queue()
+
+    @property
     def success_count(self) -> int:
         """
         The number of items that have been processed successfully (i.e. number of items for which output has been written to the output file).
         """
-        return self._success_count
+        return self._successes_q.size
 
     @property
     def failures(self) -> list[T]:
@@ -293,17 +304,6 @@ class TaskProcessor[T: JSONValue](ABC):
         """
         pass
 
-    async def _increment_success_count(self, db_session: AsyncDBSession):
-        self._success_count += 1
-        db_task = await db_session.get(DataFetchingTask, self._task_id)
-        if db_task is None:
-            raise ValueError(
-                f"Could not update success count of task: No task with ID {self._task_id} exists!"
-            )
-        db_task.success_count = self._success_count
-        await db_session.commit()
-        self._logger.debug(f"Incremented success count to {self._success_count}")
-
     async def _compress_upload_and_delete_data_written_to_current_output_file(
         self, db_session: AsyncDBSession
     ):
@@ -354,7 +354,6 @@ class TaskProcessor[T: JSONValue](ABC):
     async def _write_output(self, output: Any, db_session: AsyncDBSession):
         try:
             self._output_file.write(json.dumps(output) + "\n")
-            await self._increment_success_count(db_session)
             self._logger.debug(f"Wrote output to {self._output_fp}")
         except Exception as e:
             self._handle_failure(output)
@@ -384,14 +383,12 @@ class SequentialTaskProcessor[T: JSONValue](TaskProcessor[T]):
         self,
         task_id: int,
         fetch_fn: SingleItemFetchFunction[T],
-        written_successfully_previously: int = 0,
         compression_file_size_limit_bytes: int = (
             500 * 1024 * 1024
         ),  # assuming 3:1 compression ratio, this should result in 500 MB files
     ):
         super().__init__(
             task_id,
-            written_successfully_previously=written_successfully_previously,
             compression_file_size_limit_bytes=compression_file_size_limit_bytes,
         )
         self._fetch_fn = fetch_fn
@@ -430,14 +427,12 @@ class BatchTaskProcessor[T: JSONValue](TaskProcessor[T]):
         task_id: int,
         fetch_fn: BatchFetchFunction[T],
         batch_size: int,
-        written_successfully_previously: int = 0,
         compression_file_size_limit_bytes: int = (
             500 * 1024 * 1024
         ),  # assuming 3:1 compression ratio, this should result in 500 MB files
     ):
         super().__init__(
             task_id,
-            written_successfully_previously=written_successfully_previously,
             compression_file_size_limit_bytes=compression_file_size_limit_bytes,
         )
         self._fetch_fn = fetch_fn
