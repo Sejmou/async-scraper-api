@@ -6,8 +6,8 @@
 </script>
 
 <PageHeading heading="DuckDB Demo" text="A demonstration of DuckDB WASM." />
-{#if duckDB.state === 'ready'}
-	<DuckDBConsole duckDB={duckDB.db} />
+{#if duckDB.value.state === 'ready'}
+	<DuckDBConsole duckDB={duckDB.value.db} />
 {:else}
 	<p>loading...</p>
 {/if}

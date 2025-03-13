@@ -1,15 +1,15 @@
 <script lang="ts">
-	import { type DuckDBWrapper, type QueryOutputRowMajor } from '$lib/duckdb.svelte';
+	import { type DuckDB, type QueryOutputRowMajor } from '$lib/duckdb.svelte';
 	import { truncate } from '$lib/utils';
 	import { type Message, MessageAlert } from '$lib/components/ui/message-alert';
 	import Textarea from './ui/textarea/textarea.svelte';
 
-	let { duckDB }: { duckDB: DuckDBWrapper } = $props();
+	let { duckDB }: { duckDB: DuckDB } = $props();
 	let inputStr: string = $state('');
 	let message: Message | null = $state(null);
 	let result: QueryOutputRowMajor | null = $state(null);
 
-	const processQueries = async (duckDB: DuckDBWrapper, raw_str: string) => {
+	const processQueries = async (duckDB: DuckDB, raw_str: string) => {
 		try {
 			if (!raw_str) {
 				result = null;

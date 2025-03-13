@@ -2,12 +2,19 @@ import { browser } from '$app/environment';
 import * as duckdb from '@duckdb/duckdb-wasm';
 import { type JSONSerializableValue } from './utils';
 
-export type DuckDBWrapper = {
+export type DuckDB = {
+	/**
+	 * Creates a DuckDB table from the provided file.
+	 *
+	 * @param file A file to create a table from. All formats supported by DuckDB should work. Additionally, .txt files are converted to single-column CSV for the import process.
+	 * @param tableName The name of the table to create.
+	 * @returns A promise that resolves when the table has been created.
+	 */
+	createTableFromFile: (file: File, tableName: string) => Promise<void>;
 	executeQuery: (query: string) => Promise<QueryOutputRowMajor>;
 	getRowCount: (tableName: string) => Promise<number>;
 	createTableFromJSON: (data: JSONSerializableValue[], tableName: string) => Promise<void>;
 };
-
 export type QueryOutputRowMajor = QueryResultRowMajor | QueryExecutionError;
 export type QueryOutputColumnMajor = QueryResultColumnMajor | QueryExecutionError;
 
@@ -31,24 +38,28 @@ export type QueryResultColumnMajor = {
 	};
 };
 
-type DBState =
+type DuckDBState =
 	| {
 			state: 'loading';
 			progress: number;
 	  }
 	| {
 			state: 'ready';
-			db: DuckDBWrapper;
+			db: DuckDB;
 	  }
 	| {
 			state: 'error';
 			error: Error;
 	  };
 
-let duckDB = $state<DBState>({ state: 'loading', progress: 0 });
+let duckDB = $state<DuckDBState>({ state: 'loading', progress: 0 });
 
-export function getDuckDB(): DBState {
-	return duckDB;
+export function getDuckDB() {
+	return {
+		get value() {
+			return duckDB;
+		}
+	};
 }
 
 /**
@@ -91,7 +102,7 @@ const createDuckDB = async () => {
 const handleInstantiationProgress = (progress: duckdb.InstantiationProgress) => {
 	const { bytesLoaded, bytesTotal } = progress;
 	const progressPercentage = bytesLoaded / bytesTotal;
-	console.log(`DuckDB instantiation progress: ${Math.round(progressPercentage * 100)}%`);
+	// console.log(`DuckDB instantiation progress: ${Math.round(progressPercentage * 100)}%`);
 	duckDB = { state: 'loading', progress: progressPercentage };
 };
 
@@ -108,10 +119,35 @@ if (browser) {
 	dbInternal
 		.instantiate(bundle.mainModule, bundle.pthreadWorker, handleInstantiationProgress)
 		.then(() => {
-			console.log('DuckDB instance ready');
+			// console.log('DuckDB instance ready');
 			duckDB = {
 				state: 'ready',
 				db: {
+					createTableFromFile: async (
+						file: File,
+						tableName: string,
+						first_csv_line_contains_headers = false
+					) => {
+						const fileName = file.name.endsWith('.txt') ? 'file.csv' : file.name;
+						await dbInternal.dropFile(fileName);
+						await dbInternal.registerFileHandle(
+							fileName,
+							file,
+							duckdb.DuckDBDataProtocol.BROWSER_FILEREADER,
+							true
+						);
+
+						const conn = await dbInternal.connect();
+						await conn.query(`DROP TABLE IF EXISTS ${tableName}`);
+						if (fileName.endsWith('.csv')) {
+							conn.query(
+								`CREATE TABLE ${tableName} AS SELECT * FROM read_csv('${fileName}', header=${first_csv_line_contains_headers})`
+							);
+						} else {
+							await conn.query(`CREATE TABLE ${tableName} AS SELECT * FROM '${fileName}'`);
+						}
+						conn.close();
+					},
 					executeQuery: async (query: string) => executeQueryRowMajor(dbInternal, query),
 					getRowCount: async (tableName: string) => {
 						const res = await executeQueryRowMajor(
