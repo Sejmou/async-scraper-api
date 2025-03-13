@@ -25,7 +25,7 @@
 					title: `Executing query${queryCountStr}`,
 					text: truncate(query, 255)
 				};
-				const out = await duckDB.executeQuery(query);
+				const out = await duckDB.executeQueryRowMajor(query);
 				if (out.type === 'result') {
 					console.log('got query result', result);
 					result = out;

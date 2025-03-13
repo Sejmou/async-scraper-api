@@ -7,7 +7,7 @@
 	import { type SuperValidated, type Infer, superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import { MessageAlert } from '$lib/components/ui/message-alert';
-	import InputExtractor from '$lib/components/input-extractor.svelte';
+	import { InputExtractor } from '$lib/components/input-extractor';
 
 	let { tracksPayloadForm }: { tracksPayloadForm: SuperValidated<Infer<TracksPayloadSchema>> } =
 		$props();

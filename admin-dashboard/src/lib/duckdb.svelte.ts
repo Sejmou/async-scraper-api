@@ -11,7 +11,8 @@ export type DuckDB = {
 	 * @returns A promise that resolves when the table has been created.
 	 */
 	createTableFromFile: (file: File, tableName: string) => Promise<void>;
-	executeQuery: (query: string) => Promise<QueryOutputRowMajor>;
+	executeQueryRowMajor: (query: string) => Promise<QueryOutputRowMajor>;
+	executeQueryColumnMajor: (query: string) => Promise<QueryOutputColumnMajor>;
 	getRowCount: (tableName: string) => Promise<number>;
 	createTableFromJSON: (data: JSONSerializableValue[], tableName: string) => Promise<void>;
 };
@@ -148,7 +149,8 @@ if (browser) {
 						}
 						conn.close();
 					},
-					executeQuery: async (query: string) => executeQueryRowMajor(dbInternal, query),
+					executeQueryRowMajor: async (query: string) => executeQueryRowMajor(dbInternal, query),
+					executeQueryColumnMajor: async (query: string) => executeQueryColMajor(dbInternal, query),
 					getRowCount: async (tableName: string) => {
 						const res = await executeQueryRowMajor(
 							dbInternal,
