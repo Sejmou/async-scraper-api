@@ -1,15 +1,15 @@
 <script lang="ts">
-	import FileInput from '../ui/file-input/file-input.svelte';
-	import { Label } from '../ui/label';
-	import * as Dialog from '../ui/dialog';
-	import { buttonVariants } from '../ui/button';
 	import { getDuckDB } from '$lib/duckdb.svelte';
-	import { extractedColumnsSchema, type FileColumnPreviewColumns } from '.';
-	import InputFileColumnsPreview from './input-file-columns-preview.svelte';
-	import type { JSONSerializableValue } from '$lib/utils';
+	import { duckDBTableDescribeColumnsSchema, type FileSchemaPreviewColumns } from '.';
+	import InputFileColumnsPreview from './input-file-schema-preview.svelte';
+	import { FileInput } from '$lib/components/ui/file-input';
+	import { Label } from '$lib/components/ui/label';
+	import * as Alert from '$lib/components/ui/alert';
+	import CircleAlert from 'lucide-svelte/icons/circle-alert';
+	import ImportQueryEditor from './import-query-editor.svelte';
 
 	let duckDB = getDuckDB();
-	let detectedColumns: FileColumnPreviewColumns[] | null = $state(null);
+	let detectedColumns: FileSchemaPreviewColumns[] | null = $state(null);
 
 	const handleFileInput = async (event: Event) => {
 		if (duckDB.value.state !== 'ready') {
@@ -42,7 +42,7 @@
 		await db.createTableFromFile(file, 'inputs');
 		const result = await db.executeQueryRowMajor('DESCRIBE inputs');
 		if (result.type === 'result') {
-			const extractedColumnsDuckDB = extractedColumnsSchema.parse(result.data);
+			const extractedColumnsDuckDB = duckDBTableDescribeColumnsSchema.parse(result.data);
 			if (extractedColumnsDuckDB.length === 0) {
 				alert('No columns detected in the file. Please try again.');
 				return;
@@ -68,39 +68,37 @@
 		}
 		console.log(result);
 	};
-
-	let {
-		value = $bindable([]),
-		inputDescription
-	}: { value: JSONSerializableValue[]; inputDescription: string } = $props();
 </script>
 
 <div class="grid w-full max-w-sm items-center gap-1.5">
-	<Label for="ids-file">{inputDescription}</Label>
-	<Dialog.Root>
-		<Dialog.Trigger class={buttonVariants({ variant: 'outline' })}>Add</Dialog.Trigger>
-		<Dialog.Content class="max-w-screen-md">
-			<Dialog.Header>
-				<Dialog.Title>Add {inputDescription}</Dialog.Title>
-				<Dialog.Description>
-					You can extract them from a file (<code>.txt</code>, <code>.csv</code>, or
-					<code>.parquet</code>) or by copy-pasting them into a text area.
-				</Dialog.Description>
-			</Dialog.Header>
-			<h2 class="text-xl font-semibold">File with input data</h2>
-			<div class="grid w-full max-w-sm items-center gap-1.5">
-				<Label for="ids-file">Select a file</Label>
-				<FileInput
-					disabled={duckDB.value.state !== 'ready'}
-					oninput={handleFileInput}
-					id="ids-file"
-					type="file"
-				/>
-			</div>
-			{#if detectedColumns !== null}
-				<h2 class="text-xl font-semibold">Relevant columns</h2>
-				<InputFileColumnsPreview data={detectedColumns} />
-			{/if}
-		</Dialog.Content>
-	</Dialog.Root>
+	<Label for="ids-file">Select a file</Label>
+	<FileInput
+		disabled={duckDB.value.state !== 'ready'}
+		oninput={handleFileInput}
+		id="ids-file"
+		type="file"
+	/>
 </div>
+{#if detectedColumns !== null}
+	<h2 class="text-lg font-semibold">Detected columns</h2>
+	<InputFileColumnsPreview data={detectedColumns} />
+	<h2 class="text-lg font-semibold">Import query</h2>
+	<span class="text-sm"
+		>Enter a DuckDB SQL query (<code>SELECT ...</code>) to import the data from the file. It should
+		produce results of type <code>string</code>.</span
+	>
+	{#if duckDB.value.state === 'ready'}
+		<Alert.Root>
+			<CircleAlert class="size-4" />
+			<Alert.Title>Hint</Alert.Title>
+			<Alert.Description>Use the detected schema/columns for reference.</Alert.Description>
+		</Alert.Root>
+		<ImportQueryEditor duckDB={duckDB.value.db} />
+	{:else}
+		<Alert.Root variant="destructive">
+			<CircleAlert class="size-4" />
+			<Alert.Title>Error</Alert.Title>
+			<Alert.Description>Cannot process your file yet. Please try again later.</Alert.Description>
+		</Alert.Root>
+	{/if}
+{/if}

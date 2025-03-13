@@ -7,7 +7,8 @@
 	import { type SuperValidated, type Infer, superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import { MessageAlert } from '$lib/components/ui/message-alert';
-	import InputExtractor from '$lib/components/input-extractor/input-extractor.svelte';
+	import InputExtractor from '$lib/components/input-extractor/root.svelte';
+	import { z } from 'zod';
 
 	let { artistsPayloadForm }: { artistsPayloadForm: SuperValidated<Infer<ArtistsPayloadSchema>> } =
 		$props();
@@ -31,7 +32,10 @@
 			{#snippet children({ props })}
 				<InputExtractor
 					{...props}
-					bind:value={$formData.artist_ids}
+					onInputsExtracted={(inputs) => {
+						$formData.artist_ids = inputs;
+					}}
+					inputSchema={z.string()}
 					inputDescription="Artist IDs"
 				/>
 			{/snippet}

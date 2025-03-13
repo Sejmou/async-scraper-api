@@ -1,18 +1,16 @@
 <script lang="ts">
-	import { type ColumnDef, type RowSelectionState, getCoreRowModel } from '@tanstack/table-core';
+	import { type ColumnDef, getCoreRowModel } from '@tanstack/table-core';
 	import * as Table from '$lib/components/ui/table';
 	import { createSvelteTable, FlexRender } from '$lib/components/ui/data-table';
-	import { type FileColumnPreviewColumns } from '.';
-	import * as Alert from '$lib/components/ui/alert';
-	import CircleAlert from 'lucide-svelte/icons/circle-alert';
+	import { type FileSchemaPreviewColumns } from '.';
 
 	let {
 		data
 	}: {
-		data: FileColumnPreviewColumns[];
+		data: FileSchemaPreviewColumns[];
 	} = $props();
 
-	const columnDefs: ColumnDef<FileColumnPreviewColumns, string>[] = [
+	const columnDefs: ColumnDef<FileSchemaPreviewColumns, string>[] = [
 		{
 			accessorKey: 'name',
 			header: 'Column Name'
@@ -23,53 +21,15 @@
 		}
 	];
 
-	let rowSelection = $state<RowSelectionState>({});
-
 	const table = createSvelteTable({
 		get data() {
 			return data;
 		},
 		columns: columnDefs,
-		onRowSelectionChange: (updater) => {
-			console.log(updater);
-			if (typeof updater === 'function') {
-				rowSelection = updater(rowSelection);
-			} else {
-				rowSelection = updater;
-			}
-		},
-		state: {
-			get rowSelection() {
-				return rowSelection;
-			}
-		},
 		getCoreRowModel: getCoreRowModel()
-	});
-
-	let selectedCols: string[] = $state([]);
-
-	$inspect(rowSelection);
-
-	$effect(() => {
-		const selectedRowIdxs = Object.keys(rowSelection).map(Number);
-		selectedCols = selectedRowIdxs.map((idx) => data[idx].name);
 	});
 </script>
 
-<Alert.Root>
-	<CircleAlert class="size-4" />
-	<Alert.Title>File contains multiple columns</Alert.Title>
-	<Alert.Description>
-		Please select which column you want to extract the data from.
-	</Alert.Description>
-</Alert.Root>
-<div class="flex-1">
-	{#if selectedCols.length > 0}
-		Selected columns: {selectedCols.join(', ')}
-	{:else}
-		No columns selected.
-	{/if}
-</div>
 <div class="rounded-md border">
 	<Table.Root>
 		<Table.Header>
