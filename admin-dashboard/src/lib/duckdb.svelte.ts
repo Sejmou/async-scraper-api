@@ -22,11 +22,12 @@ export type DuckDBAPI = {
 export type QueryOutputRowMajor = QueryResultRowMajor | QueryExecutionError;
 export type QueryOutputColumnMajor = QueryResultColumnMajor | QueryExecutionError;
 
-type QueryExecutionError = {
+export type QueryExecutionError = {
 	type: 'error';
 	message: string;
 	error?: Error;
 };
+
 export type QueryResultRowMajor = {
 	type: 'result';
 	columns: string[];

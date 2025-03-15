@@ -1,5 +1,9 @@
 <script lang="ts" generics="T extends z.ZodSchema">
-	import { type DuckDBAPI, type QueryOutputRowMajor } from '$lib/duckdb.svelte';
+	import {
+		type DuckDBAPI,
+		type QueryOutputRowMajor,
+		type QueryExecutionError
+	} from '$lib/duckdb.svelte';
 	import { truncate } from '$lib/utils';
 	import { type Message, ConsoleMessageAlert } from '$lib/components/ui/console-message-alert';
 	import Textarea from '$lib/components/ui/textarea/textarea.svelte';
@@ -8,23 +12,42 @@
 	import { Button } from '$lib/components/ui/button';
 	// import ImportedInputsViewer from '../imported-inputs-viewer.svelte';
 	import DuckDBTableViewer from '$lib/components/duckdb-table-viewer.svelte';
+	import { error } from '@sveltejs/kit';
 
 	let { db, ieState }: { db: DuckDBAPI; ieState: InputExtractorState<T> } = $props();
 	let { inputSchema } = ieState;
 
 	let importSqlStr: string = $state('');
 	let message: Message | null = $state(null);
-	let result: QueryOutputRowMajor | null = $state(null);
-	$inspect(result);
+	const resultsTableName = 'tmp_query_results';
+	let resultsComputed = $state(false);
 
 	const processQueries = async (db: DuckDBAPI, raw_str: string) => {
+		resultsComputed = false;
+		if (!raw_str) {
+			message = null;
+			return;
+		}
+
 		try {
-			if (!raw_str) {
-				result = null;
-				message = null;
-				return;
-			}
+			await db.executeQueryRowMajor(`DROP TABLE IF EXISTS ${resultsTableName}`);
+
 			const queries = raw_str.split(';').filter((str) => str.trim().length > 1);
+
+			const handleQueryError: (queryCountStr: string, error: QueryExecutionError) => void = (
+				queryCountStr,
+				error
+			) => {
+				const msg = error.message;
+				console.error(msg);
+				resultsComputed = false;
+				message = {
+					type: 'error',
+					title: `Error executing query${queryCountStr}`,
+					text: msg
+				};
+			};
+
 			for (let i = 0; i < queries.length; i++) {
 				const queryCountStr = queries.length > 1 ? ` (${i + 1}/${queries.length})` : '';
 				const query = queries[i]!;
@@ -33,20 +56,24 @@
 					title: `Executing query${queryCountStr}`,
 					text: truncate(query, 255)
 				};
-				const out = await db.executeQueryRowMajor(query);
-				if (out.type === 'result') {
-					// console.log('got query result', result);
-					result = out;
-					message = null;
-				}
-				if (out.type === 'error') {
-					console.error(out.message);
-					result = null;
-					message = {
-						type: 'error',
-						title: `Error executing query${queryCountStr}`,
-						text: out.message
-					};
+
+				const isLastQuery = i === queries.length - 1;
+				if (!isLastQuery) {
+					const out = await db.executeQueryRowMajor(query);
+					// only care about result of last query!
+					if (out.type === 'error') {
+						handleQueryError(queryCountStr, out);
+						return;
+					}
+				} else {
+					const out = await db.executeQueryRowMajor(`CREATE TABLE ${resultsTableName} AS ${query}`);
+					if (out.type === 'result') {
+						resultsComputed = true;
+						message = null;
+					} else {
+						handleQueryError(queryCountStr, out);
+						return;
+					}
 				}
 			}
 		} catch (e) {
@@ -56,7 +83,7 @@
 				title: 'Error processing queries',
 				text: e instanceof Error ? e.message : String(e)
 			};
-			result = null;
+			resultsComputed = false;
 		}
 	};
 
@@ -83,8 +110,8 @@
 	<Button>Run (Ctrl + Enter)</Button>
 </div>
 <h3 class="text-lg font-semibold">Results</h3>
-{#if result !== null && result.type === 'result'}
-	<DuckDBTableViewer queryResults={result} />
+{#if resultsComputed}
+	<DuckDBTableViewer tableName={resultsTableName} {db} />
 {:else}
 	<p class="text-sm">
 		Adapt the SQL code above to produce the input values and run it. Results will be displayed here.
