@@ -17,6 +17,7 @@
 		rowDescSingular?: string;
 		rowDescPlural?: string;
 		rowCount: number;
+		pagination: PaginationState;
 		onPaginationChange: OnChangeFn<PaginationState>;
 	};
 
@@ -25,6 +26,7 @@
 		columns,
 		rowCount,
 		onPaginationChange,
+		pagination,
 		// by specifying default values, our typechecker knows that the optional props cannot be undefined <3
 		paginationPageSize = 10,
 		rowDescSingular = 'row',
@@ -33,11 +35,6 @@
 	if (paginationPageSize < 1) {
 		throw new Error('paginationPageSize must be greater than 0');
 	}
-
-	let pagination = $state<PaginationState>({
-		pageIndex: 0,
-		pageSize: paginationPageSize
-	});
 
 	const table = createSvelteTable({
 		get data() {
@@ -68,7 +65,6 @@
 	let rowCountAndDesc = $derived(
 		`${rowCount} ` + (rowCount === 1 ? rowDescSingular : rowDescPlural)
 	);
-	$inspect({ rowCount, pageIndex, paginationPageSize, pageCount });
 </script>
 
 <div class="w-full">

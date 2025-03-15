@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { DuckDBAPI, QueryOutputRowMajor } from '$lib/duckdb.svelte';
+	import type { DuckDBAPI, QueryOutputRowMajor, QueryResultRowMajor } from '$lib/duckdb.svelte';
 	import DataTableExternalPagination from '$lib/components/ui/data-table-external-pagination.svelte';
 	import { type OnChangeFn, type PaginationState } from '@tanstack/table-core';
 
@@ -19,26 +19,44 @@
 		}
 	};
 
+	type ChunkData = { dataQueryRes: QueryResultRowMajor; totalRowCount: number };
+
 	$effect(() => {
-		db.executeQueryRowMajor(
-			`SELECT * FROM ${tableName} LIMIT ${pagination.pageSize} OFFSET ${offset}`
-		).then((out) => (queryOutput = out));
+		async function fetchChunkData(): Promise<ChunkData> {
+			const [chunkQueryRes, totalRowCount] = await Promise.all([
+				db
+					.executeQueryRowMajor(
+						`SELECT * FROM ${tableName} LIMIT ${pagination.pageSize} OFFSET ${offset}`
+					)
+					.then((out) => {
+						if (out.type === 'result') {
+							return out;
+						}
+						console.error('Error fetching table chunk', out.error);
+						throw out.error;
+					}),
+				db.getRowCount(tableName)
+			]);
+			return { dataQueryRes: chunkQueryRes, totalRowCount };
+		}
+		fetchChunkData().then((data) => (chunkData = data));
 	});
 
-	let queryOutput: QueryOutputRowMajor | null = $state(null);
+	let chunkData: ChunkData | null = $state(null);
 </script>
 
 <!-- TanStack table (used by DataTableExternalPagination under the hood) is not able to respond to column/schema changes
  Need to use the key expression to rerender the table if the result columns array changes -->
-{#if queryOutput && queryOutput.type === 'result'}
-	{@const data = queryOutput.data}
-	{@const columns = queryOutput.columns.map((col) => ({ accessorKey: col, header: col }))}
-	{#key columns}
-		<DataTableExternalPagination
-			{columns}
-			{data}
-			rowCount={data.length}
-			onPaginationChange={handlePaginationChange}
-		/>
-	{/key}
+{#if chunkData}
+	{@const columns = chunkData.dataQueryRes.columns.map((col) => ({
+		accessorKey: col,
+		header: col
+	}))}
+	<DataTableExternalPagination
+		{columns}
+		{pagination}
+		data={chunkData.dataQueryRes.data}
+		rowCount={chunkData.totalRowCount}
+		onPaginationChange={handlePaginationChange}
+	/>
 {/if}
