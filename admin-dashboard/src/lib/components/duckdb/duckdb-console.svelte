@@ -1,16 +1,29 @@
 <script lang="ts">
-	import { type DuckDBAPI, type QueryExecutionError } from '$lib/duckdb.svelte';
+	import {
+		type DuckDBAPI,
+		type QueryExecutionError,
+		type QueryOutputRowMajor
+	} from '$lib/duckdb.svelte';
 	import { truncate } from '$lib/utils';
 	import { type Message, ConsoleMessageAlert } from '$lib/components/ui/console-message-alert';
 	import Textarea from '$lib/components/ui/textarea/textarea.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import DuckDBTableViewer from '$lib/components/duckdb/duckdb-table-viewer.svelte';
 
-	let { db }: { db: DuckDBAPI } = $props();
+	let {
+		db,
+		resultsTableName = 'tmp_query_results',
+		onOutput = () => {},
+		onError = () => {}
+	}: {
+		db: DuckDBAPI;
+		resultsTableName?: string;
+		onOutput?: (output: QueryOutputRowMajor) => void;
+		onError?: (error: QueryExecutionError) => void;
+	} = $props();
 
 	let importSqlStr: string = $state('');
 	let message: Message | null = $state(null);
-	const resultsTableName = 'tmp_query_results';
 	let resultsComputed = $state(false);
 
 	const processQueries = async (db: DuckDBAPI, raw_str: string) => {
@@ -37,6 +50,7 @@
 					title: `Error executing query${queryCountStr}`,
 					text: msg
 				};
+				onError(error);
 			};
 
 			for (let i = 0; i < queries.length; i++) {
@@ -61,6 +75,7 @@
 					if (out.type === 'result') {
 						resultsComputed = true;
 						message = null;
+						onOutput(out);
 					} else {
 						handleQueryError(queryCountStr, out);
 						return;
@@ -98,7 +113,7 @@
 	rows={20}
 />
 <div class="flex w-full justify-end">
-	<Button>Run (Ctrl + Enter)</Button>
+	<Button onclick={() => processQueries(db, importSqlStr)}>Run (Ctrl + Enter)</Button>
 </div>
 <h3 class="text-lg font-semibold">Results</h3>
 {#if resultsComputed}

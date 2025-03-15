@@ -32,12 +32,13 @@
 			{#snippet children({ props })}
 				<InputExtractor
 					{...props}
+					inputDescription="Artist IDs"
+					inputSchema={z.string()}
 					exampleInput="06HL4z0CvFAxyc27GXpf02"
 					onInputChange={(inputs) => {
 						$formData.artist_ids = inputs;
 					}}
-					inputSchema={z.string()}
-					inputDescription="Artist IDs"
+					inputsTableName="sp_api_artist_ids"
 				/>
 			{/snippet}
 		</Form.Control>

@@ -32,10 +32,11 @@
 			{#snippet children({ props })}
 				<InputExtractor
 					{...props}
-					inputSchema={z.string()}
-					exampleInput="4PTG3Z6ehGkBFwjybzWkR8"
-					onInputChange={(inputs) => ($formData.track_ids = inputs)}
 					inputDescription="Track IDs"
+					exampleInput="4PTG3Z6ehGkBFwjybzWkR8"
+					inputSchema={z.string()}
+					onInputChange={(inputs) => ($formData.track_ids = inputs)}
+					inputsTableName="sp_api_track_ids"
 				/>
 			{/snippet}
 		</Form.Control>

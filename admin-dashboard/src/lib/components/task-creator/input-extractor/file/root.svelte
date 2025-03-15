@@ -9,6 +9,7 @@
 	import DuckDBConsole from '$lib/components/duckdb/duckdb-console.svelte';
 	import { z } from 'zod';
 	import type { InputExtractorState } from '../index.svelte';
+	import InputValidatorAndAdder from '../../input-validator-and-adder.svelte';
 
 	let { ieState }: { ieState: InputExtractorState<T> } = $props();
 
@@ -83,14 +84,16 @@
 {#if detectedColumns !== null}
 	<h2 class="text-lg font-semibold">Detected columns</h2>
 	<InputFileColumnsPreview data={detectedColumns} />
-	<h2 class="text-lg font-semibold">Import query</h2>
+	<h2 class="text-lg font-semibold">Write SQL for data extraction</h2>
 	<p class="text-sm">
-		Enter a DuckDB SQL query (<code>SELECT ...</code>) to specify how exactly the data should be
-		exported from the file. Each extracted input (i.e. row returned from the query) should match the
-		schema of the following example:
+		Enter a DuckDB SQL <code>SELECT ...</code> query (or multiple SQL queries ending with a
+		<code>SELECT</code> if preprocessing is required) to specify how exactly the data should be exported
+		from the file. Each extracted input (i.e. row returned from the query) should match the schema of
+		the following example:
 	</p>
 	<pre class="text-sm text-muted-foreground">{JSON.stringify(ieState.exampleInput, null, 2)}</pre>
 	{#if duckDB.value.state === 'ready' && detectedColumns}
+		{@const db = duckDB.value.db}
 		<Alert.Root>
 			<CircleAlert class="size-4" />
 			<Alert.Title>Hint</Alert.Title>
@@ -99,7 +102,13 @@
 				for reference.</Alert.Description
 			>
 		</Alert.Root>
-		<DuckDBConsole db={duckDB.value.db} />
+		<DuckDBConsole
+			{db}
+			resultsTableName={ieState.inputsTableName}
+			onOutput={() => (ieState.inputsTableHasData = true)}
+			onError={() => (ieState.inputsTableHasData = false)}
+		/>
+		<InputValidatorAndAdder {ieState} {db} />
 	{:else}
 		<Alert.Root variant="destructive">
 			<CircleAlert class="size-4" />
