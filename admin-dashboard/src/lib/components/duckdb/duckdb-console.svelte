@@ -104,8 +104,6 @@
 {#if resultsComputed}
 	<DuckDBTableViewer tableName={resultsTableName} {db} />
 {:else}
-	<p class="text-sm">
-		Adapt the SQL code above to produce the input values and run it. Results will be displayed here.
-	</p>
+	<p class="text-sm">Results will be displayed here.</p>
 {/if}
 <!-- <ImportedInputsViewer {inputsValid} {ieState} /> -->

@@ -5,9 +5,13 @@ import { colMajorToRowMajor, type JSONSerializableValue } from './utils';
 /**
  * A custom high-level API for DuckDB.
  */
-export type DuckDBAPI = {
-	executeQueryRowMajor: (query: string) => Promise<QueryOutputRowMajor>;
-	executeQueryColumnMajor: (query: string) => Promise<QueryOutputColumnMajor>;
+export class DuckDBAPI {
+	#db: duckdb.AsyncDuckDB;
+
+	constructor(db: duckdb.AsyncDuckDB) {
+		this.#db = db;
+	}
+
 	/**
 	 * Creates a DuckDB table from the provided file.
 	 *
@@ -15,10 +19,104 @@ export type DuckDBAPI = {
 	 * @param tableName The name of the table to create.
 	 * @returns A promise that resolves when the table has been created.
 	 */
-	createTableFromFile: (file: File, tableName: string) => Promise<void>;
-	createTableFromJSON: (data: JSONSerializableValue[], tableName: string) => Promise<void>;
-	getRowCount: (tableName: string) => Promise<number>;
-};
+	async createTableFromFile(
+		file: File,
+		tableName: string,
+		first_csv_line_contains_headers = false
+	) {
+		const fileName = file.name.endsWith('.txt') ? 'file.csv' : file.name;
+		await dbInternal.dropFile(fileName);
+		await dbInternal.registerFileHandle(
+			fileName,
+			file,
+			duckdb.DuckDBDataProtocol.BROWSER_FILEREADER,
+			true
+		);
+
+		const conn = await dbInternal.connect();
+		await conn.query(`DROP TABLE IF EXISTS ${tableName}`);
+		if (fileName.endsWith('.csv')) {
+			conn.query(
+				`CREATE TABLE ${tableName} AS SELECT * FROM read_csv('${fileName}', header=${first_csv_line_contains_headers})`
+			);
+		} else {
+			await conn.query(`CREATE TABLE ${tableName} AS SELECT * FROM '${fileName}'`);
+		}
+		conn.close();
+	}
+
+	async executeQueryColMajor(query: string): Promise<QueryOutputColumnMajor> {
+		const c = await this.#db.connect();
+		try {
+			// could type the result object(s) here if query were known statically
+			// e.g. using c.query<{count: Int }>(...) instead of c.query(...) for query "SELECT COUNT(*) FROM ..."
+			const resultTable = await c.query(query);
+			const columns = resultTable.schema.fields.map((d) => d.name);
+			const data: Record<string, JSONSerializableValue[]> = {};
+			for (const col of columns) {
+				data[col] = resultTable.getChild(col)!.toJSON();
+			}
+			const result: QueryResultColumnMajor = {
+				type: 'result',
+				columns,
+				data
+			};
+			await c.close();
+			return result;
+		} catch (error) {
+			await c.close();
+			if (error instanceof Error) {
+				return {
+					type: 'error',
+					message: error.message,
+					error
+				};
+			} else {
+				console.error('Encountered a non-Error type while executing DuckDB query:', error);
+				return {
+					type: 'error',
+					message:
+						'Something went wrong while executing the query in DuckDB. Check the browser console for details.'
+				};
+			}
+		}
+	}
+
+	async executeQueryRowMajor(query: string): Promise<QueryOutputRowMajor> {
+		const result = await this.executeQueryColMajor(query);
+		if (result.type === 'error') {
+			return result;
+		}
+		const { columns, data: dataColMajor } = result;
+		const data = colMajorToRowMajor(dataColMajor);
+		return {
+			type: 'result',
+			columns,
+			data
+		};
+	}
+
+	async getRowCount(tableName: string) {
+		const res = await this.executeQueryRowMajor(`SELECT COUNT(*) AS count FROM ${tableName}`);
+		if (res.type === 'result') {
+			return Number(res.data[0]!.count);
+		} else {
+			throw Error(`Row count query for table ${tableName} failed. It probably does not exist!`);
+		}
+	}
+
+	/**
+	 * Creates a new table in DuckDB from a JSON array.
+	 */
+	async createArrayFromJSON(data: JSONSerializableValue[], tableName: string) {
+		await this.#db.registerFileText('rows.json', JSON.stringify(data));
+		const c = await this.#db.connect();
+		await c.query(`DROP TABLE IF EXISTS ${tableName}`);
+		await c.query(`CREATE TABLE ${tableName} AS SELECT * FROM 'rows.json'`);
+		c.close();
+	}
+}
+
 export type QueryOutputRowMajor = QueryResultRowMajor | QueryExecutionError;
 export type QueryOutputColumnMajor = QueryResultColumnMajor | QueryExecutionError;
 
@@ -127,126 +225,11 @@ if (browser) {
 			// console.log('DuckDB instance ready');
 			duckDB = {
 				state: 'ready',
-				db: {
-					createTableFromFile: async (
-						file: File,
-						tableName: string,
-						first_csv_line_contains_headers = false
-					) => {
-						const fileName = file.name.endsWith('.txt') ? 'file.csv' : file.name;
-						await dbInternal.dropFile(fileName);
-						await dbInternal.registerFileHandle(
-							fileName,
-							file,
-							duckdb.DuckDBDataProtocol.BROWSER_FILEREADER,
-							true
-						);
-
-						const conn = await dbInternal.connect();
-						await conn.query(`DROP TABLE IF EXISTS ${tableName}`);
-						if (fileName.endsWith('.csv')) {
-							conn.query(
-								`CREATE TABLE ${tableName} AS SELECT * FROM read_csv('${fileName}', header=${first_csv_line_contains_headers})`
-							);
-						} else {
-							await conn.query(`CREATE TABLE ${tableName} AS SELECT * FROM '${fileName}'`);
-						}
-						conn.close();
-					},
-					executeQueryRowMajor: async (query: string) => executeQueryRowMajor(dbInternal, query),
-					executeQueryColumnMajor: async (query: string) => executeQueryColMajor(dbInternal, query),
-					getRowCount: async (tableName: string) => {
-						const res = await executeQueryRowMajor(
-							dbInternal,
-							`SELECT COUNT(*) AS count FROM ${tableName}`
-						);
-						if (res.type === 'result') {
-							return Number(res.data[0]!.count);
-						} else {
-							throw Error(
-								`Row count query for table ${tableName} failed. It probably does not exist!`
-							);
-						}
-					},
-					createTableFromJSON: async (data: JSONSerializableValue[], tableName: string) =>
-						jsonArrayToTable(dbInternal, data, tableName)
-				}
+				db: new DuckDBAPI(dbInternal)
 			};
 		})
 		.catch((error) => {
 			console.error('Error instantiating DuckDB:', error);
 			duckDB = { state: 'error', error };
 		});
-}
-
-async function executeQueryColMajor(
-	db: duckdb.AsyncDuckDB,
-	query: string
-): Promise<QueryOutputColumnMajor> {
-	const c = await db.connect();
-	try {
-		// could type the result object(s) here if query were known statically
-		// e.g. using c.query<{count: Int }>(...) instead of c.query(...) for query "SELECT COUNT(*) FROM ..."
-		const resultTable = await c.query(query);
-		const columns = resultTable.schema.fields.map((d) => d.name);
-		const data: Record<string, JSONSerializableValue[]> = {};
-		for (const col of columns) {
-			data[col] = resultTable.getChild(col)!.toJSON();
-		}
-		const result: QueryResultColumnMajor = {
-			type: 'result',
-			columns,
-			data
-		};
-		await c.close();
-		return result;
-	} catch (error) {
-		await c.close();
-		if (error instanceof Error) {
-			return {
-				type: 'error',
-				message: error.message,
-				error
-			};
-		} else {
-			console.error('Encountered a non-Error type while executing DuckDB query:', error);
-			return {
-				type: 'error',
-				message:
-					'Something went wrong while executing the query in DuckDB. Check the browser console for details.'
-			};
-		}
-	}
-}
-
-async function executeQueryRowMajor(
-	db: duckdb.AsyncDuckDB,
-	query: string
-): Promise<QueryOutputRowMajor> {
-	const result = await executeQueryColMajor(db, query);
-	if (result.type === 'error') {
-		return result;
-	}
-	const { columns, data: dataColMajor } = result;
-	const data = colMajorToRowMajor(dataColMajor);
-	return {
-		type: 'result',
-		columns,
-		data
-	};
-}
-
-/**
- * Creates a new table in DuckDB from a JSON array.
- */
-async function jsonArrayToTable(
-	db: duckdb.AsyncDuckDB,
-	data: JSONSerializableValue[],
-	tableName: string
-) {
-	await db.registerFileText('rows.json', JSON.stringify(data));
-	const c = await db.connect();
-	await c.query(`DROP TABLE IF EXISTS ${tableName}`);
-	await c.query(`CREATE TABLE ${tableName} AS SELECT * FROM 'rows.json'`);
-	c.close();
 }
