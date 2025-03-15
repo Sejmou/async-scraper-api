@@ -7,7 +7,7 @@
 	import type { InputExtractorState } from '$lib/components/task-creator/input-extractor/index.svelte';
 	import { Button } from '$lib/components/ui/button';
 	// import ImportedInputsViewer from '../imported-inputs-viewer.svelte';
-	import DuckDBQueryResultsTable from '$lib/components/duckdb-query-results-table.svelte';
+	import DuckDBTableViewer from '$lib/components/duckdb-table-viewer.svelte';
 
 	let { db, ieState }: { db: DuckDBAPI; ieState: InputExtractorState<T> } = $props();
 	let { inputSchema } = ieState;
@@ -84,7 +84,7 @@
 </div>
 <h3 class="text-lg font-semibold">Results</h3>
 {#if result !== null && result.type === 'result'}
-	<DuckDBQueryResultsTable queryResults={result} />
+	<DuckDBTableViewer queryResults={result} />
 {:else}
 	<p class="text-sm">
 		Adapt the SQL code above to produce the input values and run it. Results will be displayed here.
