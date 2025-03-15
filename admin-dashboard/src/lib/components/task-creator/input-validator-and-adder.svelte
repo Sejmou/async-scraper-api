@@ -9,9 +9,12 @@
 
 	let { ieState, db }: { ieState: InputExtractorState<T>; db: DuckDBAPI } = $props();
 
+	let validating = $state(false);
 	let message: Message | null = $state(null);
 
 	let validateAndAddInputs = async () => {
+		if (validating) return;
+		validating = true;
 		const out = await db.executeQueryColMajor(`SELECT * FROM ${ieState.inputsTableName}`);
 		if (out.type === 'error') {
 			message = {
@@ -31,17 +34,22 @@
 			return;
 		}
 		const nonValidatedData = out.data[out.columns[0]];
-		console.time('validate');
-		const validatedData = z.array(ieState.inputSchema).parse(nonValidatedData);
-		console.timeEnd('validate');
-		message = {
-			type: 'success',
-			title: 'Inputs validated',
-			text: 'Inputs have been successfully validated and added to the task :)'
-		};
-		console.time('set');
-		ieState.inputs = validatedData;
-		console.timeEnd('set');
+		try {
+			const data = z.array(ieState.inputSchema).parse(nonValidatedData);
+			ieState.inputs = data;
+			message = {
+				type: 'success',
+				title: 'Inputs validated',
+				text: `${data.length} inputs have been successfully validated and added to the task :)`
+			};
+		} catch (e) {
+			message = {
+				type: 'error',
+				title: 'Error validating inputs',
+				text: e instanceof Error ? e.message : 'Unknown error (check the console)'
+			};
+		}
+		validating = false;
 	};
 </script>
 
@@ -69,6 +77,10 @@
 		task. They will have to match the expected schema (as shown in the example above).
 	{/if}
 </p>
-<Button disabled={!ieState.inputsTableHasData} onclick={validateAndAddInputs}>
-	Add Data to Task
+<Button disabled={validating || !ieState.inputsTableHasData} onclick={validateAndAddInputs}>
+	{#if ieState.inputs.length === 0}
+		Add Data to Task
+	{:else}
+		Update Task Data
+	{/if}
 </Button>

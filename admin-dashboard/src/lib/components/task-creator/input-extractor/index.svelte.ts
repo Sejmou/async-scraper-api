@@ -22,7 +22,10 @@ export type InputExtractorProps<T extends TSchema> = {
  * CAUTION: The object should only be created in the root component! All other components should receive the created state instance as a prop.
  */
 export class InputExtractorState<T extends TSchema> {
-	#inputs: z.infer<T>[] = $state([]);
+	// NOTE: using $state() (which tracks stuff in reactive fashion that works in UI) on huuuge arrays is very slow
+	// during testing, setting this.#inputs to an array of 3.5 mio. strings took around 2 minutes lol
+	// displaying this in UI is also kinda unnecessary (we already show table preview), so we don't do that here
+	#inputs: z.infer<T>[] = [];
 	#inputsTableHasData = $state(false);
 	#props: InputExtractorProps<T>;
 
