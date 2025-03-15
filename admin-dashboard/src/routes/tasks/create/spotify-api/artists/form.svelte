@@ -7,7 +7,7 @@
 	import { type SuperValidated, type Infer, superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import { MessageAlert } from '$lib/components/ui/message-alert';
-	import InputExtractor from '$lib/components/task-creator/input-extractor/root.svelte';
+	import InputExtractor from '$lib/components/task-inputs/input-extractor/root.svelte';
 	import { z } from 'zod';
 
 	let { artistsPayloadForm }: { artistsPayloadForm: SuperValidated<Infer<ArtistsPayloadSchema>> } =

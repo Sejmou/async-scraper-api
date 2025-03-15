@@ -14,10 +14,6 @@
 	let importMethod: 'file' | 'textarea' | null = $state(null);
 </script>
 
-<h3 class="text-lg font-semibold">Inputs ({inputDescription})</h3>
-<p class="text-sm text-muted-foreground">
-	{inputDescription} can be added in multiple ways. Pick the one that suits you best!
-</p>
 {#if importMethod !== null}
 	<div class="flex w-full items-center justify-between">
 		<span class="text-sm">

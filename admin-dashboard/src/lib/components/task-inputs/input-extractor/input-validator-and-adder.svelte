@@ -36,7 +36,7 @@
 		const nonValidatedData = out.data[out.columns[0]];
 		try {
 			const data = z.array(ieState.inputSchema).parse(nonValidatedData);
-			ieState.inputs = data;
+			ieState.onInputsAdded(data);
 			message = {
 				type: 'success',
 				title: 'Inputs validated',
@@ -78,9 +78,5 @@
 	{/if}
 </p>
 <Button disabled={validating || !ieState.inputsTableHasData} onclick={validateAndAddInputs}>
-	{#if ieState.inputs.length === 0}
-		Add Inputs to Task
-	{:else}
-		Update Task Inputs
-	{/if}
+	Add Inputs to Task
 </Button>
