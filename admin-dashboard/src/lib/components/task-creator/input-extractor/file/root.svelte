@@ -6,7 +6,7 @@
 	import { Label } from '$lib/components/ui/label';
 	import * as Alert from '$lib/components/ui/alert';
 	import CircleAlert from 'lucide-svelte/icons/circle-alert';
-	import ImportQueryEditor from './import-query-editor.svelte';
+	import DuckDBConsole from '$lib/components/duckdb/duckdb-console.svelte';
 	import { z } from 'zod';
 	import type { InputExtractorState } from '../index.svelte';
 
@@ -29,6 +29,7 @@
 	});
 
 	const handleFileInput = async (event: Event) => {
+		detectedColumns = null;
 		if (duckDB.value.state !== 'ready') {
 			alert('Cannot process your file yet. Please try again later.');
 			return;
@@ -61,27 +62,11 @@
 		const result = await db.executeQueryRowMajor(`DESCRIBE ${tableName}`);
 		if (result.type === 'result') {
 			const extractedColumnsDuckDB = duckDBTableDescribeColumnsSchema.parse(result.data);
-			if (extractedColumnsDuckDB.length === 0) {
-				alert('No columns detected in the file. Please try again.');
-				return;
-			} else if (extractedColumnsDuckDB.length == 1) {
-				const { column_name } = extractedColumnsDuckDB[0];
-				const inputColAlias = 'input_col';
-				const inputsQueryRes = await db.executeQueryColumnMajor(
-					`SELECT ${column_name} FROM ${tableName}`
-				);
-				if (inputsQueryRes.type === 'error') {
-					alert('Error extracting data from the file. Please try again.');
-					return;
-				}
-				const inputs = inputsQueryRes.data[inputColAlias];
-			}
 			detectedColumns = extractedColumnsDuckDB.map((row) => ({
 				name: row.column_name,
 				type: row.column_type
 			}));
 		}
-		console.log(result);
 	};
 </script>
 
@@ -100,21 +85,21 @@
 	<InputFileColumnsPreview data={detectedColumns} />
 	<h2 class="text-lg font-semibold">Import query</h2>
 	<p class="text-sm">
-		Enter a DuckDB SQL query (<code>SELECT ...</code>) to import the data from the file. Each
-		extracted input (i.e. row returned from the query) should match the schema of the following
-		example:
+		Enter a DuckDB SQL query (<code>SELECT ...</code>) to specify how exactly the data should be
+		exported from the file. Each extracted input (i.e. row returned from the query) should match the
+		schema of the following example:
 	</p>
 	<pre class="text-sm text-muted-foreground">{JSON.stringify(ieState.exampleInput, null, 2)}</pre>
-	{#if duckDB.value.state === 'ready'}
+	{#if duckDB.value.state === 'ready' && detectedColumns}
 		<Alert.Root>
 			<CircleAlert class="size-4" />
 			<Alert.Title>Hint</Alert.Title>
 			<Alert.Description
-				>Your file is available as a table called <code>inputs</code>. Use the inferred schema above
+				>The data is available as a table called <code>inputs</code>. Use the inferred schema above
 				for reference.</Alert.Description
 			>
 		</Alert.Root>
-		<ImportQueryEditor {ieState} db={duckDB.value.db} />
+		<DuckDBConsole db={duckDB.value.db} />
 	{:else}
 		<Alert.Root variant="destructive">
 			<CircleAlert class="size-4" />

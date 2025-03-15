@@ -1,21 +1,12 @@
-<script lang="ts" generics="T extends z.ZodSchema">
-	import {
-		type DuckDBAPI,
-		type QueryOutputRowMajor,
-		type QueryExecutionError
-	} from '$lib/duckdb.svelte';
+<script lang="ts">
+	import { type DuckDBAPI, type QueryExecutionError } from '$lib/duckdb.svelte';
 	import { truncate } from '$lib/utils';
 	import { type Message, ConsoleMessageAlert } from '$lib/components/ui/console-message-alert';
 	import Textarea from '$lib/components/ui/textarea/textarea.svelte';
-	import { z } from 'zod';
-	import type { InputExtractorState } from '$lib/components/task-creator/input-extractor/index.svelte';
 	import { Button } from '$lib/components/ui/button';
-	// import ImportedInputsViewer from '../imported-inputs-viewer.svelte';
-	import DuckDBTableViewer from '$lib/components/duckdb-table-viewer.svelte';
-	import { error } from '@sveltejs/kit';
+	import DuckDBTableViewer from '$lib/components/duckdb/duckdb-table-viewer.svelte';
 
-	let { db, ieState }: { db: DuckDBAPI; ieState: InputExtractorState<T> } = $props();
-	let { inputSchema } = ieState;
+	let { db }: { db: DuckDBAPI } = $props();
 
 	let importSqlStr: string = $state('');
 	let message: Message | null = $state(null);
