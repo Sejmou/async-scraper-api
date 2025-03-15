@@ -9,7 +9,7 @@
 	import DuckDBConsole from '$lib/components/duckdb/duckdb-console.svelte';
 	import { z } from 'zod';
 	import type { InputExtractorState } from '../index.svelte';
-	import InputValidatorAndAdder from '../../input-validator-and-adder.svelte';
+	import InputValidatorAndAdder from '../input-validator-and-adder.svelte';
 
 	let { ieState }: { ieState: InputExtractorState<T> } = $props();
 

@@ -35,7 +35,7 @@
 					inputDescription="Track IDs"
 					exampleInput="4PTG3Z6ehGkBFwjybzWkR8"
 					inputSchema={z.string()}
-					onInputChange={(inputs) => ($formData.track_ids = inputs)}
+					onInputsAdded={(inputs) => ($formData.track_ids = inputs)}
 					inputsTableName="sp_api_track_ids"
 				/>
 			{/snippet}

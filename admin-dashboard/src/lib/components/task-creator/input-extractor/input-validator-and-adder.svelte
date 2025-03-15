@@ -1,11 +1,11 @@
 <script lang="ts" generics="T extends z.ZodSchema">
 	import { z } from 'zod';
-	import type { InputExtractorState } from './input-extractor/index.svelte';
+	import type { InputExtractorState } from './index.svelte';
 	import type { DuckDBAPI } from '$lib/duckdb.svelte';
-	import { Button } from '../ui/button';
+	import { Button } from '../../ui/button';
 	import * as Alert from '$lib/components/ui/alert';
 	import CircleAlert from 'lucide-svelte/icons/circle-alert';
-	import type { Message } from '../ui/console-message-alert';
+	import type { Message } from '../../ui/console-message-alert';
 
 	let { ieState, db }: { ieState: InputExtractorState<T>; db: DuckDBAPI } = $props();
 
@@ -79,8 +79,8 @@
 </p>
 <Button disabled={validating || !ieState.inputsTableHasData} onclick={validateAndAddInputs}>
 	{#if ieState.inputs.length === 0}
-		Add Data to Task
+		Add Inputs to Task
 	{:else}
-		Update Task Data
+		Update Task Inputs
 	{/if}
 </Button>

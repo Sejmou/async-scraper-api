@@ -11,7 +11,7 @@ export type InputExtractorProps<T extends TSchema> = {
 	 * The name of the DuckDB table which the task inputs should temporarily be stored in before passing them to the scrapers.
 	 */
 	inputsTableName: string;
-	onInputChange: (inputs: z.infer<T>[]) => void;
+	onInputsAdded: (inputs: z.infer<T>[]) => void;
 };
 
 /**
@@ -38,7 +38,7 @@ export class InputExtractorState<T extends TSchema> {
 	}
 	set inputs(inputs: z.infer<TSchema>[]) {
 		this.#inputs = inputs;
-		this.#props.onInputChange(inputs);
+		this.#props.onInputsAdded(inputs);
 	}
 
 	get inputsTableHasData() {

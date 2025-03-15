@@ -35,7 +35,7 @@
 					inputDescription="Artist IDs"
 					inputSchema={z.string()}
 					exampleInput="06HL4z0CvFAxyc27GXpf02"
-					onInputChange={(inputs) => {
+					onInputsAdded={(inputs) => {
 						$formData.artist_ids = inputs;
 					}}
 					inputsTableName="sp_api_artist_ids"
