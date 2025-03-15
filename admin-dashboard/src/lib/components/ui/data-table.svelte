@@ -12,14 +12,15 @@
 	type DataTableProps<TData, TValue> = {
 		columns: ColumnDef<TData, TValue>[];
 		data: TData[];
-		paginationPageSize: number;
-		rowDescSingular: string;
-		rowDescPlural: string;
+		paginationPageSize?: number;
+		rowDescSingular?: string;
+		rowDescPlural?: string;
 	};
 
 	let {
 		data,
 		columns,
+		// by specifying default values, our typechecker knows that the optional props cannot be undefined <3
 		paginationPageSize = 10,
 		rowDescSingular = 'row',
 		rowDescPlural = 'rows'
