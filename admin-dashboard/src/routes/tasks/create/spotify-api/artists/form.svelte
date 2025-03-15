@@ -7,7 +7,7 @@
 	import { type SuperValidated, type Infer, superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import { MessageAlert } from '$lib/components/ui/message-alert';
-	import InputExtractor from '$lib/components/input-extractor/root.svelte';
+	import InputExtractor from '$lib/components/task-creator/input-extractor/root.svelte';
 	import { z } from 'zod';
 
 	let { artistsPayloadForm }: { artistsPayloadForm: SuperValidated<Infer<ArtistsPayloadSchema>> } =
@@ -22,7 +22,7 @@
 	let message = $state(form.message);
 </script>
 
-<form method="POST" use:enhance>
+<form class="flex h-full w-full flex-col" method="POST" use:enhance>
 	{#if $message !== undefined}
 		{@const { type, text } = $message}
 		<MessageAlert {type} {text} />
@@ -32,7 +32,8 @@
 			{#snippet children({ props })}
 				<InputExtractor
 					{...props}
-					onInputsExtracted={(inputs) => {
+					exampleInput="06HL4z0CvFAxyc27GXpf02"
+					onInputChange={(inputs) => {
 						$formData.artist_ids = inputs;
 					}}
 					inputSchema={z.string()}
@@ -40,8 +41,13 @@
 				/>
 			{/snippet}
 		</Form.Control>
-		<Form.Description>The artist IDs for which metadata should be loaded.</Form.Description>
 		<Form.FieldErrors />
 	</Form.Field>
-	<Form.Button>Add</Form.Button>
+	{#if $formData.artist_ids.length > 0}
+		<div class="flex w-full justify-end">
+			<Form.Button disabled={$formData.artist_ids.length == 0} class="mt-auto"
+				>Create Task</Form.Button
+			>
+		</div>
+	{/if}
 </form>

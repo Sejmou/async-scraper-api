@@ -1,16 +1,23 @@
-<script lang="ts">
+<script lang="ts" generics="T extends z.ZodSchema">
 	import { type DuckDBAPI, type QueryOutputRowMajor } from '$lib/duckdb.svelte';
 	import { truncate } from '$lib/utils';
 	import { type Message, ConsoleMessageAlert } from '$lib/components/ui/console-message-alert';
-	import Textarea from './ui/textarea/textarea.svelte';
-	import { Button } from './ui/button';
+	import Textarea from '$lib/components/ui/textarea/textarea.svelte';
+	import { z } from 'zod';
+	import type { InputExtractorState } from '$lib/components/task-creator/input-extractor/index.svelte';
+	import { Button } from '$lib/components/ui/button';
+	// import ImportedInputsViewer from '../imported-inputs-viewer.svelte';
+	import DuckDBQueryResultsTable from '$lib/components/duckdb-query-results-table.svelte';
 
-	let { duckDB }: { duckDB: DuckDBAPI } = $props();
-	let inputStr: string = $state('');
+	let { db, ieState }: { db: DuckDBAPI; ieState: InputExtractorState<T> } = $props();
+	let { inputSchema } = ieState;
+
+	let importSqlStr: string = $state('');
 	let message: Message | null = $state(null);
 	let result: QueryOutputRowMajor | null = $state(null);
+	$inspect(result);
 
-	const processQueries = async (duckDB: DuckDBAPI, raw_str: string) => {
+	const processQueries = async (db: DuckDBAPI, raw_str: string) => {
 		try {
 			if (!raw_str) {
 				result = null;
@@ -26,18 +33,19 @@
 					title: `Executing query${queryCountStr}`,
 					text: truncate(query, 255)
 				};
-				const out = await duckDB.executeQueryRowMajor(query);
+				const out = await db.executeQueryRowMajor(query);
 				if (out.type === 'result') {
-					console.log('got query result', result);
+					// console.log('got query result', result);
 					result = out;
 					message = null;
 				}
 				if (out.type === 'error') {
+					console.error(out.message);
 					result = null;
 					message = {
 						type: 'error',
 						title: `Error executing query${queryCountStr}`,
-						text: truncate(out.message, 512)
+						text: out.message
 					};
 				}
 			}
@@ -56,7 +64,7 @@
 		// Check if the user pressed "Enter"
 		if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
 			event.preventDefault(); // Prevent default behavior if necessary
-			processQueries(duckDB, inputStr);
+			processQueries(db, importSqlStr);
 		}
 	}
 </script>
@@ -66,15 +74,20 @@
 	<ConsoleMessageAlert {type} {title} {text} />
 {/if}
 <Textarea
-	bind:value={inputStr}
+	bind:value={importSqlStr}
 	onkeydown={handleKeydown}
-	placeholder="Enter SQL queries here..."
-	rows={10}
-	class="w-full"
+	placeholder="Enter SQL quer(ies) for data import here..."
+	rows={20}
 />
 <div class="flex w-full justify-end">
 	<Button>Run (Ctrl + Enter)</Button>
 </div>
-{#if result !== null}
-	<pre>{JSON.stringify(result, null, 2)}</pre>
+<h3 class="text-lg font-semibold">Results</h3>
+{#if result !== null && result.type === 'result'}
+	<DuckDBQueryResultsTable queryResults={result} />
+{:else}
+	<p class="text-sm">
+		Adapt the SQL code above to produce the input values and run it. Results will be displayed here.
+	</p>
 {/if}
+<!-- <ImportedInputsViewer {inputsValid} {ieState} /> -->

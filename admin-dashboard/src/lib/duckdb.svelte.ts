@@ -1,8 +1,13 @@
 import { browser } from '$app/environment';
 import * as duckdb from '@duckdb/duckdb-wasm';
-import { type JSONSerializableValue } from './utils';
+import { colMajorToRowMajor, type JSONSerializableValue } from './utils';
 
-export type DuckDB = {
+/**
+ * A custom high-level API for DuckDB.
+ */
+export type DuckDBAPI = {
+	executeQueryRowMajor: (query: string) => Promise<QueryOutputRowMajor>;
+	executeQueryColumnMajor: (query: string) => Promise<QueryOutputColumnMajor>;
 	/**
 	 * Creates a DuckDB table from the provided file.
 	 *
@@ -11,10 +16,8 @@ export type DuckDB = {
 	 * @returns A promise that resolves when the table has been created.
 	 */
 	createTableFromFile: (file: File, tableName: string) => Promise<void>;
-	executeQueryRowMajor: (query: string) => Promise<QueryOutputRowMajor>;
-	executeQueryColumnMajor: (query: string) => Promise<QueryOutputColumnMajor>;
-	getRowCount: (tableName: string) => Promise<number>;
 	createTableFromJSON: (data: JSONSerializableValue[], tableName: string) => Promise<void>;
+	getRowCount: (tableName: string) => Promise<number>;
 };
 export type QueryOutputRowMajor = QueryResultRowMajor | QueryExecutionError;
 export type QueryOutputColumnMajor = QueryResultColumnMajor | QueryExecutionError;
@@ -46,7 +49,7 @@ type DuckDBState =
 	  }
 	| {
 			state: 'ready';
-			db: DuckDB;
+			db: DuckDBAPI;
 	  }
 	| {
 			state: 'error';
@@ -199,7 +202,6 @@ async function executeQueryColMajor(
 	} catch (error) {
 		await c.close();
 		if (error instanceof Error) {
-			console.error('Encountered Error while executing DuckDB query', error);
 			return {
 				type: 'error',
 				message: error.message,
@@ -231,38 +233,6 @@ async function executeQueryRowMajor(
 		columns,
 		data
 	};
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function colMajorToRowMajor<T extends Record<string, any[]>>(
-	data: T
-): Array<{ [K in keyof T]: T[K][number] }> {
-	// make sure the record is not empty
-	if (Object.keys(data).length === 0) {
-		throw new Error('Record must not be empty');
-	}
-
-	// make sure the arrays are of equal length
-	const lengths = Object.values(data).map((arr) => arr.length);
-	if (lengths.some((l) => l !== lengths[0])) {
-		throw new Error('Arrays in record must be of equal length');
-	}
-
-	// Get the length of the arrays (assuming all arrays have equal length)
-	const length = Math.min(...Object.values(data).map((arr) => arr.length));
-
-	// Create an array of objects by iterating over the arrays by index
-	return Array.from({ length }, (_, i) => {
-		// For each index `i`, build an object where each key corresponds to the ith element of the array
-		return Object.keys(data).reduce(
-			(acc, key) => {
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				(acc as any)[key] = data[key]![i];
-				return acc;
-			},
-			{} as { [K in keyof T]: T[K][number] }
-		);
-	});
 }
 
 /**

@@ -12,6 +12,38 @@ export function truncate(input: string, maxLength: number) {
 	return input;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function colMajorToRowMajor<T extends Record<string, any[]>>(
+	data: T
+): Array<{ [K in keyof T]: T[K][number] }> {
+	// make sure the record is not empty
+	if (Object.keys(data).length === 0) {
+		throw new Error('Record must not be empty');
+	}
+
+	// make sure the arrays are of equal length
+	const lengths = Object.values(data).map((arr) => arr.length);
+	if (lengths.some((l) => l !== lengths[0])) {
+		throw new Error('Arrays in record must be of equal length');
+	}
+
+	// Get the length of the arrays (assuming all arrays have equal length)
+	const length = Math.min(...Object.values(data).map((arr) => arr.length));
+
+	// Create an array of objects by iterating over the arrays by index
+	return Array.from({ length }, (_, i) => {
+		// For each index `i`, build an object where each key corresponds to the ith element of the array
+		return Object.keys(data).reduce(
+			(acc, key) => {
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				(acc as any)[key] = data[key]![i];
+				return acc;
+			},
+			{} as { [K in keyof T]: T[K][number] }
+		);
+	});
+}
+
 export type JSONSerializableValue =
 	| string
 	| number

@@ -1,4 +1,4 @@
-<script lang="ts">
+<script lang="ts" generics="T extends z.ZodSchema">
 	import { getDuckDB } from '$lib/duckdb.svelte';
 	import { duckDBTableDescribeColumnsSchema, type FileSchemaPreviewColumns } from '.';
 	import InputFileColumnsPreview from './input-file-schema-preview.svelte';
@@ -7,9 +7,26 @@
 	import * as Alert from '$lib/components/ui/alert';
 	import CircleAlert from 'lucide-svelte/icons/circle-alert';
 	import ImportQueryEditor from './import-query-editor.svelte';
+	import { z } from 'zod';
+	import type { InputExtractorState } from '../index.svelte';
+
+	let { ieState }: { ieState: InputExtractorState<T> } = $props();
 
 	let duckDB = getDuckDB();
 	let detectedColumns: FileSchemaPreviewColumns[] | null = $state(null);
+
+	let file: File | null = $state(null);
+	let files: FileList | undefined = $derived.by(() => {
+		if (file) {
+			// cannot directly programmatically set files on input
+			// we need to use DataTransfer as 'mediator' in https://stackoverflow.com/a/68182158/13727176
+			const dataTransfer = new DataTransfer();
+			dataTransfer.items.add(file);
+			return dataTransfer.files;
+		} else {
+			return;
+		}
+	});
 
 	const handleFileInput = async (event: Event) => {
 		if (duckDB.value.state !== 'ready') {
@@ -39,27 +56,25 @@
 			console.error('No file selected!');
 			return;
 		}
-		await db.createTableFromFile(file, 'inputs');
-		const result = await db.executeQueryRowMajor('DESCRIBE inputs');
+		const tableName = 'inputs';
+		await db.createTableFromFile(file, tableName);
+		const result = await db.executeQueryRowMajor(`DESCRIBE ${tableName}`);
 		if (result.type === 'result') {
 			const extractedColumnsDuckDB = duckDBTableDescribeColumnsSchema.parse(result.data);
 			if (extractedColumnsDuckDB.length === 0) {
 				alert('No columns detected in the file. Please try again.');
 				return;
 			} else if (extractedColumnsDuckDB.length == 1) {
-				const { column_name, column_type } = extractedColumnsDuckDB[0];
+				const { column_name } = extractedColumnsDuckDB[0];
 				const inputColAlias = 'input_col';
-				const inputColExpr =
-					column_type !== 'VARCHAR' ? `CAST(${column_name}, VARCHAR)` : column_name;
 				const inputsQueryRes = await db.executeQueryColumnMajor(
-					`SELECT ${inputColExpr} AS ${inputColAlias} FROM inputs`
+					`SELECT ${column_name} FROM ${tableName}`
 				);
 				if (inputsQueryRes.type === 'error') {
 					alert('Error extracting data from the file. Please try again.');
 					return;
 				}
 				const inputs = inputsQueryRes.data[inputColAlias];
-				console.log(inputs);
 			}
 			detectedColumns = extractedColumnsDuckDB.map((row) => ({
 				name: row.column_name,
@@ -75,6 +90,7 @@
 	<FileInput
 		disabled={duckDB.value.state !== 'ready'}
 		oninput={handleFileInput}
+		{files}
 		id="ids-file"
 		type="file"
 	/>
@@ -83,17 +99,22 @@
 	<h2 class="text-lg font-semibold">Detected columns</h2>
 	<InputFileColumnsPreview data={detectedColumns} />
 	<h2 class="text-lg font-semibold">Import query</h2>
-	<span class="text-sm"
-		>Enter a DuckDB SQL query (<code>SELECT ...</code>) to import the data from the file. It should
-		produce results of type <code>string</code>.</span
-	>
+	<p class="text-sm">
+		Enter a DuckDB SQL query (<code>SELECT ...</code>) to import the data from the file. Each
+		extracted input (i.e. row returned from the query) should match the schema of the following
+		example:
+	</p>
+	<pre class="text-sm text-muted-foreground">{JSON.stringify(ieState.exampleInput, null, 2)}</pre>
 	{#if duckDB.value.state === 'ready'}
 		<Alert.Root>
 			<CircleAlert class="size-4" />
 			<Alert.Title>Hint</Alert.Title>
-			<Alert.Description>Use the detected schema/columns for reference.</Alert.Description>
+			<Alert.Description
+				>Your file is available as a table called <code>inputs</code>. Use the inferred schema above
+				for reference.</Alert.Description
+			>
 		</Alert.Root>
-		<ImportQueryEditor duckDB={duckDB.value.db} />
+		<ImportQueryEditor {ieState} db={duckDB.value.db} />
 	{:else}
 		<Alert.Root variant="destructive">
 			<CircleAlert class="size-4" />
