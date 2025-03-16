@@ -19,7 +19,6 @@
 		const endIdx = startIdx + pageSize;
 		return ieState.inputs.slice(startIdx, endIdx).map((input) => ({ data: input }));
 	});
-	$inspect(inputsSlice);
 
 	const handlePaginationChange: OnChangeFn<PaginationState> = (updater) => {
 		if (typeof updater === 'function') {

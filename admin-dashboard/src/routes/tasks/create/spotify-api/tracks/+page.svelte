@@ -6,4 +6,4 @@
 </script>
 
 <PageHeading heading="Spotify Tracks" text="Fetch metadata for tracks from Spotify's public API." />
-<Form tracksPayloadForm={data.tracksPayloadForm} />
+<Form tracksForm={data.tracksForm} />

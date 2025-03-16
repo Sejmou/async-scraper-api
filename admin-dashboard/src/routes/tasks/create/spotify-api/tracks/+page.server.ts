@@ -1,22 +1,24 @@
+import { tracksParamsSchema } from '$lib/scraper-types-and-schemas/new-tasks/spotify-api.js';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
-import { tracksPayloadSchema } from '$lib/scraper-task-schemas/spotify-api';
 
 export async function load() {
 	return {
-		tracksPayloadForm: await superValidate(zod(tracksPayloadSchema))
+		tracksForm: await superValidate(zod(tracksParamsSchema))
 	};
 }
 
 export const actions = {
 	default: async (event) => {
-		const form = await superValidate(event, zod(tracksPayloadSchema));
+		const form = await superValidate(event, zod(tracksParamsSchema));
 		if (!form.valid) {
 			return message(form, {
 				type: 'error',
 				text: 'The data you provided is invalid'
 			});
 		}
+
+		console.log(form);
 
 		return { form };
 	}
