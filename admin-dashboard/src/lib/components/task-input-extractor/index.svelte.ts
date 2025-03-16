@@ -57,6 +57,10 @@ export class InputExtractorState<T extends TSchema> {
 	get exampleInput() {
 		return this.#props.exampleInput;
 	}
+
+	get inputDescription() {
+		return this.#props.inputDescription;
+	}
 }
 
 export { Root, Root as InputExtractor };

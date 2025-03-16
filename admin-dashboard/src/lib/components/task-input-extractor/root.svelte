@@ -3,23 +3,32 @@
 	import { FileInputExtractor } from './file';
 	import { z } from 'zod';
 	import { type InputExtractorProps, InputExtractorState } from './index.svelte';
+	import InputsViewer from './inputs-viewer.svelte';
 
-	const props: InputExtractorProps<T> = $props();
-	const ieState = new InputExtractorState(props);
+	let props: InputExtractorProps<T> = $props();
+
+	let ieState = new InputExtractorState(props);
 
 	let { inputDescription } = props;
 
 	let importMethod: 'file' | 'textarea' | null = $state(null);
+
+	let viewingImportedInputs = $state(false);
 </script>
 
 <h3 class="text-lg font-semibold">Inputs ({inputDescription})</h3>
 
 {#if ieState.inputs.length > 0}
-	<p class="text-sm text-muted-foreground">
-		{ieState.inputs.length}
-		{inputDescription} added.
-	</p>
-	<Button variant="outline">Preview</Button>
+	<div class="flex w-full items-start justify-between">
+		<p class="text-sm text-muted-foreground">
+			{ieState.inputs.length}
+			{inputDescription} added.
+		</p>
+		<div class="flex gap-2">
+			<Button variant="outline" onclick={() => (viewingImportedInputs = true)}>View</Button>
+			<Button variant="destructive" onclick={() => (ieState.inputs = [])}>Reset</Button>
+		</div>
+	</div>
 {:else if importMethod !== null}
 	<div class="flex w-full items-start justify-between">
 		<span class="text-sm text-muted-foreground">
@@ -58,3 +67,5 @@
 		</button>
 	</div>
 {/if}
+
+<InputsViewer {ieState} bind:open={viewingImportedInputs} />
