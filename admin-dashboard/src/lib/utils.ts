@@ -44,6 +44,21 @@ export function colMajorToRowMajor<T extends Record<string, any[]>>(
 	});
 }
 
+/**
+ * Splits an array into k chunks using round-robin partitioning.
+ * @param items - The array of items, ordered by importance (most important first).
+ * @param  k - The number of chunks.
+ * @returns An array containing k chunks. Within each chunk, the items are ordered by importance.
+ */
+export function roundRobinSplit<T>(items: T[], k: number): T[][] {
+	const chunks: T[][] = Array.from({ length: k }, () => []);
+	for (let i = 0; i < items.length; i++) {
+		chunks[i % k].push(items[i]);
+	}
+
+	return chunks;
+}
+
 export type JSONSerializableValue =
 	| string
 	| number

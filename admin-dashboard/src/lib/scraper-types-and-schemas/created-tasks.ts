@@ -33,7 +33,7 @@ export const s3FileUploadSchema = z.object({
 	})
 });
 
-export const DataFetchingTaskSchema = z.object({
+export const dataFetchingTaskSchema = z.object({
 	id: z.number(),
 	status: dataFetchingTaskStatusSchema,
 	data_source: dataSourceSchema,
@@ -50,5 +50,5 @@ export const DataFetchingTaskSchema = z.object({
 	batch_size: z.number()
 });
 
-export type DataFetchingTask = z.infer<typeof DataFetchingTaskSchema>;
+export type DataFetchingTask = z.infer<typeof dataFetchingTaskSchema>;
 export type S3FileUpload = z.infer<typeof s3FileUploadSchema>;

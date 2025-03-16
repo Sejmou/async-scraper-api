@@ -63,7 +63,7 @@ export const artistsTaskSchema = spotifyTaskBaseSchema.extend({
 	taskType: z.literal('artists'),
 	payload: artistsPayloadSchema
 });
-export type ArtistsTask = typeof artistsTaskSchema;
+export type ArtistsTask = z.infer<typeof artistsTaskSchema>;
 
 export const albumsTaskSchema = spotifyTaskBaseSchema.extend({
 	taskType: z.literal('albums'),
@@ -82,3 +82,16 @@ export const artistAlbumsTaskSchema = spotifyTaskBaseSchema.extend({
 	payload: artistAlbumsPayloadSchema
 });
 export type ArtistAlbumsTask = z.infer<typeof artistAlbumsTaskSchema>;
+
+export const spotifyApiTaskTypes = [
+	'tracks',
+	'artists',
+	'albums',
+	'playlists',
+	'artist-albums'
+] as const;
+
+type SpotifyAPITaskType = (typeof spotifyApiTaskTypes)[number];
+
+export const isSpotifyAPITaskType = (taskType: string): taskType is SpotifyAPITaskType =>
+	spotifyApiTaskTypes.includes(taskType as SpotifyAPITaskType);

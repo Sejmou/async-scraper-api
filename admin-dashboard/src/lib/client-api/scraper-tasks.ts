@@ -11,7 +11,7 @@ export const createTaskRequestSchema = z.object({
 
 // to be used on client
 const createTaskResponseSchema = z.object({
-	id: z.string()
+	id: z.number()
 });
 
 /**
