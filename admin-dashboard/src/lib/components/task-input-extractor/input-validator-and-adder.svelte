@@ -2,10 +2,10 @@
 	import { z } from 'zod';
 	import type { InputExtractorState } from './index.svelte';
 	import type { DuckDBAPI } from '$lib/duckdb.svelte';
-	import { Button } from '../../ui/button';
+	import { Button } from '$lib/components/ui/button';
 	import * as Alert from '$lib/components/ui/alert';
 	import CircleAlert from 'lucide-svelte/icons/circle-alert';
-	import type { Message } from '../../ui/console-message-alert';
+	import type { Message } from '$lib/components/ui/console-message-alert';
 
 	let { ieState, db }: { ieState: InputExtractorState<T>; db: DuckDBAPI } = $props();
 
@@ -33,10 +33,11 @@
 			};
 			return;
 		}
+
 		const nonValidatedData = out.data[out.columns[0]];
 		try {
 			const data = z.array(ieState.inputSchema).parse(nonValidatedData);
-			ieState.onInputsAdded(data);
+			ieState.inputs = data;
 			message = {
 				type: 'success',
 				title: 'Inputs validated',
@@ -78,5 +79,5 @@
 	{/if}
 </p>
 <Button disabled={validating || !ieState.inputsTableHasData} onclick={validateAndAddInputs}>
-	Add Inputs to Task
+	Add inputs to task
 </Button>
