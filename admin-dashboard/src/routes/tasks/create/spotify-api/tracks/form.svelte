@@ -55,8 +55,15 @@
 			}
 		};
 
-		const { id } = await createTask(task);
-		await goto(`/tasks/${id}`);
+		const res = await createTask(task);
+		if (res.status === 'success') {
+			await goto(`/tasks/${res.id}`);
+		} else {
+			formMessage.set({
+				type: 'error',
+				text: res.error
+			});
+		}
 	}
 
 	let formMessage = form.message;

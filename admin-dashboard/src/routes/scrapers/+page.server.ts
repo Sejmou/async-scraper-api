@@ -130,7 +130,11 @@ export const actions = {
 					await trx.insert(server).values(value);
 				} catch (e) {
 					console.error('Error inserting server', value, e);
-					trx.rollback();
+					try {
+						trx.rollback();
+					} catch (e) {
+						console.error('Rolled back transactions', e);
+					}
 					return message(
 						form,
 						{
