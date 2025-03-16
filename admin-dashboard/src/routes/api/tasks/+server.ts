@@ -11,6 +11,7 @@ import { roundRobinSplit } from '$lib/utils';
 import { ZodError } from 'zod';
 import { sendTaskToScraper } from '$lib/server/scraper-api/create-tasks';
 import { type CreateTaskResponseData } from '$lib/client-api/scraper-tasks';
+import { TransactionRollbackError } from 'drizzle-orm';
 
 async function getAvailableScrapers() {
 	const servers = await db.select().from(server);
@@ -25,17 +26,6 @@ async function getAvailableScrapers() {
 		.filter((res) => res.status === 'fulfilled')
 		.map((res) => res.value);
 	return onlineServers;
-}
-
-type CreateTaskPayload = {
-	scraperTasks: { scraper: Scraper; taskId: number }[];
-	params?: Record<string, unknown>;
-};
-
-// TODO: write to DB properly
-async function createTask(payload: CreateTaskPayload) {
-	console.log('Creating dummy task from payload', payload);
-	return { id: 1 };
 }
 
 function parseTask(task: unknown):
@@ -118,85 +108,89 @@ const sendResponse = (res: CreateTaskResponseData, status: number) => {
 
 export async function POST({ request }) {
 	const body = await request.json();
+	const res = parseTask(body);
+	if (!res.success) return sendResponse({ status: 'error', error: res.errors.join('\n') }, 400);
+	const data = res.data;
+	const inputs = extractInputs(data);
+	const params = extractParams(data);
+	const { dataSource, taskType } = data;
+	console.log('Got task', { dataSource, taskType, inputs, params });
+
+	const scrapers = await getAvailableScrapers();
+	if (scrapers.length === 0) {
+		console.error('No scrapers available');
+		return sendResponse({ status: 'error', error: 'No scrapers available' }, 503);
+	}
+	console.log('Available scrapers', scrapers);
+
+	// run same task across all scrapers, but give each a different chunk of the input data
+	// roundrobinSplit means that each scraper gets a chunk of the input data in a round-robin fashion
+	// i.e. if data is ordered by priority, each scraper's chunk will start with the most important data
+	const inputChunks = inputs ? roundRobinSplit(inputs, scrapers.length) : null;
+
+	const successes: { scraper: Scraper; taskId: number }[] = [];
+	const failures: { scraper: Scraper; inputs: typeof inputs }[] = [];
+
 	try {
-		const res = parseTask(body);
-		if (!res.success) return sendResponse({ status: 'error', error: res.errors.join('\n') }, 400);
-		const data = res.data;
-		const inputs = extractInputs(data);
-		const params = extractParams(data);
-		const { dataSource, taskType } = data;
-		console.log('Got task', { dataSource, taskType, inputs, params });
+		const taskId = await db.transaction(async (trx) => {
+			const taskCreateRes = await trx
+				.insert(task)
+				.values({
+					dataSource,
+					taskType,
+					params
+				})
+				.returning({ id: task.id });
+			const taskId = taskCreateRes[0].id;
 
-		const scrapers = await getAvailableScrapers();
-		if (scrapers.length === 0) {
-			console.error('No scrapers available');
-			return sendResponse({ status: 'error', error: 'No scrapers available' }, 503);
-		}
-		console.log('Available scrapers', scrapers);
+			for (const [i, scraper] of scrapers.entries()) {
+				const input = inputChunks ? inputChunks[i] : null;
+				console.log('Sending task to scraper', { scraper, input, params });
 
-		// run same task across all scrapers, but give each a different chunk of the input data
-		// roundrobinSplit means that each scraper gets a chunk of the input data in a round-robin fashion
-		// i.e. if data is ordered by priority, each scraper's chunk will start with the most important data
-		const inputChunks = inputs ? roundRobinSplit(inputs, scrapers.length) : null;
-
-		const successes: { scraper: Scraper; taskId: number }[] = [];
-		const failures: { scraper: Scraper; inputs: typeof inputs }[] = [];
-
-		await db.transaction(async (trx) => {
-			try {
-				const taskCreateRes = await trx
-					.insert(task)
-					.values({
+				let subtaskId: number | null = null;
+				try {
+					const { id } = await sendTaskToScraper(scraper, {
 						dataSource,
 						taskType,
-						params
-					})
-					.returning({ id: task.id });
-				const taskId = taskCreateRes[0].id;
+						payload: { input, params }
+					});
+					subtaskId = id;
+					console.log('Successfully sent task to scraper', { scraper, input, params });
+					successes.push({ scraper, taskId });
+				} catch (e) {
+					console.error('Failed to send task to scraper', { scraper, input, params, error: e });
+					failures.push({ scraper, inputs });
+				}
 
-				for (const [i, scraper] of scrapers.entries()) {
-					const input = inputChunks ? inputChunks[i] : null;
-					console.log('Sending task to scraper', { scraper, input, params });
-					let subtaskId: number | null = null;
-					try {
-						const { id } = await sendTaskToScraper(scraper, {
-							dataSource,
-							taskType,
-							payload: { input, params }
-						});
-						subtaskId = id;
-						console.log('Successfully sent task to scraper', { scraper, input, params });
-						successes.push({ scraper, taskId });
-					} catch (e) {
-						console.error('Failed to send task to scraper', { scraper, input, params, error: e });
-						failures.push({ scraper, inputs });
-					}
-					if (subtaskId) {
-						await trx.insert(subtask).values({
-							taskId,
-							scraperId: scraper.id
-						});
-					}
+				if (subtaskId) {
+					await trx.insert(subtask).values({
+						taskId,
+						scraperId: scraper.id
+					});
 				}
-				if (successes.length === 0) {
-					console.warn('No scrapers succeeded, rolling back DB transaction');
-					trx.rollback();
-				}
-			} catch (e) {
-				console.error(e);
 			}
+
+			if (successes.length === 0) {
+				trx.rollback();
+			}
+			return taskId;
 		});
-		const scraperTasks = successes.map(({ scraper, taskId }) => ({ scraper, taskId }));
-		const createTaskPayload = {
-			scraperTasks,
-			params
-		};
-		const { id } = await createTask(createTaskPayload);
-		return sendResponse({ status: 'success', id }, 200);
+		return sendResponse({ status: 'success', id: taskId }, 200);
 	} catch (e) {
+		console.error('Error while creating task', e);
+		if (e instanceof TransactionRollbackError) {
+			return sendResponse(
+				{
+					status: 'error',
+					error:
+						'Failed to send task to any scrapers. There has probably been an error in how the data was sent to the scrapers.'
+				},
+				500
+			);
+		}
 		if (e instanceof Error) {
 			return sendResponse({ status: 'error', error: e.message }, 500);
 		}
-		return sendResponse({ status: 'error', error: 'Unknown error' }, 500);
+		return sendResponse({ status: 'error', error: 'Error while creating task' }, 500);
 	}
 }
