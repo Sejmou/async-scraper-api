@@ -1,30 +1,68 @@
 <script lang="ts">
 	import * as Form from '$lib/components/ui/form';
-	import { type TracksParamsSchema } from '$lib/scraper-types-and-schemas/new-tasks/spotify-api';
-	import { type SuperValidated, type Infer, superForm } from 'sveltekit-superforms';
+	import {
+		tracksParamsSchema,
+		type SpotifyAPITask,
+		type TracksParamsSchema
+	} from '$lib/scraper-types-and-schemas/new-tasks/spotify-api';
+	import { superForm, defaults } from 'sveltekit-superforms';
 	import { MessageAlert } from '$lib/components/ui/message-alert';
 	import { InputExtractor } from '$lib/components/task-input-extractor/index.svelte';
 	import * as Select from '$lib/components/ui/select';
 	import { z } from 'zod';
+	import { zod } from 'sveltekit-superforms/adapters';
+	import { createTask } from '$lib/client-api/scraper-tasks';
+	import { goto } from '$app/navigation';
 
-	let { tracksForm }: { tracksForm: SuperValidated<Infer<TracksParamsSchema>> } = $props();
-
-	const form = superForm(tracksForm, {
-		dataType: 'json'
+	// NOTE: it would have been nice to use form actions with validation by SvelteKit Superforms
+	// However, I couldn't make it work with large payloads (e.g. for track IDs) - the UI freezes
+	// I don't exactly understand the issue, but it has something to do with state tracking issues for huge arrays
+	const form = superForm(defaults(zod(tracksParamsSchema)), {
+		SPA: true,
+		validators: zod(tracksParamsSchema),
+		resetForm: false
 	});
-
-	const { form: formData, enhance } = form;
 
 	const regionOptions: { label: string; value: z.infer<TracksParamsSchema>['region'] }[] = [
 		{ label: 'DE', value: 'de' },
 		{ label: 'US', value: 'us' }
 	];
 
-	let trackIds: string[] = $state([]);
+	const { form: formData, enhance, validateForm, errors } = form;
+
+	let track_ids: string[] = $state([]);
+
+	async function handleSubmit(event: Event) {
+		event.preventDefault();
+		const result = await validateForm();
+
+		if (!result.valid) {
+			errors.update((v) => {
+				return {
+					...v,
+					region: result.errors.region
+				};
+			});
+			return;
+		}
+
+		const task: SpotifyAPITask = {
+			dataSource: 'spotify-api',
+			taskType: 'tracks',
+			payload: {
+				track_ids,
+				region: $formData.region
+			}
+		};
+
+		const { id } = await createTask(task);
+		await goto(`/tasks/${id}`);
+	}
+
 	let formMessage = form.message;
 </script>
 
-<form method="POST" use:enhance>
+<form method="POST" use:enhance onsubmit={handleSubmit}>
 	{#if $formMessage !== undefined}
 		{@const { type, text } = $formMessage}
 		<MessageAlert {type} {text} />
@@ -34,10 +72,10 @@
 		inputDescription="Track IDs"
 		exampleInput="4PTG3Z6ehGkBFwjybzWkR8"
 		inputSchema={z.string()}
-		onInputsAdded={(inputs) => (trackIds = inputs)}
 		inputsTableName="sp_api_track_ids"
+		onInputsAdded={(inputs) => (track_ids = inputs)}
 	/>
-	{#if trackIds.length > 0}
+	{#if track_ids.length > 0}
 		<h3 class="mt-4 text-lg font-semibold">Parameters</h3>
 		<Form.Field {form} name="region">
 			<Form.Control>
