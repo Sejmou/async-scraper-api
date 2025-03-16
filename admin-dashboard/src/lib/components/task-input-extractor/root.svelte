@@ -1,10 +1,8 @@
 <script lang="ts" generics="T extends z.ZodSchema">
-	import Button from '../../ui/button/button.svelte';
+	import Button from '$lib/components/ui/button/button.svelte';
 	import { FileInputExtractor } from './file';
 	import { z } from 'zod';
 	import { type InputExtractorProps, InputExtractorState } from './index.svelte';
-
-	let inputs: z.infer<T>[] = [];
 
 	const props: InputExtractorProps<T> = $props();
 	const ieState = new InputExtractorState(props);
@@ -15,12 +13,16 @@
 </script>
 
 <h3 class="text-lg font-semibold">Inputs ({inputDescription})</h3>
-<p class="text-sm text-muted-foreground">
-	{inputDescription} can be added in multiple ways. Pick the one that suits you best!
-</p>
-{#if importMethod !== null}
-	<div class="flex w-full items-center justify-between">
-		<span class="text-sm">
+
+{#if ieState.inputs.length > 0}
+	<p class="text-sm text-muted-foreground">
+		{ieState.inputs.length}
+		{inputDescription} added.
+	</p>
+	<Button variant="outline">Preview</Button>
+{:else if importMethod !== null}
+	<div class="flex w-full items-start justify-between">
+		<span class="text-sm text-muted-foreground">
 			{importMethod === 'file'
 				? 'You have chosen to extract inputs from a file.'
 				: 'You have chosen to enter inputs manually.'}
@@ -30,14 +32,10 @@
 	{#if importMethod === 'file'}
 		<FileInputExtractor {ieState} />
 	{/if}
-	{#if inputs.length > 0}
-		<p class="text-sm text-muted-foreground">
-			{inputs.length}
-			{inputDescription} extracted.
-		</p>
-		<Button variant="outline">Preview</Button>
-	{/if}
 {:else}
+	<p class="text-sm text-muted-foreground">
+		{inputDescription} can be added in multiple ways. Pick the one that suits you best!
+	</p>
 	<div class="flex w-full flex-col gap-4 lg:flex-row">
 		<button
 			class="rounded border px-8 py-4 hover:bg-secondary lg:w-1/2"
