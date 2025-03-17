@@ -9,7 +9,7 @@ import {
 } from '$lib/scraper-types-and-schemas/new-tasks';
 import { roundRobinSplit } from '$lib/utils';
 import { ZodError } from 'zod';
-import { sendTaskToScraper } from '$lib/server/scraper-api/create-tasks';
+import { sendTaskToScraper } from '$lib/server/scraper-api/send-new-task';
 import { type CreateTaskResponseData } from '$lib/client-api/scraper-tasks';
 import { TransactionRollbackError } from 'drizzle-orm';
 

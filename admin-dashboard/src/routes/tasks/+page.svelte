@@ -12,32 +12,33 @@
 
 	const tableColumns: ColumnDef<(typeof data.tasks)[number]>[] = [
 		{
-			accessorKey: 'id',
+			accessorFn: (row) => row.task.id,
 			header: 'ID'
 		},
 		{
-			accessorKey: 'dataSource',
+			accessorFn: (row) => row.task.dataSource,
 			header: 'Data Source'
 		},
 		{
-			accessorKey: 'taskType',
+			accessorFn: (row) => row.task.taskType,
 			header: 'Task Type'
 		},
 		{
-			accessorKey: 'params',
+			accessorFn: (row) => row.task.params,
 			header: 'Parameters'
 		},
 		{
-			accessorKey: 'subtasks',
+			accessorFn: (row) => row.subTasksWithProgress,
 			header: 'Subtasks',
-			cell: ({ row }) => renderComponent(SubtaskInfo, { subtasks: row.original.subtasks })
+			cell: ({ row }) =>
+				renderComponent(SubtaskInfo, { subtasksWithProgress: row.original.subTasksWithProgress })
 		},
 		{
 			accessorKey: 'details',
 			header: '',
 			cell: ({ row }) =>
 				renderComponent(ButtonWithTextProp, {
-					href: `/tasks/${row.original.id}`,
+					href: `/tasks/${row.original.task.id}`,
 					variant: 'outline',
 					text: 'Details'
 				})

@@ -18,7 +18,7 @@ export const scraperServerTbl = sqliteTable(
 );
 
 export const scraperSelectSchema = createSelectSchema(scraperServerTbl);
-export type ScraperSelect = z.infer<typeof scraperSelectSchema>;
+export type Scraper = z.infer<typeof scraperSelectSchema>;
 export const scraperInsertSchema = createInsertSchema(scraperServerTbl);
 export type ScraperInsert = z.infer<typeof scraperInsertSchema>;
 
@@ -33,6 +33,12 @@ export const taskTbl = sqliteTable('task', {
 });
 
 export const taskSelectSchema = createSelectSchema(taskTbl);
+
+// there's a bug(or maybe that's intended?) causing this to return type Json for params, but db.select(...) and db.query(...) return type unknown
+// this is a hack to fix the inconsistency
+type TaskSelect = z.infer<typeof taskSelectSchema>;
+export type Task = Omit<TaskSelect, 'params'> & { params: unknown };
+
 export const taskInsertSchema = createInsertSchema(taskTbl);
 export type TaskInsert = z.infer<typeof taskInsertSchema>;
 
@@ -47,7 +53,7 @@ export const subtaskTbl = sqliteTable('subtask', {
 });
 
 export const subtaskSelectSchema = createSelectSchema(subtaskTbl);
-export type SubTaskSelect = z.infer<typeof subtaskSelectSchema>;
+export type Subtask = z.infer<typeof subtaskSelectSchema>;
 export const subtaskInsertSchema = createInsertSchema(subtaskTbl);
 export type SubtaskInsert = z.infer<typeof subtaskInsertSchema>;
 

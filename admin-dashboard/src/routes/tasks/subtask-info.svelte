@@ -1,47 +1,51 @@
 <script lang="ts">
-	import {
-		type SubTaskSelect as SubTask,
-		type ScraperSelect as Scraper
-	} from '$lib/server/db/schema';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import type { ColumnDef } from '@tanstack/table-core';
 	import DataTable from '$lib/components/ui/data-table.svelte';
 	import { buttonVariants } from '$lib/components/ui/button/index.js';
+	import { renderComponent } from '$lib/components/ui/data-table';
+	import ScraperProgress from './scraper-progress/scraper-progress.svelte';
+	import type { SubtaskWithScraperAndProgress } from '$lib/server/scraper-api/subtask-progress';
 
-	const columns: ColumnDef<SubTaskWithScraper>[] = [
+	const columns: ColumnDef<SubtaskWithScraperAndProgress>[] = [
 		{ accessorFn: (row) => row.scraper.host, header: 'Host' },
-		{ accessorFn: (row) => row.scraper.port, header: 'Port' }
+		{ accessorFn: (row) => row.scraper.port, header: 'Port' },
+		{
+			accessorFn: (row) => row.progress,
+			header: 'Progress',
+			cell: ({ row }) => renderComponent(ScraperProgress, { progress: row.original.progress })
+		}
 	];
 
-	type SubTaskWithScraper = SubTask & { scraper: Scraper };
-
 	let {
-		subtasks,
+		subtasksWithProgress,
 		wrapInDialog = true
 	}: {
-		subtasks: SubTaskWithScraper[];
+		subtasksWithProgress: SubtaskWithScraperAndProgress[];
 		wrapInDialog?: boolean;
 	} = $props();
 </script>
 
 {#if wrapInDialog}
-	{#if subtasks.length > 0}
+	{#if subtasksWithProgress.length > 0}
 		<Dialog.Root>
 			<Dialog.Trigger class={buttonVariants({ variant: 'outline' })}>
-				{subtasks.length} scraper{subtasks.length == 1 ? '' : 's'}
+				{subtasksWithProgress.length} subtask{subtasksWithProgress.length == 1 ? '' : 's'}
 			</Dialog.Trigger>
-			<Dialog.Content>
-				<Dialog.Title>Subtasks</Dialog.Title>
+			<Dialog.Content class="max-w-screen-md">
+				<Dialog.Title>Subtask Status</Dialog.Title>
 				<Dialog.Description>
-					<DataTable {columns} data={subtasks} />
+					Each subtask is run as an individual task on separate scrapers. You can view the progress
+					of each one here.
 				</Dialog.Description>
+				<DataTable {columns} data={subtasksWithProgress} />
 			</Dialog.Content>
 		</Dialog.Root>
 	{:else}
 		No subtasks
 	{/if}
-{:else if subtasks.length > 0}
-	<DataTable {columns} data={subtasks} />
+{:else if subtasksWithProgress.length > 0}
+	<DataTable {columns} data={subtasksWithProgress} />
 {:else}
 	<span class="text-sm text-muted-foreground">No subtasks</span>
 {/if}

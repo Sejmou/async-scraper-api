@@ -3,6 +3,7 @@
 
 	let { data } = $props();
 	let task = $derived(data.task);
+	let subtasksWithProgress = $derived(data.subTasksWithProgress);
 </script>
 
 <h2 class="text-2xl font-semibold">Task details</h2>
@@ -16,5 +17,5 @@
 </ul>
 <h3 class="text-lg font-semibold">Subtasks</h3>
 <div>
-	<SubtaskInfo subtasks={task.subtasks} wrapInDialog={false} />
+	<SubtaskInfo {subtasksWithProgress} wrapInDialog={false} />
 </div>
