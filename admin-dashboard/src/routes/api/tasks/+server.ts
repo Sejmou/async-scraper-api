@@ -1,5 +1,5 @@
 import { db } from '$lib/server/db';
-import { server, task, subtask } from '$lib/server/db/schema';
+import { serverTbl, taskTbl, subtaskTbl } from '$lib/server/db/schema';
 import { getAPIServerInfo } from '$lib/server/scraper-api/about';
 import { json } from '@sveltejs/kit';
 import {
@@ -14,7 +14,7 @@ import { type CreateTaskResponseData } from '$lib/client-api/scraper-tasks';
 import { TransactionRollbackError } from 'drizzle-orm';
 
 async function getAvailableScrapers() {
-	const servers = await db.select().from(server);
+	const servers = await db.select().from(serverTbl);
 	const onlineServers = (
 		await Promise.allSettled(
 			servers.map(async (s) => {
@@ -44,6 +44,7 @@ function parseTask(task: unknown):
 		};
 	} catch (e) {
 		if (e instanceof ZodError) {
+			console.warn('Failed to parse task', e.errors);
 			return {
 				success: false,
 				errors: e.errors.map((err) => err.message)
@@ -61,43 +62,6 @@ function parseTask(task: unknown):
 	}
 }
 
-const extractInputs = (task: Task) => {
-	if (task.dataSource === 'spotify-api') {
-		switch (task.taskType) {
-			case 'tracks':
-				return task.payload.track_ids;
-			case 'artists':
-				return task.payload.artist_ids;
-			case 'albums':
-				return task.payload.album_ids;
-			case 'artist-albums':
-				return task.payload.artist_ids;
-			case 'playlists':
-				return task.payload.playlist_ids;
-		}
-	}
-};
-
-const extractParams = (task: Task) => {
-	if (task.dataSource === 'spotify-api') {
-		switch (task.taskType) {
-			case 'tracks':
-				return {
-					region: task.payload.region
-				};
-			case 'albums':
-				return {
-					region: task.payload.region
-				};
-			case 'artist-albums':
-				return {
-					region: task.payload.region,
-					release_types: task.payload.release_types
-				};
-		}
-	}
-};
-
 const sendResponse = (res: CreateTaskResponseData, status: number) => {
 	if (res.status === 'success') {
 		return json({ status: 'success', id: res.id }, { status });
@@ -110,10 +74,10 @@ export async function POST({ request }) {
 	const body = await request.json();
 	const res = parseTask(body);
 	if (!res.success) return sendResponse({ status: 'error', error: res.errors.join('\n') }, 400);
-	const data = res.data;
-	const inputs = extractInputs(data);
-	const params = extractParams(data);
-	const { dataSource, taskType } = data;
+
+	const task = res.data;
+	const { dataSource, taskType, inputs } = task;
+	const params = 'params' in task ? task.params : undefined;
 	console.log('Got task', { dataSource, taskType, inputs, params });
 
 	const scrapers = await getAvailableScrapers();
@@ -134,36 +98,36 @@ export async function POST({ request }) {
 	try {
 		const taskId = await db.transaction(async (trx) => {
 			const taskCreateRes = await trx
-				.insert(task)
+				.insert(taskTbl)
 				.values({
 					dataSource,
 					taskType,
 					params
 				})
-				.returning({ id: task.id });
+				.returning({ id: taskTbl.id });
 			const taskId = taskCreateRes[0].id;
 
 			for (const [i, scraper] of scrapers.entries()) {
 				const input = inputChunks ? inputChunks[i] : null;
 				console.log('Sending task to scraper', { scraper, input, params });
-
 				let subtaskId: number | null = null;
-				try {
-					const { id } = await sendTaskToScraper(scraper, {
-						dataSource,
-						taskType,
-						payload: { input, params }
-					});
-					subtaskId = id;
+				const taskSendResult = await sendTaskToScraper(scraper, task);
+				if (taskSendResult.success) {
+					subtaskId = taskSendResult.data.id;
 					console.log('Successfully sent task to scraper', { scraper, input, params });
 					successes.push({ scraper, taskId });
-				} catch (e) {
-					console.error('Failed to send task to scraper', { scraper, input, params, error: e });
+				} else {
+					console.error('Failed to send task to scraper', {
+						scraper,
+						input,
+						params,
+						error: taskSendResult.error
+					});
 					failures.push({ scraper, inputs });
 				}
 
 				if (subtaskId) {
-					await trx.insert(subtask).values({
+					await trx.insert(subtaskTbl).values({
 						taskId,
 						scraperId: scraper.id
 					});
@@ -179,11 +143,10 @@ export async function POST({ request }) {
 	} catch (e) {
 		console.error('Error while creating task', e);
 		if (e instanceof TransactionRollbackError) {
-			return sendResponse(
+			sendResponse(
 				{
 					status: 'error',
-					error:
-						'Failed to send task to any scrapers. There has probably been an error in how the data was sent to the scrapers.'
+					error: 'Failed to send task to any scrapers. This is probably a bug.'
 				},
 				500
 			);

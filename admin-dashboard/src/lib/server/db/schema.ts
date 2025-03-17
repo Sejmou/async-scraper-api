@@ -3,7 +3,7 @@ import { relations, sql } from 'drizzle-orm';
 import { createSelectSchema, createInsertSchema } from 'drizzle-zod';
 import { z } from 'zod';
 
-export const server = sqliteTable(
+export const serverTbl = sqliteTable(
 	'server',
 	{
 		id: integer('id').primaryKey(),
@@ -17,11 +17,11 @@ export const server = sqliteTable(
 	(t) => [unique().on(t.host, t.port)]
 );
 
-export const serverSelectSchema = createSelectSchema(server);
-export const serverInsertSchema = createInsertSchema(server);
+export const serverSelectSchema = createSelectSchema(serverTbl);
+export const serverInsertSchema = createInsertSchema(serverTbl);
 export type ServerInsert = z.infer<typeof serverInsertSchema>;
 
-export const task = sqliteTable('task', {
+export const taskTbl = sqliteTable('task', {
 	id: integer('id').primaryKey(),
 	dataSource: text('data_source').notNull(),
 	taskType: text('task_type').notNull(),
@@ -31,27 +31,27 @@ export const task = sqliteTable('task', {
 		.notNull()
 });
 
-export const taskSelectSchema = createSelectSchema(task);
-export const taskInsertSchema = createInsertSchema(task);
+export const taskSelectSchema = createSelectSchema(taskTbl);
+export const taskInsertSchema = createInsertSchema(taskTbl);
 export type TaskInsert = z.infer<typeof taskInsertSchema>;
 
-export const subtask = sqliteTable('subtask', {
+export const subtaskTbl = sqliteTable('subtask', {
 	id: integer('id').primaryKey(),
 	taskId: integer('task_id').notNull(),
 	scraperId: integer('scraper_id').notNull()
 });
 
-export const subtaskSelectSchema = createSelectSchema(subtask);
-export const subtaskInsertSchema = createInsertSchema(subtask);
+export const subtaskSelectSchema = createSelectSchema(subtaskTbl);
+export const subtaskInsertSchema = createInsertSchema(subtaskTbl);
 export type SubtaskInsert = z.infer<typeof subtaskInsertSchema>;
 
-export const taskRelations = relations(task, ({ many }) => ({
-	subtasks: many(subtask)
+export const taskRelations = relations(taskTbl, ({ many }) => ({
+	subtasks: many(subtaskTbl)
 }));
 
-export const subtaskRelations = relations(subtask, ({ one }) => ({
-	task: one(task, {
-		fields: [subtask.taskId],
-		references: [task.id]
+export const subtaskRelations = relations(subtaskTbl, ({ one }) => ({
+	task: one(taskTbl, {
+		fields: [subtaskTbl.taskId],
+		references: [taskTbl.id]
 	})
 }));

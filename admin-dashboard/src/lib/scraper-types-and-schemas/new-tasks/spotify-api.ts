@@ -1,97 +1,90 @@
 import { z } from 'zod';
+import type { ExpandRecursively } from '$lib/utils';
 
 const regionSpecificParamsSchema = z.object({
 	region: z.enum(['de', 'us'])
 });
 
-export const tracksParamsSchema = regionSpecificParamsSchema;
-export type TracksParamsSchema = typeof tracksParamsSchema;
-export const tracksPayloadSchema = tracksParamsSchema.extend({
-	track_ids: z.array(z.string())
+const spotifyIdsSchema = z.array(z.string().min(22).max(22));
+const spotifyTaskInputsSchema = z.object({
+	inputs: spotifyIdsSchema
 });
-export type TracksPayload = z.infer<typeof tracksPayloadSchema>;
 
-export const albumsParamsSchema = regionSpecificParamsSchema;
-export type AlbumsParamsSchema = typeof albumsParamsSchema;
-export const albumsPayloadSchema = albumsParamsSchema.extend({
-	album_ids: z.array(z.string())
-});
-export type AlbumsPayload = z.infer<typeof albumsPayloadSchema>;
-
-export const artistAlbumsParamsSchema = regionSpecificParamsSchema.extend({
-	release_types: z.object({
-		albums: z.boolean().default(false),
-		singles: z.boolean().default(false),
-		compilations: z.boolean().default(false),
-		appears_on: z.boolean().default(false)
-	})
-});
-export type ArtistAlbumsParamsSchema = typeof artistAlbumsParamsSchema;
-export const artistAlbumsPayloadSchema = artistAlbumsParamsSchema.extend({
-	artist_ids: z.array(z.string())
-});
-export type ArtistAlbumsPayload = z.infer<typeof artistAlbumsPayloadSchema>;
-
-export const artistsPayloadSchema = z.object({
-	artist_ids: z.array(z.string())
-});
-export type ArtistsPayload = z.infer<typeof artistsPayloadSchema>;
-
-export const playlistsPayloadSchema = z.object({
-	playlist_ids: z.array(z.string())
-});
-export type PlaylistsPayload = z.infer<typeof playlistsPayloadSchema>;
-
-export type SpotifyAPITask =
-	| TracksTask
-	| ArtistsTask
-	| AlbumsTask
-	| PlaylistsTask
-	| ArtistAlbumsTask;
-
-const spotifyTaskBaseSchema = z.object({
+const spotifyApiDataSourceSchema = z.object({
 	dataSource: z.literal('spotify-api')
 });
 
-export const tracksTaskSchema = spotifyTaskBaseSchema.extend({
-	taskType: z.literal('tracks'),
-	payload: tracksPayloadSchema
+export const artistsPayloadSchema = spotifyTaskInputsSchema;
+export type ArtistsPayload = ExpandRecursively<z.infer<typeof artistsPayloadSchema>>;
+export const artistsTaskSchema = artistsPayloadSchema.and(spotifyApiDataSourceSchema).and(
+	z.object({
+		taskType: z.literal('artists')
+	})
+);
+export type ArtistsTask = ExpandRecursively<z.infer<typeof artistsTaskSchema>>;
+
+export const artistAlbumsPayloadSchema = spotifyTaskInputsSchema.extend({
+	params: regionSpecificParamsSchema.extend({
+		release_types: z.object({
+			albums: z.boolean().default(false),
+			singles: z.boolean().default(false),
+			compilations: z.boolean().default(false),
+			appears_on: z.boolean().default(false)
+		})
+	})
 });
-export type TracksTask = z.infer<typeof tracksTaskSchema>;
+export type ArtistAlbumsPayload = ExpandRecursively<z.infer<typeof artistAlbumsPayloadSchema>>;
+export const artistAlbumsTaskSchema = artistAlbumsPayloadSchema.and(spotifyApiDataSourceSchema).and(
+	z.object({
+		taskType: z.literal('artist-albums')
+	})
+);
+export type ArtistAlbumsTask = ExpandRecursively<z.infer<typeof artistAlbumsTaskSchema>>;
 
-export const artistsTaskSchema = spotifyTaskBaseSchema.extend({
-	taskType: z.literal('artists'),
-	payload: artistsPayloadSchema
+export const albumsPayloadSchema = spotifyTaskInputsSchema.extend({
+	params: regionSpecificParamsSchema
 });
-export type ArtistsTask = z.infer<typeof artistsTaskSchema>;
+export type AlbumsPayload = ExpandRecursively<z.infer<typeof albumsPayloadSchema>>;
+export const albumsTaskSchema = albumsPayloadSchema.and(spotifyApiDataSourceSchema).and(
+	z.object({
+		taskType: z.literal('albums')
+	})
+);
+export type AlbumsTask = ExpandRecursively<z.infer<typeof albumsTaskSchema>>;
 
-export const albumsTaskSchema = spotifyTaskBaseSchema.extend({
-	taskType: z.literal('albums'),
-	payload: albumsPayloadSchema
+export const tracksPayloadSchema = spotifyTaskInputsSchema.extend({
+	params: regionSpecificParamsSchema
 });
-export type AlbumsTask = z.infer<typeof albumsTaskSchema>;
+export type TracksPayload = ExpandRecursively<z.infer<typeof tracksPayloadSchema>>;
+export const tracksTaskSchema = tracksPayloadSchema.and(spotifyApiDataSourceSchema).and(
+	z.object({
+		taskType: z.literal('tracks')
+	})
+);
+export type TracksTask = ExpandRecursively<z.infer<typeof tracksTaskSchema>>;
 
-export const playlistsTaskSchema = spotifyTaskBaseSchema.extend({
-	taskType: z.literal('playlists'),
-	payload: playlistsPayloadSchema
-});
-export type PlaylistsTask = z.infer<typeof playlistsTaskSchema>;
+export const playlistsPayloadSchema = spotifyTaskInputsSchema;
+export type PlaylistsPayload = ExpandRecursively<z.infer<typeof playlistsPayloadSchema>>;
+export const playlistsTaskSchema = playlistsPayloadSchema.and(spotifyApiDataSourceSchema).and(
+	z.object({
+		taskType: z.literal('playlists')
+	})
+);
+export type PlaylistsTask = ExpandRecursively<z.infer<typeof playlistsTaskSchema>>;
 
-export const artistAlbumsTaskSchema = spotifyTaskBaseSchema.extend({
-	taskType: z.literal('artist-albums'),
-	payload: artistAlbumsPayloadSchema
-});
-export type ArtistAlbumsTask = z.infer<typeof artistAlbumsTaskSchema>;
+export const spotifyApiTaskSchema = z.union([
+	tracksTaskSchema,
+	artistsTaskSchema,
+	albumsTaskSchema,
+	playlistsTaskSchema,
+	artistAlbumsTaskSchema
+]);
+export type SpotifyAPITask = ExpandRecursively<z.infer<typeof spotifyApiTaskSchema>>;
 
-export const spotifyApiTaskTypes = [
-	'tracks',
-	'artists',
-	'albums',
-	'playlists',
-	'artist-albums'
-] as const;
-
-type SpotifyAPITaskType = (typeof spotifyApiTaskTypes)[number];
-
-export const isSpotifyAPITaskType = (taskType: string): taskType is SpotifyAPITaskType =>
-	spotifyApiTaskTypes.includes(taskType as SpotifyAPITaskType);
+export const spotifyApiTaskTypesSchema = z.union([
+	z.literal('tracks'),
+	z.literal('artists'),
+	z.literal('albums'),
+	z.literal('playlists'),
+	z.literal('artist-albums')
+]);

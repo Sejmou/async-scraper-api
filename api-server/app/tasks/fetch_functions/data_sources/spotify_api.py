@@ -10,10 +10,8 @@ from app.tasks.fetch_functions.common import (
 )
 from app.api_clients import spotify_api_client
 from app.tasks.input_validation.spotify_api import (
-    AlbumsParams,
+    RegionSpecificParams,
     ArtistAlbumsParams,
-    TracksParams,
-    ISRCTrackSearchParams,
 )
 
 type SequentialTask = Literal["artist-albums", "playlists", "isrc-track-search"]
@@ -50,10 +48,10 @@ class SpotifyAPISingleItemFetchFunctionFactory(
             def fetch_artist_albums(artist_id: str) -> Any:
                 return spotify_api_client.artist_albums(
                     artist_id,
-                    include_albums=params.albums,
-                    include_singles=params.singles,
-                    include_compilations=params.compilations,
-                    include_appears_on=params.appears_on,
+                    include_albums=params.release_types.albums,
+                    include_singles=params.release_types.singles,
+                    include_compilations=params.release_types.compilations,
+                    include_appears_on=params.release_types.appears_on,
                     region=params.region,
                 )
 
@@ -64,7 +62,7 @@ class SpotifyAPISingleItemFetchFunctionFactory(
 
         elif task_type == "isrc-track-search":
             params = convert_to_basemodel_instance_of_type(
-                task_params, ISRCTrackSearchParams
+                task_params, RegionSpecificParams
             )
 
             def fetch_tracks_for_isrc(isrc: str) -> Any:
@@ -87,7 +85,9 @@ class SpotifyAPIBatchFetchFunctionFactory(DataSourceBatchFetchFunctionFactory):
             raise ValueError(f"Unsupported batch task type: {task_type}")
 
         if task_type == "tracks":
-            params = convert_to_basemodel_instance_of_type(task_params, TracksParams)
+            params = convert_to_basemodel_instance_of_type(
+                task_params, RegionSpecificParams
+            )
 
             def fetch_tracks(track_ids: list[str]) -> Any:
                 return spotify_api_client.tracks(track_ids, region=params.region)
@@ -98,7 +98,9 @@ class SpotifyAPIBatchFetchFunctionFactory(DataSourceBatchFetchFunctionFactory):
             return spotify_api_client.artists
 
         elif task_type == "albums":
-            params = convert_to_basemodel_instance_of_type(task_params, AlbumsParams)
+            params = convert_to_basemodel_instance_of_type(
+                task_params, RegionSpecificParams
+            )
 
             def fetch_albums(album_ids: list[str]) -> Any:
                 return spotify_api_client.albums(

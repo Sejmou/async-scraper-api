@@ -1,9 +1,8 @@
 <script lang="ts">
 	import * as Form from '$lib/components/ui/form';
 	import {
-		tracksParamsSchema,
-		type SpotifyAPITask,
-		type TracksParamsSchema
+		tracksTaskSchema,
+		type TracksTask
 	} from '$lib/scraper-types-and-schemas/new-tasks/spotify-api';
 	import { superForm, defaults } from 'sveltekit-superforms';
 	import { MessageAlert } from '$lib/components/ui/message-alert';
@@ -17,13 +16,14 @@
 	// NOTE: it would have been nice to use form actions with validation by SvelteKit Superforms
 	// However, I couldn't make it work with large payloads (e.g. for track IDs) - the UI freezes
 	// I don't exactly understand the issue, but it has something to do with state tracking issues for huge arrays
-	const form = superForm(defaults(zod(tracksParamsSchema)), {
+	const form = superForm(defaults(zod(tracksTaskSchema)), {
 		SPA: true,
-		validators: zod(tracksParamsSchema),
+		dataType: 'json',
+		validators: zod(tracksTaskSchema),
 		resetForm: false
 	});
 
-	const regionOptions: { label: string; value: z.infer<TracksParamsSchema>['region'] }[] = [
+	const regionOptions: { label: string; value: TracksTask['params']['region'] }[] = [
 		{ label: 'DE', value: 'de' },
 		{ label: 'US', value: 'us' }
 	];
@@ -40,18 +40,18 @@
 			errors.update((v) => {
 				return {
 					...v,
-					region: result.errors.region
+					region: result.errors.params?.region
 				};
 			});
 			return;
 		}
 
-		const task: SpotifyAPITask = {
+		const task: TracksTask = {
 			dataSource: 'spotify-api',
 			taskType: 'tracks',
-			payload: {
-				track_ids,
-				region: $formData.region
+			inputs: track_ids,
+			params: {
+				region: $formData.params.region
 			}
 		};
 
@@ -84,13 +84,18 @@
 	/>
 	{#if track_ids.length > 0}
 		<h3 class="mt-4 text-lg font-semibold">Parameters</h3>
-		<Form.Field {form} name="region">
+		<Form.Field {form} name="params.region">
 			<Form.Control>
 				{#snippet children({ props })}
 					<Form.Label>Region</Form.Label>
-					<Select.Root {...props} bind:value={$formData.region} name={props.name} type="single">
+					<Select.Root
+						{...props}
+						bind:value={$formData.params.region}
+						name={props.name}
+						type="single"
+					>
 						<Select.Trigger {...props} class="w-[180px]">
-							{regionOptions.find((el) => el.value === $formData.region)?.label ??
+							{regionOptions.find((el) => el.value === $formData.params.region)?.label ??
 								'Select a region'}
 						</Select.Trigger>
 						<Select.Content>

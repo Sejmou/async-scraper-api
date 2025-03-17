@@ -2,42 +2,12 @@ from typing import Literal
 from pydantic import BaseModel, model_validator
 
 
-# types of inputs that are used for scraper tasks
-class TracksInputItems(BaseModel):
-    track_ids: list[str]
-
-
-class ArtistsInputItems(BaseModel):
-    artist_ids: list[str]
-
-
-class AlbumsInputItems(BaseModel):
-    album_ids: list[str]
-
-
-class PlaylistsInputItems(BaseModel):
-    playlist_ids: list[str]
-
-
-class ISRCSInputItems(BaseModel):
-    isrcs: list[str]
-
-
 # shared params for tasks that require a region to be specified
 class RegionSpecificParams(BaseModel):
     region: Literal["de", "us"] | None = None
 
 
-# specific params for different types of tasks
-class TracksParams(RegionSpecificParams):
-    pass
-
-
-class AlbumsParams(RegionSpecificParams):
-    pass
-
-
-class ArtistAlbumsParams(RegionSpecificParams):
+class ArtistAlbumsReleaseTypes(BaseModel):
     albums: bool = False
     singles: bool = False
     compilations: bool = False
@@ -52,30 +22,34 @@ class ArtistAlbumsParams(RegionSpecificParams):
         return self
 
 
-class ISRCTrackSearchParams(RegionSpecificParams):
-    pass
+class ArtistAlbumsParams(BaseModel):
+    release_types: ArtistAlbumsReleaseTypes
+    region: Literal["de", "us"] | None = None
 
 
-# payloads for the different types of tasks (combination of input items and, optionally, task params - if params exist, model inherts from both input items and params classes)
-class TracksPayload(TracksInputItems, TracksParams):
-    pass
+class TracksPayload(BaseModel):
+    inputs: list[str]
+    params: RegionSpecificParams
 
 
-class ArtistsPayload(ArtistsInputItems):
-    pass
+class ArtistsPayload(BaseModel):
+    inputs: list[str]
 
 
-class AlbumsPayload(AlbumsInputItems, AlbumsParams):
-    pass
+class AlbumsPayload(BaseModel):
+    inputs: list[str]
+    params: RegionSpecificParams
 
 
-class ArtistAlbumsPayload(ArtistsInputItems, ArtistAlbumsParams):
-    pass
+class ArtistAlbumsPayload(BaseModel):
+    inputs: list[str]
+    params: ArtistAlbumsParams
 
 
-class PlaylistsPayload(PlaylistsInputItems):
-    pass
+class PlaylistsPayload(BaseModel):
+    inputs: list[str]
 
 
-class ISRCTrackSearchPayload(ISRCSInputItems, ISRCTrackSearchParams):
-    pass
+class ISRCTrackSearchPayload(BaseModel):
+    inputs: list[str]
+    params: RegionSpecificParams

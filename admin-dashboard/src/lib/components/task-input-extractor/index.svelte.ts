@@ -28,7 +28,6 @@ export class InputExtractorState<T extends TSchema> {
 
 	constructor(props: InputExtractorProps<T>) {
 		this.#props = props;
-		this.inputs = ['2C2pJomxURai5Y4Da50WaG'];
 	}
 
 	get inputs() {

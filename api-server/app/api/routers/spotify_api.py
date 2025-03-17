@@ -8,15 +8,11 @@ from app.api.dependencies.core import DBSessionDep
 from app.api.utils import check_api_ban
 from app.tasks.input_validation.spotify_api import (
     TracksPayload,
-    TracksParams,
     ArtistsPayload,
     ArtistAlbumsPayload,
-    ArtistAlbumsParams,
     AlbumsPayload,
-    AlbumsParams,
     PlaylistsPayload,
     ISRCTrackSearchPayload,
-    ISRCTrackSearchParams,
 )
 from app.tasks import create_new_task, run_in_background
 from app.tasks.processing import TaskProcessor, DataFetchingTask as DBTask
@@ -57,10 +53,10 @@ async def fetch_tracks(
     session: DBSessionDep,
 ):
     task, processor = await create_sp_api_task(
-        inputs=payload.track_ids,
-        params=TracksParams(region=payload.region),
+        inputs=payload.inputs,
+        params=payload.params,
         task_type="tracks",
-        subprefix=f"tracks_{payload.region}",
+        subprefix=f"tracks_{payload.params.region}",
         session=session,
         batch_size=50,
     )
@@ -76,7 +72,7 @@ async def fetch_artists(
     session: DBSessionDep,
 ):
     task, processor = await create_sp_api_task(
-        inputs=payload.artist_ids,
+        inputs=payload.inputs,
         params=None,
         task_type="artists",
         subprefix="artists",
@@ -94,17 +90,12 @@ async def fetch_artist_albums(
     background_tasks: BackgroundTasks,
     session: DBSessionDep,
 ):
+
     task, processor = await create_sp_api_task(
-        inputs=payload.artist_ids,
-        params=ArtistAlbumsParams(
-            region=payload.region,
-            albums=payload.albums,
-            singles=payload.singles,
-            compilations=payload.compilations,
-            appears_on=payload.appears_on,
-        ),
+        inputs=payload.inputs,
+        params=payload.params,
         task_type="artist_albums",
-        subprefix=f"artist_albums_{payload.region}",
+        subprefix=f"artist_albums_{payload.params.region}",
         session=session,
         batch_size=50,
     )
@@ -121,10 +112,10 @@ async def fetch_albums(
     session: DBSessionDep,
 ):
     task, processor = await create_sp_api_task(
-        inputs=payload.album_ids,
-        params=AlbumsParams(region=payload.region),
+        inputs=payload.inputs,
+        params=payload.params,
         task_type="albums",
-        subprefix=f"albums_{payload.region}",
+        subprefix=f"albums_{payload.params.region}",
         session=session,
         batch_size=50,
     )
@@ -140,7 +131,7 @@ async def fetch_playlists(
     session: DBSessionDep,
 ):
     task, processor = await create_sp_api_task(
-        inputs=payload.playlist_ids,
+        inputs=payload.inputs,
         params=None,
         task_type="playlists",
         subprefix="playlists",
@@ -160,10 +151,10 @@ async def search_tracks_by_isrc(
     session: DBSessionDep,
 ):
     task, processor = await create_sp_api_task(
-        inputs=payload.isrcs,
-        params=ISRCTrackSearchParams(region=payload.region),
+        inputs=payload.inputs,
+        params=payload.params,
         task_type="track_search_isrcs",
-        subprefix=f"tracks_{payload.region}",
+        subprefix=f"tracks_{payload.params.region}",
         session=session,
         batch_size=50,
     )

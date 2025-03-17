@@ -67,3 +67,14 @@ export type JSONSerializableValue =
 	| JSONSerializableValue[]
 	| JSONSerializableObject;
 type JSONSerializableObject = { [key: string]: JSONSerializableValue };
+
+/**
+ * Helper type to make IDE hints for expected type (e.g. IntelliSense) easier to read
+ *
+ * Details (and code source): https://stackoverflow.com/a/57683652/13727176
+ */
+export type ExpandRecursively<T> = T extends object
+	? T extends infer O
+		? { [K in keyof O]: ExpandRecursively<O[K]> }
+		: never
+	: T;

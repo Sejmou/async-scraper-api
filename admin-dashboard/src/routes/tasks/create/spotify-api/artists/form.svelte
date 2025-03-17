@@ -2,7 +2,7 @@
 	import * as Form from '$lib/components/ui/form';
 	import {
 		artistsPayloadSchema,
-		type SpotifyAPITask
+		type ArtistsTask
 	} from '$lib/scraper-types-and-schemas/new-tasks/spotify-api';
 	import { superForm, defaults } from 'sveltekit-superforms';
 	import { MessageAlert } from '$lib/components/ui/message-alert';
@@ -16,7 +16,6 @@
 	// we just need to pass _something_ so that superforms is happy - this is hacky af, I know lol
 	const form = superForm(defaults(zod(artistsPayloadSchema)), {
 		SPA: true,
-		dataType: 'json',
 		validators: zod(artistsPayloadSchema),
 		resetForm: false
 	});
@@ -26,26 +25,24 @@
 	let artist_ids: string[] = $state([]);
 
 	async function handleSubmit(event: Event) {
-		console.log('artist_ids', artist_ids);
 		event.preventDefault();
 		const result = await validateForm();
+		console.log({ result });
 
 		if (!result.valid) {
 			errors.update((v) => {
 				return {
 					...v,
-					artist_ids: result.errors.artist_ids
+					inputs: result.errors.inputs
 				};
 			});
 			return;
 		}
 
-		const task: SpotifyAPITask = {
+		const task: ArtistsTask = {
 			dataSource: 'spotify-api',
 			taskType: 'artists',
-			payload: {
-				artist_ids
-			}
+			inputs: artist_ids
 		};
 
 		console.log('task', task);
