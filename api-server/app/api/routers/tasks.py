@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
@@ -29,16 +29,32 @@ async def task(task_id: int, session: DBSessionDep):
         .where(DBTask.id == task_id)
         .options(joinedload(DBTask.file_uploads))
     )
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
     return TaskModel.model_validate(task)
 
 
 @router.get("/{task_id}/progress", response_model=TaskProgress)
-async def task_progress(task_id: int):
+async def task_progress(task_id: int, session: DBSessionDep):
+    task = await session.scalar(
+        select(DBTask)
+        .where(DBTask.id == task_id)
+        .options(joinedload(DBTask.file_uploads))
+    )
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
     tracker = TaskProgressTracker(task_id)
     return await tracker.get_progress()
 
 
 @router.get("/{task_id}/progress/details", response_model=TaskProgressDetails)
-async def task_progress_details(task_id: int):
+async def task_progress_details(task_id: int, session: DBSessionDep):
+    task = await session.scalar(
+        select(DBTask)
+        .where(DBTask.id == task_id)
+        .options(joinedload(DBTask.file_uploads))
+    )
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
     tracker = TaskProgressTracker(task_id)
     return await tracker.get_progress_details()

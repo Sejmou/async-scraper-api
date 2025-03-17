@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
+from fastapi.responses import JSONResponse
 import uvicorn
-from fastapi import BackgroundTasks, FastAPI
+from fastapi import BackgroundTasks, FastAPI, Request
 
 from app.api.routers.spotify_api import router as spotify_api_router
 from app.api.routers.tasks import router as tasks_router
@@ -27,6 +28,13 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan, title=settings.project_name, docs_url="/docs")
+
+
+# Override the default exception handler for all unhandled exceptions.
+@app.exception_handler(Exception)
+async def json_exception_handler(request: Request, exc: Exception):
+    app_logger.exception("Unhandled error occurred")
+    return JSONResponse(status_code=500, content={"detail": "Internal Server Error"})
 
 
 @app.get("/")
