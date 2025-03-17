@@ -1,5 +1,5 @@
 import { db } from '$lib/server/db';
-import { serverTbl, type ServerInsert } from '$lib/server/db/schema';
+import { scraperServerTbl, type ScraperInsert } from '$lib/server/db/schema';
 import { asc, eq } from 'drizzle-orm';
 import { getAPIServerInfo } from '$lib/server/scraper-api/about';
 import type { APIServerMeta } from './table-columns';
@@ -9,7 +9,10 @@ import { formSchemaBatchImport, formSchemaSingleInsert, baseUrlSchema } from './
 import { fail } from '@sveltejs/kit';
 
 export async function load() {
-	const serversInDb = await db.select().from(serverTbl).orderBy(asc(serverTbl.addedAt));
+	const serversInDb = await db
+		.select()
+		.from(scraperServerTbl)
+		.orderBy(asc(scraperServerTbl.addedAt));
 	type ServerMeta = (typeof serversInDb)[0];
 	const getStatus = async (meta: ServerMeta) => {
 		try {
@@ -39,7 +42,7 @@ export async function load() {
 	};
 }
 
-type ServerInsertMeta = ServerInsert & {
+type ServerInsertMeta = ScraperInsert & {
 	originalInput: string;
 };
 
@@ -67,7 +70,7 @@ export const actions = {
 
 		const insert = validServerUrlStringToInsertMeta(form.data.baseUrl);
 		try {
-			await db.insert(serverTbl).values(insert);
+			await db.insert(scraperServerTbl).values(insert);
 		} catch (e) {
 			if (e && typeof e === 'object' && 'code' in e && e.code === 'SQLITE_CONSTRAINT_UNIQUE') {
 				return message(
@@ -127,7 +130,7 @@ export const actions = {
 		await db.transaction(async (trx) => {
 			for (const value of valuesToInsert) {
 				try {
-					await trx.insert(serverTbl).values(value);
+					await trx.insert(scraperServerTbl).values(value);
 				} catch (e) {
 					console.error('Error inserting server', value, e);
 					try {
@@ -158,6 +161,6 @@ export const actions = {
 		if (!id) {
 			return fail(400);
 		}
-		await db.delete(serverTbl).where(eq(serverTbl.id, +id));
+		await db.delete(scraperServerTbl).where(eq(scraperServerTbl.id, +id));
 	}
 };

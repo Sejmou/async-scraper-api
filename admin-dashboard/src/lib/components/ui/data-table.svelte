@@ -69,7 +69,6 @@
 	let rowCountAndDesc = $derived(
 		`${rowCount} ` + (rowCount === 1 ? rowDescSingular : rowDescPlural)
 	);
-	$inspect({ rowCount, pageIndex, paginationPageSize, pageCount });
 </script>
 
 <div class="w-full">

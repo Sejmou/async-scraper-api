@@ -3,7 +3,7 @@ import { relations, sql } from 'drizzle-orm';
 import { createSelectSchema, createInsertSchema } from 'drizzle-zod';
 import { z } from 'zod';
 
-export const serverTbl = sqliteTable(
+export const scraperServerTbl = sqliteTable(
 	'server',
 	{
 		id: integer('id').primaryKey(),
@@ -17,9 +17,10 @@ export const serverTbl = sqliteTable(
 	(t) => [unique().on(t.host, t.port)]
 );
 
-export const serverSelectSchema = createSelectSchema(serverTbl);
-export const serverInsertSchema = createInsertSchema(serverTbl);
-export type ServerInsert = z.infer<typeof serverInsertSchema>;
+export const scraperSelectSchema = createSelectSchema(scraperServerTbl);
+export type ScraperSelect = z.infer<typeof scraperSelectSchema>;
+export const scraperInsertSchema = createInsertSchema(scraperServerTbl);
+export type ScraperInsert = z.infer<typeof scraperInsertSchema>;
 
 export const taskTbl = sqliteTable('task', {
 	id: integer('id').primaryKey(),
@@ -42,6 +43,7 @@ export const subtaskTbl = sqliteTable('subtask', {
 });
 
 export const subtaskSelectSchema = createSelectSchema(subtaskTbl);
+export type SubTaskSelect = z.infer<typeof subtaskSelectSchema>;
 export const subtaskInsertSchema = createInsertSchema(subtaskTbl);
 export type SubtaskInsert = z.infer<typeof subtaskInsertSchema>;
 
@@ -53,5 +55,9 @@ export const subtaskRelations = relations(subtaskTbl, ({ one }) => ({
 	task: one(taskTbl, {
 		fields: [subtaskTbl.taskId],
 		references: [taskTbl.id]
+	}),
+	scraper: one(scraperServerTbl, {
+		fields: [subtaskTbl.scraperId],
+		references: [scraperServerTbl.id]
 	})
 }));

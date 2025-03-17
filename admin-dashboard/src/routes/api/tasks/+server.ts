@@ -1,5 +1,5 @@
 import { db } from '$lib/server/db';
-import { serverTbl, taskTbl, subtaskTbl } from '$lib/server/db/schema';
+import { scraperServerTbl, taskTbl, subtaskTbl } from '$lib/server/db/schema';
 import { getAPIServerInfo } from '$lib/server/scraper-api/about';
 import { json } from '@sveltejs/kit';
 import {
@@ -14,7 +14,7 @@ import { type CreateTaskResponseData } from '$lib/client-api/scraper-tasks';
 import { TransactionRollbackError } from 'drizzle-orm';
 
 async function getAvailableScrapers() {
-	const servers = await db.select().from(serverTbl);
+	const servers = await db.select().from(scraperServerTbl);
 	const onlineServers = (
 		await Promise.allSettled(
 			servers.map(async (s) => {

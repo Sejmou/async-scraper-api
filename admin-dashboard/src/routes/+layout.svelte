@@ -2,7 +2,7 @@
 	import { page } from '$app/state';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb';
 	import '../app.css';
-	let { children } = $props();
+	let { children, data } = $props();
 
 	const titleCase = (str: string) => str[0].toUpperCase() + str.slice(1);
 
@@ -15,7 +15,9 @@
 	let subroutesAndLinks = $derived(
 		subroutes.map((_, i) => {
 			let link = '/' + subroutes.slice(0, i + 1).join('/');
-			const subRoutePathComponent = subroutes[i];
+			let subRoutePathComponent = subroutes[i];
+			if (subRoutePathComponent === '[taskId]' && data.task)
+				subRoutePathComponent = `${data.task.id}`;
 			return {
 				name: breadCrumbsNameOverrides[subRoutePathComponent] || titleCase(subRoutePathComponent),
 				link
