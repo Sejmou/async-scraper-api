@@ -92,7 +92,7 @@ export async function POST({ request }) {
 	// i.e. if data is ordered by priority, each scraper's chunk will start with the most important data
 	const inputChunks = inputs ? roundRobinSplit(inputs, scrapers.length) : null;
 
-	const successes: { scraper: Scraper; taskId: number }[] = [];
+	const successes: { scraper: Scraper; subtaskId: number }[] = [];
 	const failures: { scraper: Scraper; inputs: typeof inputs }[] = [];
 
 	try {
@@ -115,7 +115,7 @@ export async function POST({ request }) {
 				if (taskSendResult.success) {
 					subtaskId = taskSendResult.data.id;
 					console.log('Successfully sent task to scraper', { scraper, input, params });
-					successes.push({ scraper, taskId });
+					successes.push({ scraper, subtaskId });
 				} else {
 					console.error('Failed to send task to scraper', {
 						scraper,

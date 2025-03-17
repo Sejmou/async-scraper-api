@@ -16,8 +16,13 @@
 		subroutes.map((_, i) => {
 			let link = '/' + subroutes.slice(0, i + 1).join('/');
 			let subRoutePathComponent = subroutes[i];
-			if (subRoutePathComponent === '[taskId]' && data.task)
-				subRoutePathComponent = `${data.task.id}`;
+			if (subRoutePathComponent === '[taskId]') {
+				if (data.task) {
+					subRoutePathComponent = `${data.task.id}`;
+				} else {
+					subRoutePathComponent = 'Unknown Task';
+				}
+			}
 			return {
 				name: breadCrumbsNameOverrides[subRoutePathComponent] || titleCase(subRoutePathComponent),
 				link

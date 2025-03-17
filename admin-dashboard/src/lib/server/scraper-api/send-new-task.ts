@@ -27,17 +27,18 @@ export const sendTaskToScraper = async (
 > => {
 	const { dataSource, taskType, inputs } = task;
 	const params = 'params' in task ? task.params : undefined;
-	const data = await makeRequestToScraper(scraper, `${dataSource}/${taskType}`, {
+	const result = await makeRequestToScraper(scraper, `${dataSource}/${taskType}`, {
 		inputs,
 		params
 	});
-	if (data.status === 'error') {
+	if (result.status === 'error') {
 		return {
 			success: false,
-			error: data.error
+			error: result.error
 		};
 	}
 
+	const data = result.data;
 	const schemaParseRes = dataFetchingTaskSchema.safeParse(data);
 	if (!schemaParseRes.success) {
 		const error = schemaParseRes.error;
