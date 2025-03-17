@@ -16,5 +16,5 @@
 </ul>
 <h3 class="text-lg font-semibold">Subtasks</h3>
 <div>
-	<SubtaskInfo subtasks={task.subtasks} />
+	<SubtaskInfo subtasks={task.subtasks} wrapInDialog={false} />
 </div>

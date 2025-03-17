@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, unique } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, unique, type AnySQLiteColumn } from 'drizzle-orm/sqlite-core';
 import { relations, sql } from 'drizzle-orm';
 import { createSelectSchema, createInsertSchema } from 'drizzle-zod';
 import { z } from 'zod';
@@ -38,8 +38,12 @@ export type TaskInsert = z.infer<typeof taskInsertSchema>;
 
 export const subtaskTbl = sqliteTable('subtask', {
 	id: integer('id').primaryKey(),
-	taskId: integer('task_id').notNull(),
-	scraperId: integer('scraper_id').notNull()
+	taskId: integer('task_id')
+		.notNull()
+		.references((): AnySQLiteColumn => taskTbl.id, { onDelete: 'cascade' }),
+	scraperId: integer('scraper_id')
+		.notNull()
+		.references((): AnySQLiteColumn => scraperServerTbl.id)
 });
 
 export const subtaskSelectSchema = createSelectSchema(subtaskTbl);

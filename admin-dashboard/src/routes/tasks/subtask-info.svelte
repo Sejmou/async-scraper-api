@@ -16,24 +16,32 @@
 	type SubTaskWithScraper = SubTask & { scraper: Scraper };
 
 	let {
-		subtasks
+		subtasks,
+		wrapInDialog = true
 	}: {
 		subtasks: SubTaskWithScraper[];
+		wrapInDialog?: boolean;
 	} = $props();
 </script>
 
-{#if subtasks.length > 0}
-	<Dialog.Root>
-		<Dialog.Trigger class={buttonVariants({ variant: 'outline' })}>
-			{subtasks.length} scraper{subtasks.length == 1 ? '' : 's'}
-		</Dialog.Trigger>
-		<Dialog.Content>
-			<Dialog.Title>Subtasks</Dialog.Title>
-			<Dialog.Description>
-				<DataTable {columns} data={subtasks} />
-			</Dialog.Description>
-		</Dialog.Content>
-	</Dialog.Root>
+{#if wrapInDialog}
+	{#if subtasks.length > 0}
+		<Dialog.Root>
+			<Dialog.Trigger class={buttonVariants({ variant: 'outline' })}>
+				{subtasks.length} scraper{subtasks.length == 1 ? '' : 's'}
+			</Dialog.Trigger>
+			<Dialog.Content>
+				<Dialog.Title>Subtasks</Dialog.Title>
+				<Dialog.Description>
+					<DataTable {columns} data={subtasks} />
+				</Dialog.Description>
+			</Dialog.Content>
+		</Dialog.Root>
+	{:else}
+		No subtasks
+	{/if}
+{:else if subtasks.length > 0}
+	<DataTable {columns} data={subtasks} />
 {:else}
-	No subtasks
+	<span class="text-sm text-muted-foreground">No subtasks</span>
 {/if}
