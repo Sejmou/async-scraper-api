@@ -40,7 +40,7 @@
 		</AlertDialog.Header>
 		<form method="POST" action="?/delete" use:enhance>
 			<AlertDialog.Footer>
-				<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+				<AlertDialog.Cancel type="button">Cancel</AlertDialog.Cancel>
 				<input type="hidden" name="id" value={id} />
 				<AlertDialog.Action type="submit">Confirm</AlertDialog.Action>
 			</AlertDialog.Footer>

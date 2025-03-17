@@ -24,7 +24,9 @@
 </script>
 
 <Dialog.Root>
-	<Dialog.Trigger class={buttonVariants({ variant: 'default' })}>Add</Dialog.Trigger>
+	<div class="flex w-full justify-end">
+		<Dialog.Trigger class={buttonVariants({ variant: 'default' })}>Add</Dialog.Trigger>
+	</div>
 	<Dialog.Content class="max-w-screen-md">
 		<Dialog.Header>
 			<Dialog.Title>Add scraper(s)</Dialog.Title>

@@ -12,7 +12,7 @@ get {
 
 script:post-response {
   const body = res.body;
-  if (Array.isArray(body)) {
+  if (Array.isArray(body) && body.length > 0) {
     bru.setEnvVar("task_id", body.at(-1).id);
   }
 }

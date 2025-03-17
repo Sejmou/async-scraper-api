@@ -114,7 +114,6 @@ export async function POST({ request }) {
 				const taskSendResult = await sendTaskToScraper(scraper, task);
 				if (taskSendResult.success) {
 					subtaskId = taskSendResult.data.id;
-					console.log('Successfully sent task to scraper', { scraper, input, params });
 					successes.push({ scraper, subtaskId });
 				} else {
 					console.error('Failed to send task to scraper', {
