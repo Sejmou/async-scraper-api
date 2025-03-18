@@ -23,15 +23,16 @@ export const artistsTaskSchema = artistsPayloadSchema.and(spotifyApiDataSourceSc
 );
 export type ArtistsTask = ExpandRecursively<z.infer<typeof artistsTaskSchema>>;
 
-export const artistAlbumsPayloadSchema = spotifyTaskInputsSchema.extend({
-	params: regionSpecificParamsSchema.extend({
-		release_types: z.object({
-			albums: z.boolean().default(false),
-			singles: z.boolean().default(false),
-			compilations: z.boolean().default(false),
-			appears_on: z.boolean().default(false)
-		})
+export const artistAlbumsParamsSchema = regionSpecificParamsSchema.extend({
+	release_types: z.object({
+		albums: z.boolean().default(false),
+		singles: z.boolean().default(false),
+		compilations: z.boolean().default(false),
+		appears_on: z.boolean().default(false)
 	})
+});
+export const artistAlbumsPayloadSchema = spotifyTaskInputsSchema.extend({
+	params: artistAlbumsParamsSchema
 });
 export type ArtistAlbumsPayload = ExpandRecursively<z.infer<typeof artistAlbumsPayloadSchema>>;
 export const artistAlbumsTaskSchema = artistAlbumsPayloadSchema.and(spotifyApiDataSourceSchema).and(
@@ -41,8 +42,9 @@ export const artistAlbumsTaskSchema = artistAlbumsPayloadSchema.and(spotifyApiDa
 );
 export type ArtistAlbumsTask = ExpandRecursively<z.infer<typeof artistAlbumsTaskSchema>>;
 
+export const albumsParamsSchema = regionSpecificParamsSchema;
 export const albumsPayloadSchema = spotifyTaskInputsSchema.extend({
-	params: regionSpecificParamsSchema
+	params: albumsParamsSchema
 });
 export type AlbumsPayload = ExpandRecursively<z.infer<typeof albumsPayloadSchema>>;
 export const albumsTaskSchema = albumsPayloadSchema.and(spotifyApiDataSourceSchema).and(
@@ -52,8 +54,10 @@ export const albumsTaskSchema = albumsPayloadSchema.and(spotifyApiDataSourceSche
 );
 export type AlbumsTask = ExpandRecursively<z.infer<typeof albumsTaskSchema>>;
 
+export const tracksParamsSchema = regionSpecificParamsSchema;
+export type TracksParams = ExpandRecursively<z.infer<typeof tracksParamsSchema>>;
 export const tracksPayloadSchema = spotifyTaskInputsSchema.extend({
-	params: regionSpecificParamsSchema
+	params: tracksParamsSchema
 });
 export type TracksPayload = ExpandRecursively<z.infer<typeof tracksPayloadSchema>>;
 export const tracksTaskSchema = tracksPayloadSchema.and(spotifyApiDataSourceSchema).and(
