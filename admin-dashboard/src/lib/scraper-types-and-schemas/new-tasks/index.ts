@@ -7,10 +7,9 @@ import {
 	playlistsTaskSchema,
 	tracksTaskSchema,
 	spotifyApiTaskTypesSchema,
-	getInitialSpotifyTaskParams,
-	tracksParamsSchema,
-	artistAlbumsParamsSchema,
-	albumsParamsSchema
+	parseSpotifyTask,
+	getSpotifyTaskParamsSchema,
+	getSpotifyTaskInputMeta
 } from './spotify-api';
 
 export const scraperSchema = z.object({
@@ -28,6 +27,15 @@ export const taskSchema = z.discriminatedUnion('dataSource', [
 		params: z.record(z.unknown()).optional()
 	})
 ]);
+
+/**
+ * A task with valid `dataSource` and `taskType` fields, and inputs + (optional) params of unknown type.
+ *
+ * Obtained as first step in parsing task objects sent from clients.
+ *
+ * Individual zod schema parsers for each data source can then determine if the task is indeed valid for the given data source and task type.
+ */
+export type SupportedTaskCandidate = z.infer<typeof taskSchema>;
 
 export const parseToTaskOrThrowError = (input: unknown) => {
 	const result = taskSchema.parse(input);
@@ -48,14 +56,10 @@ export const parseToTaskOrThrowError = (input: unknown) => {
 	}
 };
 
-export const noParamsSchema = z.object({
-	params: z.undefined()
-});
-
 export type SupportedTask = ExpandRecursively<ReturnType<typeof parseToTaskOrThrowError>>;
 
-type TaskInput = SupportedTask['inputs'][0];
-export type TaskInputMeta<T extends TaskInput> = {
+type SupportedTaskInput = SupportedTask['inputs'][0];
+export type TaskInputMeta<T extends SupportedTaskInput> = {
 	inputDescription: string;
 	inputSchema: z.ZodSchema<T>;
 	exampleInput: T;
@@ -64,64 +68,40 @@ export type TaskInputMeta<T extends TaskInput> = {
 	 */
 	inputsTableName: string;
 };
-export type SupportedTaskInputMeta = TaskInputMeta<TaskInput>;
+
+export type SupportedTaskInputMeta = TaskInputMeta<SupportedTaskInput>;
+export const getTaskInputMeta = (
+	input: Pick<SupportedTaskCandidate, 'dataSource' | 'taskType'>
+): SupportedTaskInputMeta | null => {
+	switch (input.dataSource) {
+		case 'spotify-api':
+			return getSpotifyTaskInputMeta(input.taskType);
+	}
+};
+
+export type ParamsUnion<T> = T extends { params: infer P } ? P : never;
+export function getParamsSchema(
+	input: Pick<SupportedTaskCandidate, 'dataSource' | 'taskType'>
+): z.ZodSchema<ParamsUnion<SupportedTask>> | null {
+	switch (input.dataSource) {
+		case 'spotify-api':
+			return getSpotifyTaskParamsSchema(input);
+	}
+}
 
 export function getInitialTaskValue(
 	dataSourceStr: string,
 	taskTypeStr: string
-): SupportedTask | null {
+): SupportedTaskCandidate | null {
 	const baseSchemaParseRes = taskSchema.safeParse({
 		dataSource: dataSourceStr,
 		taskType: taskTypeStr,
 		inputs: []
 	});
 	if (!baseSchemaParseRes.success) return null;
-	const { dataSource, taskType } = baseSchemaParseRes.data;
-	const input = {
-		dataSource,
-		taskType,
-		inputs: [],
-		params: getInitialTaskParams(dataSource, taskType)
-	};
-	const task = parseToTaskSafe(input);
-	if (!task) console.error('Failed to parse task (this is probably a bug):', { task });
-	return task;
-}
-
-export function getParamsSchema(task: SupportedTask): z.ZodSchema | null {
-	// TODO: update as more data sources and task types are added
-	switch (task.dataSource) {
+	const candidate = baseSchemaParseRes.data;
+	switch (candidate.dataSource) {
 		case 'spotify-api':
-			switch (task.taskType) {
-				case 'artists':
-					return null;
-				case 'tracks':
-					return tracksParamsSchema;
-				case 'artist-albums':
-					return artistAlbumsParamsSchema;
-				case 'albums':
-					return albumsParamsSchema;
-				case 'playlists':
-					return null;
-			}
-	}
-}
-
-function getInitialTaskParams(
-	dataSource: SupportedTask['dataSource'],
-	taskType: SupportedTask['taskType']
-): Record<string, unknown> | null {
-	switch (dataSource) {
-		case 'spotify-api':
-			return getInitialSpotifyTaskParams(taskType);
-	}
-}
-
-function parseToTaskSafe(input: unknown): SupportedTask | null {
-	try {
-		return parseToTaskOrThrowError(input);
-	} catch {
-		console.error('Failed to parse task from input:', input);
-		return null;
+			return parseSpotifyTask(candidate);
 	}
 }

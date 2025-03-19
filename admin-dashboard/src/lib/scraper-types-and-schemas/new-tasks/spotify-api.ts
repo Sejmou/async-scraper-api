@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { ExpandRecursively } from '$lib/utils';
-import { noParamsSchema } from '.';
+import type { ParamsUnion, SupportedTaskCandidate, TaskInputMeta } from '.';
 
 const regionSpecificParamsSchema = z.object({
 	region: z.enum(['de', 'us'])
@@ -15,7 +15,6 @@ const spotifyApiDataSourceSchema = z.object({
 	dataSource: z.literal('spotify-api')
 });
 
-export const artistParamsDefault = noParamsSchema;
 export const artistsPayloadSchema = spotifyTaskInputsSchema;
 export type ArtistsPayload = ExpandRecursively<z.infer<typeof artistsPayloadSchema>>;
 export const artistsTaskSchema = artistsPayloadSchema.and(spotifyApiDataSourceSchema).and(
@@ -24,6 +23,11 @@ export const artistsTaskSchema = artistsPayloadSchema.and(spotifyApiDataSourceSc
 	})
 );
 export type ArtistsTask = ExpandRecursively<z.infer<typeof artistsTaskSchema>>;
+const initialArtistsTask: ArtistsTask = {
+	dataSource: 'spotify-api',
+	taskType: 'artists',
+	inputs: []
+};
 
 export const artistAlbumsParamsSchema = regionSpecificParamsSchema.extend({
 	release_types: z.object({
@@ -33,16 +37,7 @@ export const artistAlbumsParamsSchema = regionSpecificParamsSchema.extend({
 		appears_on: z.boolean().default(false)
 	})
 });
-type ArtistAlbumsParams = ExpandRecursively<z.infer<typeof artistAlbumsParamsSchema>>;
-export const artistAlbumsParamsDefault: ArtistAlbumsParams = {
-	region: 'de',
-	release_types: {
-		albums: true,
-		singles: false,
-		compilations: false,
-		appears_on: false
-	}
-};
+export type ArtistAlbumsParams = ExpandRecursively<z.infer<typeof artistAlbumsParamsSchema>>;
 export const artistAlbumsPayloadSchema = spotifyTaskInputsSchema.extend({
 	params: artistAlbumsParamsSchema
 });
@@ -53,12 +48,23 @@ export const artistAlbumsTaskSchema = artistAlbumsPayloadSchema.and(spotifyApiDa
 	})
 );
 export type ArtistAlbumsTask = ExpandRecursively<z.infer<typeof artistAlbumsTaskSchema>>;
+const initialArtistAlbumsTask: ArtistAlbumsTask = {
+	dataSource: 'spotify-api',
+	taskType: 'artist-albums',
+	inputs: [],
+	params: {
+		region: 'de',
+		release_types: {
+			albums: true,
+			singles: false,
+			compilations: false,
+			appears_on: false
+		}
+	}
+};
 
 export const albumsParamsSchema = regionSpecificParamsSchema;
 export type AlbumsParams = ExpandRecursively<z.infer<typeof albumsParamsSchema>>;
-export const albumsParamsDefault: AlbumsParams = {
-	region: 'de'
-};
 export const albumsPayloadSchema = spotifyTaskInputsSchema.extend({
 	params: albumsParamsSchema
 });
@@ -69,12 +75,17 @@ export const albumsTaskSchema = albumsPayloadSchema.and(spotifyApiDataSourceSche
 	})
 );
 export type AlbumsTask = ExpandRecursively<z.infer<typeof albumsTaskSchema>>;
+const initialAlbumsTask: AlbumsTask = {
+	dataSource: 'spotify-api',
+	taskType: 'albums',
+	inputs: [],
+	params: {
+		region: 'de'
+	}
+};
 
 export const tracksParamsSchema = regionSpecificParamsSchema;
 export type TracksParams = ExpandRecursively<z.infer<typeof tracksParamsSchema>>;
-export const tracksParamsDefault: TracksParams = {
-	region: 'de'
-};
 export const tracksPayloadSchema = spotifyTaskInputsSchema.extend({
 	params: tracksParamsSchema
 });
@@ -85,9 +96,16 @@ export const tracksTaskSchema = tracksPayloadSchema.and(spotifyApiDataSourceSche
 	})
 );
 export type TracksTask = ExpandRecursively<z.infer<typeof tracksTaskSchema>>;
+const initialTracksTask: TracksTask = {
+	dataSource: 'spotify-api',
+	taskType: 'tracks',
+	inputs: [],
+	params: {
+		region: 'de'
+	}
+};
 
 export const playlistsPayloadSchema = spotifyTaskInputsSchema;
-export const playlistsParamsDefault = noParamsSchema;
 export type PlaylistsPayload = ExpandRecursively<z.infer<typeof playlistsPayloadSchema>>;
 export const playlistsTaskSchema = playlistsPayloadSchema.and(spotifyApiDataSourceSchema).and(
 	z.object({
@@ -95,6 +113,11 @@ export const playlistsTaskSchema = playlistsPayloadSchema.and(spotifyApiDataSour
 	})
 );
 export type PlaylistsTask = ExpandRecursively<z.infer<typeof playlistsTaskSchema>>;
+const initialPlaylistsTask: PlaylistsTask = {
+	dataSource: 'spotify-api',
+	taskType: 'playlists',
+	inputs: []
+};
 
 export const spotifyApiTaskSchema = z.union([
 	tracksTaskSchema,
@@ -113,19 +136,96 @@ export const spotifyApiTaskTypesSchema = z.union([
 	z.literal('artist-albums')
 ]);
 
-export function getInitialSpotifyTaskParams(
-	taskType: SpotifyAPITask['taskType']
-): Record<string, unknown> | null {
+type SupportedSpotifyTaskCandidate = Extract<SupportedTaskCandidate, { dataSource: 'spotify-api' }>;
+
+export const parseSpotifyTask = (candidate: SupportedSpotifyTaskCandidate) => {
+	switch (candidate.taskType) {
+		case 'tracks':
+			return tracksTaskSchema.parse(candidate);
+		case 'artists':
+			return artistsTaskSchema.parse(candidate);
+		case 'albums':
+			return albumsTaskSchema.parse(candidate);
+		case 'artist-albums':
+			return artistAlbumsTaskSchema.parse(candidate);
+		case 'playlists':
+			return playlistsTaskSchema.parse(candidate);
+	}
+};
+
+export const getInitialSpotifyTask = (taskType: SpotifyAPITask['taskType']): SpotifyAPITask => {
+	switch (taskType) {
+		case 'tracks':
+			return initialTracksTask;
+		case 'artists':
+			return initialArtistsTask;
+		case 'albums':
+			return initialAlbumsTask;
+		case 'playlists':
+			return initialPlaylistsTask;
+		case 'artist-albums':
+			return initialArtistAlbumsTask;
+	}
+};
+
+export type SpotifyAPITaskType = SpotifyAPITask['taskType'];
+export type SpotifyAPITaskInput = SpotifyAPITask['inputs'][0];
+
+export const getSpotifyTaskInputMeta = (
+	taskType: SpotifyAPITaskType
+): TaskInputMeta<SpotifyAPITaskInput> => {
 	switch (taskType) {
 		case 'artists':
-			return artistParamsDefault;
+			return {
+				exampleInput: '06HL4z0CvFAxyc27GXpf02',
+				inputDescription: 'Spotify artist ID',
+				inputSchema: z.string(),
+				inputsTableName: 'sp_api_artists'
+			};
 		case 'tracks':
-			return tracksParamsDefault;
+			return {
+				exampleInput: '4PTG3Z6ehGkBFwjybzWkR8',
+				inputDescription: 'Spotify track ID',
+				inputSchema: z.string(),
+				inputsTableName: 'sp_api_tracks'
+			};
 		case 'artist-albums':
-			return artistAlbumsParamsDefault;
+			return {
+				exampleInput: '4PTG3Z6ehGkBFwjybzWkR8',
+				inputDescription: 'Spotify artist ID',
+				inputSchema: z.string(),
+				inputsTableName: 'sp_api_artist_albums'
+			};
 		case 'albums':
-			return albumsParamsDefault;
+			return {
+				exampleInput: '4LH4d3cOWNNsVw41Gqt2kv',
+				inputDescription: 'Spotify album ID',
+				inputSchema: z.string(),
+				inputsTableName: 'sp_api_albums'
+			};
 		case 'playlists':
-			return playlistsParamsDefault;
+			return {
+				exampleInput: '37i9dQZF1DX5U26jySAO4K',
+				inputDescription: 'Spotify playlist ID',
+				inputSchema: z.string(),
+				inputsTableName: 'sp_api_playlists'
+			};
 	}
-}
+};
+
+export const getSpotifyTaskParamsSchema = (
+	task: Pick<SupportedSpotifyTaskCandidate, 'dataSource' | 'taskType'>
+): z.ZodSchema<ParamsUnion<SpotifyAPITask>> | null => {
+	switch (task.taskType) {
+		case 'artists':
+			return null;
+		case 'tracks':
+			return tracksParamsSchema;
+		case 'artist-albums':
+			return artistAlbumsParamsSchema;
+		case 'albums':
+			return albumsParamsSchema;
+		case 'playlists':
+			return null;
+	}
+};
