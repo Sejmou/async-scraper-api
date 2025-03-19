@@ -1,5 +1,8 @@
 <script lang="ts">
-	import { type SupportedTask } from '$lib/scraper-types-and-schemas/new-tasks';
+	import {
+		type SupportedTask,
+		type SupportedTaskInputMeta
+	} from '$lib/scraper-types-and-schemas/new-tasks';
 	import * as Form from '$lib/components/ui/form';
 	import { MessageAlert } from '$lib/components/ui/message-alert';
 	import { InputExtractor } from '$lib/components/task-input-extractor/index.svelte';
@@ -10,11 +13,20 @@
 
 	let {
 		initialTaskValue,
-		paramsSchema
-	}: { initialTaskValue: SupportedTask; paramsSchema: z.ZodSchema } = $props();
+		taskInputMeta,
+		paramsSchema = z.object({
+			// Default schema for tasks that don't have any parameters
+		})
+	}: {
+		initialTaskValue: SupportedTask;
+		paramsSchema?: z.ZodSchema;
+		taskInputMeta: SupportedTaskInputMeta;
+	} = $props();
 	let { form, message, handleSubmit, enhance, inputs, updateInputs } = $derived(
 		new TaskFormState(initialTaskValue, paramsSchema)
 	);
+
+	let { exampleInput, inputDescription, inputSchema, inputsTableName } = $derived(taskInputMeta);
 </script>
 
 <form method="POST" use:enhance onsubmit={handleSubmit}>
@@ -24,10 +36,10 @@
 	{/if}
 	<h3 class="text-lg font-semibold">Inputs (Track IDs)</h3>
 	<InputExtractor
-		inputDescription="Track IDs"
-		exampleInput="4PTG3Z6ehGkBFwjybzWkR8"
-		inputSchema={z.string()}
-		inputsTableName="sp_api_track_ids"
+		{inputDescription}
+		{exampleInput}
+		{inputSchema}
+		{inputsTableName}
 		onInputsAdded={(newInputs) => updateInputs(newInputs)}
 	/>
 	{#if inputs.length > 0}

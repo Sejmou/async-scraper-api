@@ -91,9 +91,9 @@ export class TaskFormState<TaskType extends SupportedTask, ParamsType extends z.
 		// use initialTaskValue to figure out what type of task object to create at runtime
 		const task = structuredClone(this.#initialTaskValue);
 		task.inputs = this.#inputs;
-		const $formData = get(this.formData);
+		const formData = get(this.formData);
 		if ('params' in task) {
-			task.params = $formData.params;
+			task.params = formData.params;
 		}
 		return task;
 	}
