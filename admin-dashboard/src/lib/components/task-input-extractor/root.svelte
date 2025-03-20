@@ -1,6 +1,7 @@
 <script lang="ts" generics="T extends z.ZodSchema">
 	import Button from '$lib/components/ui/button/button.svelte';
-	import { FileInputExtractor } from './file';
+	import { FileInputExtractor } from './file-input-extractor';
+	import TextareaInputExtractor from './textarea-input-extractor.svelte';
 	import { z } from 'zod';
 	import { type InputExtractorProps, InputExtractorState } from './index.svelte';
 	import InputsViewer from './inputs-viewer.svelte';
@@ -38,6 +39,8 @@
 			<Button variant="outline" onclick={() => (importMethod = null)}>Change method</Button>
 		</div>
 		{#if importMethod === 'file'}<FileInputExtractor {ieState} />
+		{:else if importMethod === 'textarea'}
+			<TextareaInputExtractor {ieState} />
 		{/if}
 	{:else}
 		<p class="text-sm text-muted-foreground">

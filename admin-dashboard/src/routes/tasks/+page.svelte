@@ -61,5 +61,10 @@
 	<div class="flex w-full justify-end">
 		<Button href="/tasks/create">Create new task</Button>
 	</div>
-	<DataTable data={data.tasks} columns={tableColumns} />
+	<DataTable
+		data={data.tasks}
+		columns={tableColumns}
+		rowDescPlural="tasks"
+		rowDescSingular="task"
+	/>
 {/if}
