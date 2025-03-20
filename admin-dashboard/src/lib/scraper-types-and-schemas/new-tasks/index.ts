@@ -1,15 +1,11 @@
-import { type ExpandRecursively } from '$lib/utils';
 import { z } from 'zod';
 import {
-	albumsTaskSchema,
-	artistAlbumsTaskSchema,
-	artistsTaskSchema,
-	playlistsTaskSchema,
-	tracksTaskSchema,
 	spotifyApiTaskTypesSchema,
-	parseSpotifyTask,
 	getSpotifyTaskParamsSchema,
-	getSpotifyTaskInputMeta
+	getSpotifyTaskInputMeta,
+	getInitialSpotifyTask,
+	parseSpotifyTask,
+	type SpotifyAPITask
 } from './spotify-api';
 
 export const scraperSchema = z.object({
@@ -36,31 +32,20 @@ export const taskSchema = z.discriminatedUnion('dataSource', [
  * Individual zod schema parsers for each data source can then determine if the task is indeed valid for the given data source and task type.
  */
 export type SupportedTaskCandidate = z.infer<typeof taskSchema>;
+// TODO: update with types for other data sources as they are added
+export type SupportedTask = SpotifyAPITask;
 
-export const parseToTaskOrThrowError = (input: unknown) => {
+export const parseToTaskOrThrowError = (input: unknown): SupportedTask => {
 	const result = taskSchema.parse(input);
 	switch (result.dataSource) {
 		case 'spotify-api':
-			switch (result.taskType) {
-				case 'tracks':
-					return tracksTaskSchema.parse(result);
-				case 'artists':
-					return artistsTaskSchema.parse(result);
-				case 'albums':
-					return albumsTaskSchema.parse(result);
-				case 'artist-albums':
-					return artistAlbumsTaskSchema.parse(result);
-				case 'playlists':
-					return playlistsTaskSchema.parse(result);
-			}
+			return parseSpotifyTask(result);
 	}
 };
 
-export type SupportedTask = ExpandRecursively<ReturnType<typeof parseToTaskOrThrowError>>;
-
 type SupportedTaskInput = SupportedTask['inputs'][0];
 export type TaskInputMeta<T extends SupportedTaskInput> = {
-	inputDescription: string;
+	inputsDescription: string;
 	inputSchema: z.ZodSchema<T>;
 	exampleInput: T;
 	/**
@@ -71,8 +56,8 @@ export type TaskInputMeta<T extends SupportedTaskInput> = {
 
 export type SupportedTaskInputMeta = TaskInputMeta<SupportedTaskInput>;
 export const getTaskInputMeta = (
-	input: Pick<SupportedTaskCandidate, 'dataSource' | 'taskType'>
-): SupportedTaskInputMeta | null => {
+	input: Pick<SupportedTask, 'dataSource' | 'taskType'>
+): SupportedTaskInputMeta => {
 	switch (input.dataSource) {
 		case 'spotify-api':
 			return getSpotifyTaskInputMeta(input.taskType);
@@ -92,16 +77,16 @@ export function getParamsSchema(
 export function getInitialTaskValue(
 	dataSourceStr: string,
 	taskTypeStr: string
-): SupportedTaskCandidate | null {
+): SupportedTask | null {
 	const baseSchemaParseRes = taskSchema.safeParse({
 		dataSource: dataSourceStr,
 		taskType: taskTypeStr,
 		inputs: []
 	});
 	if (!baseSchemaParseRes.success) return null;
-	const candidate = baseSchemaParseRes.data;
-	switch (candidate.dataSource) {
+	const base = baseSchemaParseRes.data;
+	switch (base.dataSource) {
 		case 'spotify-api':
-			return parseSpotifyTask(candidate);
+			return getInitialSpotifyTask(base.taskType);
 	}
 }

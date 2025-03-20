@@ -9,7 +9,7 @@
 
 	let ieState = new InputExtractorState(props);
 
-	let { inputDescription } = props;
+	let { inputsDescription } = props;
 
 	let importMethod: 'file' | 'textarea' | null = $state(null);
 
@@ -21,7 +21,7 @@
 		<div class="flex w-full items-start justify-between">
 			<p class="text-sm text-muted-foreground">
 				{ieState.inputs.length}
-				{inputDescription} added.
+				{inputsDescription} added.
 			</p>
 			<div class="flex gap-2">
 				<Button variant="outline" onclick={() => (viewingImportedInputs = true)}>View</Button>
@@ -37,12 +37,11 @@
 			</span>
 			<Button variant="outline" onclick={() => (importMethod = null)}>Change method</Button>
 		</div>
-		{#if importMethod === 'file'}
-			<FileInputExtractor {ieState} />
+		{#if importMethod === 'file'}<FileInputExtractor {ieState} />
 		{/if}
 	{:else}
 		<p class="text-sm text-muted-foreground">
-			{inputDescription} can be added in multiple ways. Pick the one that suits you best!
+			{inputsDescription} can be added in multiple ways. Pick the one that suits you best!
 		</p>
 		<div class="flex w-full flex-col gap-4 lg:flex-row">
 			<button

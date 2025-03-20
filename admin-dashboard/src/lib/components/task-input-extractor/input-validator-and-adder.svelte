@@ -54,30 +54,36 @@
 	};
 </script>
 
-<h3 class="text-lg font-semibold">Add extracted inputs to task</h3>
-{#if message}
-	<Alert.Root variant={message.type === 'error' ? 'destructive' : 'default'}>
-		<CircleAlert class="size-4" />
-		<Alert.Title>
-			{#if message.title}
-				{message.title}
-			{:else}
-				Error
-			{/if}
-		</Alert.Title>
-		<Alert.Description>{message.text}</Alert.Description>
-	</Alert.Root>
-{/if}
-<p class="text-sm">
-	{#if ieState.inputsTableHasData}
-		You have successfully extracted data. If you're confident the inputs are what you need (and is
-		expected for this task), click the button below to add it to the task (it will be validated
-		against the expected schema).
-	{:else}
-		Once you've run your SQL for data extraction, you'll be able to add your extracted inputs to the
-		task. They will have to match the expected schema (as shown in the example above).
+<div class="w-full">
+	<h3 class="font-semibold">Add extracted inputs to task</h3>
+	{#if message}
+		<Alert.Root variant={message.type === 'error' ? 'destructive' : 'default'}>
+			<CircleAlert class="size-4" />
+			<Alert.Title>
+				{#if message.title}
+					{message.title}
+				{:else}
+					Error
+				{/if}
+			</Alert.Title>
+			<Alert.Description>{message.text}</Alert.Description>
+		</Alert.Root>
 	{/if}
-</p>
-<Button disabled={validating || !ieState.inputsTableHasData} onclick={validateAndAddInputs}>
-	Add inputs to task
-</Button>
+	<p class="text-sm text-muted-foreground">
+		{#if ieState.inputsTableHasData}
+			You have successfully extracted data. If you're confident the inputs are what you need (and is
+			expected for this task), click the button below to add it to the task (it will be validated
+			against the expected schema).
+		{:else}
+			Once you've run your SQL for data extraction, you'll be able to add your extracted inputs to
+			the task. They will have to match the expected schema (as shown in the example above).
+		{/if}
+	</p>
+	<Button
+		class="mt-4"
+		disabled={validating || !ieState.inputsTableHasData}
+		onclick={validateAndAddInputs}
+	>
+		Add inputs to task
+	</Button>
+</div>

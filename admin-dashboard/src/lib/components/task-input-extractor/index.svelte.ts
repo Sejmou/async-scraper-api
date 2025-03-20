@@ -4,7 +4,7 @@ import { z } from 'zod';
 type TSchema = z.ZodSchema;
 
 export type InputExtractorProps<T extends TSchema> = {
-	inputDescription: string;
+	inputsDescription: string;
 	inputSchema: T;
 	exampleInput: z.infer<T>;
 	/**
@@ -59,7 +59,7 @@ export class InputExtractorState<T extends TSchema> {
 	}
 
 	get inputDescription() {
-		return this.#props.inputDescription;
+		return this.#props.inputsDescription;
 	}
 }
 

@@ -25,6 +25,11 @@
 		>
 	</li>
 	<li>
+		<a class="text-sm text-blue-500 hover:underline" href="/tasks/create/spotify-api/artist-albums"
+			>Artist Albums</a
+		>
+	</li>
+	<li>
 		<a class="text-sm text-blue-500 hover:underline" href="/tasks/create/spotify-api/playlists">
 			Playlists
 		</a>

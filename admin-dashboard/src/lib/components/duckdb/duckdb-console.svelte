@@ -115,10 +115,11 @@
 <div class="flex w-full justify-end">
 	<Button onclick={() => processQueries(db, importSqlStr)}>Run (Ctrl + Enter)</Button>
 </div>
-<h3 class="text-lg font-semibold">Results</h3>
-{#if resultsComputed}
-	<DuckDBTableViewer tableName={resultsTableName} {db} />
-{:else}
-	<p class="text-sm">Results will be displayed here.</p>
-{/if}
-<!-- <ImportedInputsViewer {inputsValid} {ieState} /> -->
+<div class="w-full">
+	<h3 class="font-semibold">Results</h3>
+	{#if resultsComputed}
+		<DuckDBTableViewer tableName={resultsTableName} {db} />
+	{:else}
+		<p class="text-sm text-muted-foreground">Results will be displayed here.</p>
+	{/if}
+</div>

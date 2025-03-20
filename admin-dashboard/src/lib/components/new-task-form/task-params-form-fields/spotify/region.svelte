@@ -2,14 +2,14 @@
 	import * as Form from '$lib/components/ui/form';
 	import * as Select from '$lib/components/ui/select';
 	import type { FsSuperForm } from 'formsnap';
-	import type { TracksParams } from '$lib/scraper-types-and-schemas/new-tasks/spotify-api';
+	import type { RegionParams } from '$lib/scraper-types-and-schemas/new-tasks/spotify-api';
 
-	const regionOptions: { label: string; value: TracksParams['region'] }[] = [
+	const regionOptions: { label: string; value: RegionParams['region'] }[] = [
 		{ label: 'DE', value: 'de' },
 		{ label: 'US', value: 'us' }
 	];
 
-	let { form }: { form: FsSuperForm<TracksParams> } = $props();
+	let { form }: { form: FsSuperForm<RegionParams> } = $props();
 	let formData = form.form;
 </script>
 
@@ -29,6 +29,6 @@
 			</Select.Root>
 		{/snippet}
 	</Form.Control>
-	<Form.Description>The region for which metadata should be loaded.</Form.Description>
+	<Form.Description>The region for which data should be loaded.</Form.Description>
 	<Form.FieldErrors />
 </Form.Field>

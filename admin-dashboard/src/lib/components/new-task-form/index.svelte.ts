@@ -18,6 +18,7 @@ export class TaskFormState<TaskType extends SupportedTask, ParamsType extends z.
 		this.#initialTaskValue = structuredClone(initialTaskValue);
 		this.#form = superForm(defaults(zod(taskParamsSchema)), {
 			SPA: true,
+			dataType: 'json',
 			validators: zod(taskParamsSchema),
 			resetForm: false
 		});

@@ -82,38 +82,48 @@
 	/>
 </div>
 {#if detectedColumns !== null}
-	<h2 class="text-lg font-semibold">Detected columns</h2>
-	<InputFileColumnsPreview data={detectedColumns} />
-	<h2 class="text-lg font-semibold">Write SQL for data extraction</h2>
-	<p class="text-sm">
-		Enter a DuckDB SQL <code>SELECT ...</code> query (or multiple SQL queries ending with a
-		<code>SELECT</code> if preprocessing is required) to specify how exactly the data should be exported
-		from the file. Each extracted input (i.e. row returned from the query) should match the schema of
-		the following example:
-	</p>
-	<pre class="text-sm text-muted-foreground">{JSON.stringify(ieState.exampleInput, null, 2)}</pre>
-	{#if duckDB.value.state === 'ready' && detectedColumns}
-		{@const db = duckDB.value.db}
-		<Alert.Root>
-			<CircleAlert class="size-4" />
-			<Alert.Title>Hint</Alert.Title>
-			<Alert.Description
-				>The data is available as a table called <code>inputs</code>. Use the inferred schema above
-				for reference.</Alert.Description
-			>
-		</Alert.Root>
-		<DuckDBConsole
-			{db}
-			resultsTableName={ieState.inputsTableName}
-			onOutput={() => (ieState.inputsTableHasData = true)}
-			onError={() => (ieState.inputsTableHasData = false)}
-		/>
-		<InputValidatorAndAdder {ieState} {db} />
-	{:else}
-		<Alert.Root variant="destructive">
-			<CircleAlert class="size-4" />
-			<Alert.Title>Error</Alert.Title>
-			<Alert.Description>Cannot process your file yet. Please try again later.</Alert.Description>
-		</Alert.Root>
-	{/if}
+	<div class="flex flex-col gap-4">
+		<div class="w-full">
+			<h3 class="font-semibold">Detected columns</h3>
+			<InputFileColumnsPreview data={detectedColumns} />
+		</div>
+		<div class="w-full">
+			<h3 class="font-semibold">SQL for data extraction</h3>
+			<p class="text-sm text-muted-foreground">
+				Enter a DuckDB SQL <code>SELECT ...</code> query (or multiple SQL queries ending with a
+				<code>SELECT</code> if preprocessing is required) to specify how exactly the data should be exported
+				from the file. Each extracted input (i.e. row returned from the query) should match the schema
+				of the following example:
+			</p>
+			<pre class="ml-4 mt-2 text-sm text-muted-foreground">{JSON.stringify(
+					ieState.exampleInput,
+					null,
+					2
+				)}</pre>
+		</div>
+		{#if duckDB.value.state === 'ready' && detectedColumns}
+			{@const db = duckDB.value.db}
+			<Alert.Root>
+				<CircleAlert class="size-4" />
+				<Alert.Title>Hint</Alert.Title>
+				<Alert.Description
+					>The data is available as a table called <code>inputs</code>. Use the inferred schema
+					above for reference.</Alert.Description
+				>
+			</Alert.Root>
+			<DuckDBConsole
+				{db}
+				resultsTableName={ieState.inputsTableName}
+				onOutput={() => (ieState.inputsTableHasData = true)}
+				onError={() => (ieState.inputsTableHasData = false)}
+			/>
+			<InputValidatorAndAdder {ieState} {db} />
+		{:else}
+			<Alert.Root variant="destructive">
+				<CircleAlert class="size-4" />
+				<Alert.Title>Error</Alert.Title>
+				<Alert.Description>Cannot process your file yet. Please try again later.</Alert.Description>
+			</Alert.Root>
+		{/if}
+	</div>
 {/if}

@@ -5,6 +5,7 @@ import type { ParamsUnion, SupportedTaskCandidate, TaskInputMeta } from '.';
 const regionSpecificParamsSchema = z.object({
 	region: z.enum(['de', 'us'])
 });
+export type RegionParams = ExpandRecursively<z.infer<typeof regionSpecificParamsSchema>>;
 
 const spotifyIdsSchema = z.array(z.string().min(22).max(22));
 const spotifyTaskInputsSchema = z.object({
@@ -29,7 +30,7 @@ const initialArtistsTask: ArtistsTask = {
 	inputs: []
 };
 
-export const artistAlbumsParamsSchema = regionSpecificParamsSchema.extend({
+const artistAlbumsReleaseTypesSchema = z.object({
 	release_types: z.object({
 		albums: z.boolean().default(false),
 		singles: z.boolean().default(false),
@@ -37,6 +38,12 @@ export const artistAlbumsParamsSchema = regionSpecificParamsSchema.extend({
 		appears_on: z.boolean().default(false)
 	})
 });
+export type ArtistAlbumsParamsReleaseTypes = ExpandRecursively<
+	z.infer<typeof artistAlbumsReleaseTypesSchema>
+>;
+export const artistAlbumsParamsSchema = regionSpecificParamsSchema.merge(
+	artistAlbumsReleaseTypesSchema
+);
 export type ArtistAlbumsParams = ExpandRecursively<z.infer<typeof artistAlbumsParamsSchema>>;
 export const artistAlbumsPayloadSchema = spotifyTaskInputsSchema.extend({
 	params: artistAlbumsParamsSchema
@@ -178,35 +185,35 @@ export const getSpotifyTaskInputMeta = (
 		case 'artists':
 			return {
 				exampleInput: '06HL4z0CvFAxyc27GXpf02',
-				inputDescription: 'Spotify artist ID',
+				inputsDescription: 'Spotify artist IDs',
 				inputSchema: z.string(),
 				inputsTableName: 'sp_api_artists'
 			};
 		case 'tracks':
 			return {
 				exampleInput: '4PTG3Z6ehGkBFwjybzWkR8',
-				inputDescription: 'Spotify track ID',
+				inputsDescription: 'Spotify track IDs',
 				inputSchema: z.string(),
 				inputsTableName: 'sp_api_tracks'
 			};
 		case 'artist-albums':
 			return {
 				exampleInput: '4PTG3Z6ehGkBFwjybzWkR8',
-				inputDescription: 'Spotify artist ID',
+				inputsDescription: 'Spotify artist IDs',
 				inputSchema: z.string(),
 				inputsTableName: 'sp_api_artist_albums'
 			};
 		case 'albums':
 			return {
 				exampleInput: '4LH4d3cOWNNsVw41Gqt2kv',
-				inputDescription: 'Spotify album ID',
+				inputsDescription: 'Spotify album IDs',
 				inputSchema: z.string(),
 				inputsTableName: 'sp_api_albums'
 			};
 		case 'playlists':
 			return {
 				exampleInput: '37i9dQZF1DX5U26jySAO4K',
-				inputDescription: 'Spotify playlist ID',
+				inputsDescription: 'Spotify playlist IDs',
 				inputSchema: z.string(),
 				inputsTableName: 'sp_api_playlists'
 			};

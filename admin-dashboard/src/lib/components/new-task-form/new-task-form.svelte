@@ -9,7 +9,8 @@
 	import { z } from 'zod';
 	import { TaskFormState } from './index.svelte';
 
-	import SpotifyTracksParamsFormFields from './task-params-form-fields/spotify/tracks.svelte';
+	import SpotifyRegionParamFormField from './task-params-form-fields/spotify/region.svelte';
+	import SpotifyArtistAlbumsReleaseTypesFormFields from './task-params-form-fields/spotify/artist-albums-release-types.svelte';
 
 	let {
 		initialTaskValue,
@@ -26,7 +27,7 @@
 		new TaskFormState(initialTaskValue, paramsSchema)
 	);
 
-	let { exampleInput, inputDescription, inputSchema, inputsTableName } = $derived(taskInputMeta);
+	let { exampleInput, inputsDescription, inputSchema, inputsTableName } = $derived(taskInputMeta);
 </script>
 
 <form method="POST" use:enhance onsubmit={handleSubmit}>
@@ -34,25 +35,31 @@
 		{@const { type, text } = $message}
 		<MessageAlert {type} {text} />
 	{/if}
-	<h3 class="text-lg font-semibold">Inputs (Track IDs)</h3>
+	<h3 class="text-lg font-semibold">Inputs ({inputsDescription})</h3>
 	<InputExtractor
-		{inputDescription}
+		{inputsDescription}
 		{exampleInput}
 		{inputSchema}
 		{inputsTableName}
 		onInputsAdded={(newInputs) => updateInputs(newInputs)}
 	/>
-	{#if inputs.length > 0}
-		{#if 'params' in initialTaskValue}
-			<h3 class="mt-4 text-lg font-semibold">Parameters</h3>
+	{#if 'params' in initialTaskValue}
+		<h3 class="mt-4 text-lg font-semibold">Parameters</h3>
+		<div class="flex flex-col gap-4">
 			{#if initialTaskValue.dataSource === 'spotify-api'}
-				{#if initialTaskValue.taskType === 'tracks'}
-					<SpotifyTracksParamsFormFields {form} />
+				{#if 'params' in initialTaskValue}
+					{@const params = initialTaskValue.params}
+					{#if 'region' in params}
+						<SpotifyRegionParamFormField {form} />
+					{/if}
+					{#if 'release_types' in params}
+						<SpotifyArtistAlbumsReleaseTypesFormFields {form} />
+					{/if}
 				{/if}
 			{/if}
-		{/if}
-		<div class="mt-4 flex w-full justify-end">
-			<Form.Button type="submit">Create task</Form.Button>
 		</div>
 	{/if}
+	<div class="mt-4 flex w-full justify-end">
+		<Form.Button disabled={inputs.length == 0} type="submit">Create task</Form.Button>
+	</div>
 </form>
