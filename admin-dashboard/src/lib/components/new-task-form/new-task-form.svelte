@@ -1,36 +1,22 @@
 <script lang="ts">
-	import {
-		type SupportedTask,
-		type SupportedTaskInputMeta
-	} from '$lib/scraper-types-and-schemas/new-tasks';
 	import * as Form from '$lib/components/ui/form';
 	import { MessageAlert } from '$lib/components/ui/message-alert';
 	import { InputExtractor } from '$lib/components/task-input-extractor/index.svelte';
-	import { z } from 'zod';
-	import { TaskFormState } from './index.svelte';
-
 	import SpotifyRegionParamFormField from './task-params-form-fields/spotify/region.svelte';
 	import SpotifyArtistAlbumsReleaseTypesFormFields from './task-params-form-fields/spotify/artist-albums-release-types.svelte';
 
-	let {
-		initialTaskValue,
-		taskInputMeta,
-		paramsSchema = z.object({
-			// Default schema for tasks that don't have any parameters
-		})
-	}: {
-		initialTaskValue: SupportedTask;
-		paramsSchema?: z.ZodSchema;
-		taskInputMeta: SupportedTaskInputMeta;
-	} = $props();
-	let { form, message, handleSubmit, enhance, inputs, updateInputs } = $derived(
-		new TaskFormState(initialTaskValue, paramsSchema)
-	);
+	import { getTaskFormState } from './index.svelte';
 
-	let { exampleInput, inputsDescription, inputSchema, inputsTableName } = $derived(taskInputMeta);
+	const state = getTaskFormState();
+
+	let { exampleInput, inputsDescription, inputSchema, inputsTableName } = $derived(state.inputMeta);
+	let message = $derived(state.message);
+	let inputs = $derived(state.inputs);
+	let initialTaskValue = $derived(state.initialTaskValue);
+	let form = $derived(state.form);
 </script>
 
-<form method="POST" use:enhance onsubmit={handleSubmit}>
+<form method="POST" use:state.enhance onsubmit={(e) => state.handleSubmit(e)}>
 	{#if $message !== undefined}
 		{@const { type, text } = $message}
 		<MessageAlert {type} {text} />
@@ -41,7 +27,7 @@
 		{exampleInput}
 		{inputSchema}
 		{inputsTableName}
-		onInputsAdded={(newInputs) => updateInputs(newInputs)}
+		onInputsAdded={(newInputs) => state.updateInputs(newInputs)}
 	/>
 	{#if 'params' in initialTaskValue}
 		<h3 class="mt-4 text-lg font-semibold">Parameters</h3>

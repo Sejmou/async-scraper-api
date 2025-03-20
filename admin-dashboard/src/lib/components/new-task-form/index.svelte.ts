@@ -3,19 +3,28 @@ import { z } from 'zod';
 import { zod } from 'sveltekit-superforms/adapters';
 import { createTask } from '$lib/client-api/scraper-tasks';
 import { goto } from '$app/navigation';
-import type { SupportedTask } from '$lib/scraper-types-and-schemas/new-tasks';
+import type { SupportedTask, TaskInputMeta } from '$lib/scraper-types-and-schemas/new-tasks';
 import { get } from 'svelte/store';
 import NewTaskForm from './new-task-form.svelte';
+import { getContext, setContext } from 'svelte';
 
 export { NewTaskForm };
 
-export class TaskFormState<TaskType extends SupportedTask, ParamsType extends z.ZodSchema> {
+class TaskFormState<TaskType extends SupportedTask, ParamsType extends z.ZodSchema> {
 	#form: SuperForm<z.infer<ParamsType>>;
 	#inputs: TaskType['inputs'] = $state([]);
 	#initialTaskValue: TaskType;
+	#paramsSchema: ParamsType;
+	#inputMeta: TaskInputMeta<TaskType['inputs'][0]>;
 
-	constructor(initialTaskValue: TaskType, taskParamsSchema: ParamsType) {
+	constructor(
+		initialTaskValue: TaskType,
+		taskParamsSchema: ParamsType,
+		taskInputMeta: TaskInputMeta<TaskType['inputs'][0]>
+	) {
 		this.#initialTaskValue = structuredClone(initialTaskValue);
+		this.#paramsSchema = taskParamsSchema;
+		this.#inputMeta = taskInputMeta;
 		this.#form = superForm(defaults(zod(taskParamsSchema)), {
 			SPA: true,
 			dataType: 'json',
@@ -30,6 +39,22 @@ export class TaskFormState<TaskType extends SupportedTask, ParamsType extends z.
 
 	updateInputs(newInputs: TaskType['inputs']) {
 		this.#inputs = newInputs;
+	}
+
+	resetInputs() {
+		this.#inputs = [];
+	}
+
+	get paramsSchema() {
+		return this.#paramsSchema;
+	}
+
+	get inputMeta() {
+		return this.#inputMeta;
+	}
+
+	get initialTaskValue() {
+		return this.#initialTaskValue;
 	}
 
 	get form() {
@@ -98,4 +123,21 @@ export class TaskFormState<TaskType extends SupportedTask, ParamsType extends z.
 		}
 		return task;
 	}
+}
+
+const STATE_KEY = Symbol('TaskFormState');
+
+export function setTaskFormState<T extends SupportedTask, P extends z.ZodSchema>(
+	initialTaskValue: T,
+	taskParamsSchema: P,
+	taskInputMeta: TaskInputMeta<T['inputs'][0]>
+) {
+	return setContext(
+		STATE_KEY,
+		new TaskFormState(initialTaskValue, taskParamsSchema, taskInputMeta)
+	);
+}
+
+export function getTaskFormState() {
+	return getContext<ReturnType<typeof setTaskFormState>>(STATE_KEY);
 }
