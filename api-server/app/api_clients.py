@@ -12,3 +12,7 @@ spotify_api_client = SpotifyAPIClient(
     logger=sp_api_logger,
     ban_handler=ban_handler,
 )
+
+spotify_internal_logger = setup_logger(
+    "spotify_internal", file_dir=settings.api_client_log_dir
+)

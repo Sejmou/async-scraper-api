@@ -1,7 +1,7 @@
 sqlalchemy>=2.0,<3.0
 aiohttp>=3.11,<4.0
 pydantic>=2.10,<3.0
-pydantic-settings
+pydantic-settings[yaml]==2.7.1
 fastapi==0.115.7
 cachetools>=5.5.1,<6.0
 persist-queue==1.0.0
@@ -11,3 +11,5 @@ requests==2.32.3
 aiosqlite==0.20.0
 alembic==1.15.1
 zstandard==0.23.0
+nodriver==0.41
+uvicorn==0.34.0
