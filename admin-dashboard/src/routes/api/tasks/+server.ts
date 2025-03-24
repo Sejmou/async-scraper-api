@@ -1,4 +1,4 @@
-import { db } from '$lib/server/db';
+import { createTransaction, db } from '$lib/server/db';
 import { scraperServerTbl, taskTbl, subtaskTbl } from '$lib/server/db/schema';
 import { getAPIServerInfo } from '$lib/server/scraper-api/about';
 import { json } from '@sveltejs/kit';
@@ -96,8 +96,9 @@ export async function POST({ request }) {
 	const failures: { scraper: Scraper; inputs: typeof inputs }[] = [];
 
 	try {
-		const taskId = await db.transaction(async (trx) => {
-			const taskCreateRes = await trx
+		const transaction = createTransaction(db);
+		const taskId = await transaction.transaction(async ({ db, rollback }) => {
+			const taskCreateRes = await db
 				.insert(taskTbl)
 				.values({
 					dataSource,
@@ -126,7 +127,7 @@ export async function POST({ request }) {
 				}
 
 				if (subtaskId) {
-					await trx.insert(subtaskTbl).values({
+					await db.insert(subtaskTbl).values({
 						taskId,
 						scraperId: scraper.id
 					});
@@ -134,7 +135,7 @@ export async function POST({ request }) {
 			}
 
 			if (successes.length === 0) {
-				trx.rollback();
+				rollback();
 			}
 			return taskId;
 		});

@@ -1,4 +1,4 @@
-import { db } from '$lib/server/db';
+import { createTransaction, db } from '$lib/server/db';
 import { scraperServerTbl, type ScraperInsert } from '$lib/server/db/schema';
 import { asc, eq } from 'drizzle-orm';
 import { getAPIServerInfo } from '$lib/server/scraper-api/about';
@@ -128,13 +128,14 @@ export const actions = {
 		}
 
 		try {
-			await db.transaction(async (trx) => {
+			const databaseTransaction = createTransaction(db);
+			await databaseTransaction.transaction(async ({ db, rollback }) => {
 				for (const value of valuesToInsert) {
 					try {
-						await trx.insert(scraperServerTbl).values(value);
+						await db.insert(scraperServerTbl).values(value);
 					} catch (e) {
 						console.error('Error inserting server', value, e);
-						trx.rollback();
+						rollback();
 					}
 				}
 			});
