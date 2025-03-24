@@ -80,7 +80,6 @@ class TaskFormState<TaskType extends SupportedTask, ParamsType extends z.ZodSche
 	async handleSubmit(event: Event) {
 		event.preventDefault();
 		const paramsValidationResult = await this.#form.validateForm();
-		console.log({ paramsValidationResult });
 
 		if (!paramsValidationResult.valid) {
 			this.#form.errors.update((v) => {

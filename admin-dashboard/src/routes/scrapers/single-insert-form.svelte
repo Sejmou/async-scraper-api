@@ -6,11 +6,21 @@
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import { MessageAlert } from '$lib/components/ui/message-alert';
 
-	let { singleInsertForm }: { singleInsertForm: SuperValidated<Infer<FormSchemaSingleInsert>> } =
-		$props();
+	let {
+		singleInsertForm,
+		onSubmitSuccess
+	}: {
+		singleInsertForm: SuperValidated<Infer<FormSchemaSingleInsert>>;
+		onSubmitSuccess: () => void;
+	} = $props();
 
 	const form = superForm(singleInsertForm, {
-		validators: zodClient(formSchemaSingleInsert)
+		validators: zodClient(formSchemaSingleInsert),
+		onUpdated: ({ form }) => {
+			if (!form.message || form.message.type === 'success') {
+				onSubmitSuccess();
+			}
+		}
 	});
 
 	const { form: formData, enhance } = form;
@@ -33,5 +43,5 @@
 		<Form.Description>Please include protocol (http/https), domain, and port.</Form.Description>
 		<Form.FieldErrors />
 	</Form.Field>
-	<Form.Button>Add</Form.Button>
+	<div class="flex w-full justify-end"><Form.Button>Add</Form.Button></div>
 </form>

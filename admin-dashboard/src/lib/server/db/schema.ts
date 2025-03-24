@@ -4,7 +4,7 @@ import { createSelectSchema, createInsertSchema } from 'drizzle-zod';
 import { z } from 'zod';
 
 export const scraperServerTbl = sqliteTable(
-	'server',
+	'scraper_server',
 	{
 		id: integer('id').primaryKey(),
 		protocol: text('protocol').notNull(),
@@ -37,7 +37,7 @@ export const taskSelectSchema = createSelectSchema(taskTbl);
 // there's a bug(or maybe that's intended?) causing this to return type Json for params, but db.select(...) and db.query(...) return type unknown
 // this is a hack to fix the inconsistency
 type TaskSelect = z.infer<typeof taskSelectSchema>;
-export type Task = Omit<TaskSelect, 'params'> & { params: unknown };
+export type DBTask = Omit<TaskSelect, 'params'> & { params: unknown };
 
 export const taskInsertSchema = createInsertSchema(taskTbl);
 export type TaskInsert = z.infer<typeof taskInsertSchema>;
@@ -49,7 +49,7 @@ export const subtaskTbl = sqliteTable('subtask', {
 		.references((): AnySQLiteColumn => taskTbl.id, { onDelete: 'cascade' }),
 	scraperId: integer('scraper_id')
 		.notNull()
-		.references((): AnySQLiteColumn => scraperServerTbl.id)
+		.references((): AnySQLiteColumn => scraperServerTbl.id, { onDelete: 'cascade' })
 });
 
 export const subtaskSelectSchema = createSelectSchema(subtaskTbl);

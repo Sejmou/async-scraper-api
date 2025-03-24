@@ -12,5 +12,10 @@
 
 <h1 class="text-3xl font-bold">Scrapers</h1>
 <p class="text-sm text-muted-foreground">Manage servers running the Scraper API.</p>
-<DataTable data={data.servers} {columns} />
+<DataTable
+	data={data.servers}
+	{columns}
+	rowDescPlural="scraper servers"
+	rowDescSingular="scraper server"
+/>
 <div class="mt-4 flex w-full flex-col items-center"><FormDialog {data} /></div>

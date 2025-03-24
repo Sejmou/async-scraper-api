@@ -21,9 +21,15 @@
 
 	let singleInsertForm = data.singleInsertForm;
 	let batchImportForm = data.batchInsertForm;
+
+	let dialogOpen = $state(false);
+
+	const handleSuccess = () => {
+		dialogOpen = false;
+	};
 </script>
 
-<Dialog.Root>
+<Dialog.Root bind:open={dialogOpen}>
 	<div class="flex w-full justify-end">
 		<Dialog.Trigger class={buttonVariants({ variant: 'default' })}>Add</Dialog.Trigger>
 	</div>
@@ -45,9 +51,9 @@
 			</Label>
 		</div>
 		{#if batchImport}
-			<BatchImportForm {batchImportForm} />
+			<BatchImportForm {batchImportForm} onSubmitSuccess={handleSuccess} />
 		{:else}
-			<Form {singleInsertForm} />
+			<Form {singleInsertForm} onSubmitSuccess={handleSuccess} />
 		{/if}
 	</Dialog.Content>
 </Dialog.Root>

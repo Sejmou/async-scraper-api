@@ -4,6 +4,7 @@ import {
 	getTaskInputMeta
 } from '$lib/scraper-types-and-schemas/new-tasks';
 import { error } from '@sveltejs/kit';
+
 export function load({ params }) {
 	const dataSource = 'spotify-api';
 	const { taskType } = params;

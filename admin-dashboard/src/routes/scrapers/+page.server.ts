@@ -127,28 +127,27 @@ export const actions = {
 			});
 		}
 
-		await db.transaction(async (trx) => {
-			for (const value of valuesToInsert) {
-				try {
-					await trx.insert(scraperServerTbl).values(value);
-				} catch (e) {
-					console.error('Error inserting server', value, e);
+		try {
+			await db.transaction(async (trx) => {
+				for (const value of valuesToInsert) {
 					try {
-						trx.rollback();
+						await trx.insert(scraperServerTbl).values(value);
 					} catch (e) {
-						console.error('Rolled back transactions', e);
+						console.error('Error inserting server', value, e);
+						trx.rollback();
 					}
-					return message(
-						form,
-						{
-							type: 'error',
-							text: `Error while inserting '${value.originalInput}' into DB. Make sure that no server with the same host and port exists in the DB and the URLs you provided.`
-						},
-						{ status: 400 }
-					);
 				}
-			}
-		});
+			});
+		} catch {
+			return message(
+				form,
+				{
+					type: 'error',
+					text: `Error while inserting into DB. Make sure that no server with the same host and port exists in the DB and the URLs you provided.`
+				},
+				{ status: 400 }
+			);
+		}
 
 		return message(form, {
 			type: 'success',
@@ -162,5 +161,6 @@ export const actions = {
 			return fail(400);
 		}
 		await db.delete(scraperServerTbl).where(eq(scraperServerTbl.id, +id));
+		return { success: true };
 	}
 };

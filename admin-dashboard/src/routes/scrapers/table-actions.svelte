@@ -8,6 +8,13 @@
 
 	let { id, host }: { id: number; host: string } = $props();
 	let deleteDialogOpen = $state(false);
+	// TODO: figure out smarter way to reset dialog state whenever id or host changes
+	// without this code, dialog will remain open upon successful deletion
+	$effect(() => {
+		if (id || host) {
+			deleteDialogOpen = false;
+		}
+	});
 </script>
 
 <DropdownMenu.Root>

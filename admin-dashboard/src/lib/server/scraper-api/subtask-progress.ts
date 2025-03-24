@@ -1,5 +1,5 @@
 import { makeRequestToScraper } from '.';
-import type { Scraper, Subtask, Task } from '$lib/server/db/schema';
+import type { Scraper, Subtask, DBTask } from '$lib/server/db/schema';
 import { z } from 'zod';
 
 const taskProgressSchema = z.object({
@@ -28,7 +28,7 @@ const createSubtaskProgressPromiseSafe = async (scraper: Scraper, subTaskId: num
 	}
 };
 
-type TaskWithSubtasksAndScrapers = Task & { subtasks: (Subtask & { scraper: Scraper })[] };
+type TaskWithSubtasksAndScrapers = DBTask & { subtasks: (Subtask & { scraper: Scraper })[] };
 export type SubtaskWithScraperAndProgress = Subtask & {
 	scraper: Scraper;
 	progress: Promise<ScraperSubtaskProgress | null>;
@@ -37,7 +37,7 @@ export type SubtaskWithScraperAndProgress = Subtask & {
 export const addSubtaskProgressPromises = (
 	data: TaskWithSubtasksAndScrapers
 ): {
-	task: Task;
+	task: DBTask;
 	subTasksWithProgress: SubtaskWithScraperAndProgress[];
 } => {
 	const { subtasks, ...task } = data;

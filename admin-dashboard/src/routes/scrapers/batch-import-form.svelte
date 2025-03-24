@@ -7,11 +7,21 @@
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import { MessageAlert } from '$lib/components/ui/message-alert';
 
-	let { batchImportForm }: { batchImportForm: SuperValidated<Infer<FormSchemaBatchImport>> } =
-		$props();
+	let {
+		batchImportForm,
+		onSubmitSuccess
+	}: {
+		batchImportForm: SuperValidated<Infer<FormSchemaBatchImport>>;
+		onSubmitSuccess: () => void;
+	} = $props();
 
 	const form = superForm(batchImportForm, {
-		validators: zodClient(formSchemaBatchImport)
+		validators: zodClient(formSchemaBatchImport),
+		onUpdated: ({ form }) => {
+			if (!form.message || form.message.type === 'success') {
+				onSubmitSuccess();
+			}
+		}
 	});
 
 	const { form: formData } = form;
@@ -36,5 +46,7 @@
 		>
 		<Form.FieldErrors />
 	</Form.Field>
-	<Form.Button>Import</Form.Button>
+	<div class="flex w-full justify-end">
+		<Form.Button>Import</Form.Button>
+	</div>
 </form>

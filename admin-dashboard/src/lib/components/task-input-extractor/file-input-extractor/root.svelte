@@ -53,7 +53,6 @@
 		}
 		// check file
 		let file = files[0];
-		console.log(file);
 		if (!file) {
 			console.error('No file selected!');
 			return;

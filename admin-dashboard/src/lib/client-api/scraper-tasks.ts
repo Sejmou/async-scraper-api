@@ -19,6 +19,5 @@ export const createTask = async (task: SupportedTask) => {
 		body: JSON.stringify(task)
 	});
 	const data = await resp.json();
-	console.log('createTask response', data);
 	return createTaskResponseSchema.parse(data);
 };
