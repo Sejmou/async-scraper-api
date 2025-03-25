@@ -1,0 +1,7 @@
+[scrapers]
+VM_1 ansible_host=192.0.2.1 ansible_user=the_username
+VM_2 ansible_host=198.51.100.42 ansible_user=the_username
+VM_2 ansible_host=203.0.113.99 ansible_user=the_username
+
+[to_configure]
+# add new VMs here as needed

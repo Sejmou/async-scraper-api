@@ -1,0 +1,28 @@
+---
+- name: Check if Docker, Git, and Vim are installed on hosts
+  hosts: all
+  gather_facts: false
+  tasks:
+
+    - name: Gather package facts
+      ansible.builtin.package_facts:
+
+    - name: Check if Docker is installed
+      ansible.builtin.command:
+        cmd: "docker --version"
+      register: docker_check
+
+    - name: Check if Docker is installed successfully
+      ansible.builtin.debug:
+        msg: "Docker is installed."
+      when: docker_check.rc == 0
+
+    - name: Check if Git is installed
+      ansible.builtin.debug:
+        msg: "Git is installed."
+      when: "'git' in ansible_facts.packages"
+
+    - name: Check if Vim is installed
+      ansible.builtin.debug:
+        msg: "Vim is installed."
+      when: "'vim' in ansible_facts.packages or 'vim-enhanced' in ansible_facts.packages"

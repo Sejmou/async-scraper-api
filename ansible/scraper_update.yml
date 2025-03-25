@@ -1,0 +1,46 @@
+---
+- name: Pull latest scraper code and run it on all machines
+  hosts: scrapers
+
+  tasks:
+    - name: Check if scraper-api directory exists
+      ansible.builtin.stat:
+        path: ~/async-scraper-api
+      register: scraper_api_dir
+
+    - name: Clone the scraper-api repository if it does not exist
+      ansible.builtin.git:
+        repo: 'https://github.com/Sejmou/async-scraper-api.git'
+        dest: ~/async-scraper-api
+        version: main
+      when: not scraper_api_dir.stat.exists
+
+    - name: Pull latest code
+      ansible.builtin.command:
+        cmd: git pull
+      args:
+        chdir: '~/async-scraper-api'
+      when: scraper_api_dir.stat.exists
+
+    - name: Update .env file with latest values from control node
+      ansible.builtin.copy:
+        src: .env
+        dest: ~/async-scraper-api/api-server/.env
+
+    - name: Build Docker Compose project
+      ansible.builtin.command:
+        cmd: docker compose build
+      args:
+        chdir: '~/async-scraper-api/api-server'
+
+    - name: Stop running Docker Compose project
+      ansible.builtin.command:
+        cmd: docker compose stop
+      args:
+        chdir: '~/async-scraper-api/api-server'
+
+    - name: Start Docker Compose project
+      ansible.builtin.command:
+        cmd: docker compose up -d
+      args:
+        chdir: '~/async-scraper-api/api-server'

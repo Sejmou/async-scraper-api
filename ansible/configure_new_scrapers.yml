@@ -1,0 +1,26 @@
+---
+- name: Execute basic-config.sh and git-pat-config.sh on target hosts
+  hosts: to_configure
+  vars_prompt:
+    - name: "ansible_become_password"
+      prompt: "Enter your sudo password (required for basic-config.sh)"
+      private: yes
+
+  tasks:
+    - name: Copy basic-config.sh to the host
+      ansible.builtin.copy:
+        src: ./basic-config.sh
+        dest: /tmp/basic-config.sh
+        mode: '0755'
+      
+
+    - name: Execute basic-config.sh
+      ansible.builtin.shell: /tmp/basic-config.sh
+      become: true
+
+    - name: Add the user to the docker group
+      ansible.builtin.user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: yes
+      become: true
