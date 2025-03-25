@@ -3,7 +3,8 @@
 		type ColumnDef,
 		getCoreRowModel,
 		getPaginationRowModel,
-		type PaginationState
+		type PaginationState,
+		type RowSelectionState
 	} from '@tanstack/table-core';
 	import { createSvelteTable, FlexRender } from '$lib/components/ui/data-table';
 	import * as Table from '$lib/components/ui/table';
@@ -15,15 +16,19 @@
 		paginationPageSize?: number;
 		rowDescSingular?: string;
 		rowDescPlural?: string;
+		showSelectedRowCount?: boolean;
+		onSelectionChange?: (newValue: RowSelectionState) => void;
 	};
 
 	let {
 		data,
 		columns,
 		// by specifying default values, our typechecker knows that the optional props cannot be undefined <3
+		onSelectionChange = () => {},
 		paginationPageSize = 10,
 		rowDescSingular = 'row',
-		rowDescPlural = 'rows'
+		rowDescPlural = 'rows',
+		showSelectedRowCount = false
 	}: DataTableProps<TData, TValue> = $props();
 	if (paginationPageSize < 1) {
 		throw new Error('paginationPageSize must be greater than 0');
@@ -34,6 +39,8 @@
 		pageSize: paginationPageSize
 	});
 
+	let rowSelection = $state<RowSelectionState>({});
+
 	const table = createSvelteTable({
 		get data() {
 			return data;
@@ -42,6 +49,9 @@
 		state: {
 			get pagination() {
 				return pagination;
+			},
+			get rowSelection() {
+				return rowSelection;
 			}
 		},
 		onPaginationChange: (updater) => {
@@ -50,6 +60,14 @@
 			} else {
 				pagination = updater;
 			}
+		},
+		onRowSelectionChange: (updater) => {
+			if (typeof updater === 'function') {
+				rowSelection = updater(rowSelection);
+			} else {
+				rowSelection = updater;
+			}
+			onSelectionChange?.(rowSelection);
 		},
 		getCoreRowModel: getCoreRowModel(),
 		getPaginationRowModel: getPaginationRowModel()
@@ -119,6 +137,12 @@
 			</Table.Body>
 		</Table.Root>
 	</div>
+	{#if showSelectedRowCount}
+		<div class="flex-1 text-sm text-muted-foreground">
+			{table.getFilteredSelectedRowModel().rows.length} of{' '}
+			{table.getFilteredRowModel().rows.length} row(s) selected.
+		</div>
+	{/if}
 	{#if pageCount > 1}
 		<div class="mt-2 w-full">
 			<Pagination.Root bind:page={getPage, setPage} count={rowCount} perPage={paginationPageSize}>

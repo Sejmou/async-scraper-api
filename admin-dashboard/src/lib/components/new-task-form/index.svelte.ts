@@ -7,21 +7,26 @@ import type { SupportedTask, TaskInputMeta } from '$lib/scraper-types-and-schema
 import { get } from 'svelte/store';
 import NewTaskForm from './new-task-form.svelte';
 import { getContext, setContext } from 'svelte';
+import type { Scraper } from '$lib/server/db/schema';
 
 export { NewTaskForm };
 
 class TaskFormState<TaskType extends SupportedTask, ParamsType extends z.ZodSchema> {
 	#form: SuperForm<z.infer<ParamsType>>;
+	#scrapers: Scraper[];
+	#selectedScraperIds: number[] = $state([]);
 	#inputs: TaskType['inputs'] = $state([]);
 	#initialTaskValue: TaskType;
 	#paramsSchema: ParamsType;
 	#inputMeta: TaskInputMeta<TaskType['inputs'][0]>;
 
 	constructor(
+		scrapers: Scraper[],
 		initialTaskValue: TaskType,
 		taskParamsSchema: ParamsType,
 		taskInputMeta: TaskInputMeta<TaskType['inputs'][0]>
 	) {
+		this.#scrapers = scrapers;
 		this.#initialTaskValue = structuredClone(initialTaskValue);
 		this.#paramsSchema = taskParamsSchema;
 		this.#inputMeta = taskInputMeta;
@@ -35,6 +40,18 @@ class TaskFormState<TaskType extends SupportedTask, ParamsType extends z.ZodSche
 
 	get inputs() {
 		return this.#inputs;
+	}
+
+	get availableScrapers() {
+		return this.#scrapers;
+	}
+
+	get selectedScraperIds() {
+		return this.#selectedScraperIds;
+	}
+
+	set selectedScraperIds(newIds: number[]) {
+		this.#selectedScraperIds = newIds;
 	}
 
 	updateInputs(newInputs: TaskType['inputs']) {
@@ -93,10 +110,11 @@ class TaskFormState<TaskType extends SupportedTask, ParamsType extends z.ZodSche
 
 		const task = this.#createTaskObjToSend();
 
-		const res = await createTask(task);
+		const res = await createTask(task, this.selectedScraperIds);
 		if (res.status === 'success') {
 			await goto(`/tasks/${res.id}`);
 		} else {
+			console.error('Error while creating task', res.error);
 			this.#form.message.set({
 				type: 'error',
 				text: res.error
@@ -127,13 +145,14 @@ class TaskFormState<TaskType extends SupportedTask, ParamsType extends z.ZodSche
 const STATE_KEY = Symbol('TaskFormState');
 
 export function setTaskFormState<T extends SupportedTask, P extends z.ZodSchema>(
+	scrapers: Scraper[],
 	initialTaskValue: T,
 	taskParamsSchema: P,
 	taskInputMeta: TaskInputMeta<T['inputs'][0]>
 ) {
 	return setContext(
 		STATE_KEY,
-		new TaskFormState(initialTaskValue, taskParamsSchema, taskInputMeta)
+		new TaskFormState(scrapers, initialTaskValue, taskParamsSchema, taskInputMeta)
 	);
 }
 

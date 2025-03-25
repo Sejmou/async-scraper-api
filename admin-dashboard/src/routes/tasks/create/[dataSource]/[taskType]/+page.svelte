@@ -4,8 +4,14 @@
 	import NewTaskForm from '$lib/components/new-task-form/new-task-form.svelte';
 
 	let { data } = $props();
+	$inspect({ data });
 
-	setTaskFormState(data.initialTaskValue, data.paramsSchema || z.object({}), data.taskInputMeta);
+	setTaskFormState(
+		data.scrapers,
+		data.initialTaskValue,
+		data.paramsSchema || z.object({}),
+		data.taskInputMeta
+	);
 </script>
 
 <NewTaskForm />

@@ -5,7 +5,7 @@ import {
 } from '$lib/scraper-types-and-schemas/new-tasks';
 import { error } from '@sveltejs/kit';
 
-export function load({ params }) {
+export async function load({ params, data }) {
 	const { dataSource, taskType } = params;
 
 	const initialTaskValue = getInitialTaskValue(dataSource, taskType);
@@ -21,6 +21,7 @@ export function load({ params }) {
 	console.log({ initialTaskValue, paramsSchema, taskInputMeta });
 
 	return {
+		scrapers: data.scrapers,
 		dataSource,
 		taskType,
 		initialTaskValue,

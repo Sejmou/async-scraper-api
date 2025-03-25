@@ -11,12 +11,12 @@ const createTaskResponseSchema = z.discriminatedUnion('status', [
 ]);
 
 /**
- * Creates a new scraper task on the server. It can later be assigned to
+ * Creates a new scraper task on the server, distributing its inputs across the given scrapers.
  */
-export const createTask = async (task: SupportedTask) => {
+export const createTask = async (task: SupportedTask, scraperIds: number[]) => {
 	const resp = await fetch(`/api/tasks`, {
 		method: 'POST',
-		body: JSON.stringify(task)
+		body: JSON.stringify({ task, scraperIds })
 	});
 	const data = await resp.json();
 	return createTaskResponseSchema.parse(data);

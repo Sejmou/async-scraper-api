@@ -47,6 +47,7 @@ export const subtaskTbl = sqliteTable('subtask', {
 	taskId: integer('task_id')
 		.notNull()
 		.references((): AnySQLiteColumn => taskTbl.id, { onDelete: 'cascade' }),
+	scraperTaskId: integer('scraper_task_id').notNull(),
 	scraperId: integer('scraper_id')
 		.notNull()
 		.references((): AnySQLiteColumn => scraperServerTbl.id, { onDelete: 'cascade' })

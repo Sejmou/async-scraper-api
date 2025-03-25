@@ -46,7 +46,7 @@ export const addSubtaskProgressPromises = (
 		task,
 		subTasksWithProgress: subtasks.map((s) => ({
 			...s,
-			progress: createSubtaskProgressPromiseSafe(s.scraper, s.taskId)
+			progress: createSubtaskProgressPromiseSafe(s.scraper, s.scraperTaskId)
 		}))
 	};
 };
