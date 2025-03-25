@@ -7,7 +7,13 @@
 <h2 class="text-lg font-semibold">Data Sources</h2>
 <ul class="list-disc pl-4">
 	<li>
-		<a class="text-sm text-blue-500 hover:underline" href="/tasks/create/spotify-api">Spotify API</a
-		>
+		<a class="text-sm text-blue-500 hover:underline" href="/tasks/create/spotify-api">
+			Spotify API
+		</a>
+	</li>
+	<li>
+		<a class="text-sm text-blue-500 hover:underline" href="/tasks/create/spotify-internal">
+			Internal (unofficial) Spotify APIs
+		</a>
 	</li>
 </ul>

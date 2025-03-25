@@ -143,9 +143,12 @@ export const spotifyApiTaskTypesSchema = z.union([
 	z.literal('artist-albums')
 ]);
 
-type SupportedSpotifyTaskCandidate = Extract<SupportedTaskCandidate, { dataSource: 'spotify-api' }>;
+export type SupportedSpotifyAPITaskCandidate = Extract<
+	SupportedTaskCandidate,
+	{ dataSource: 'spotify-api' }
+>;
 
-export const parseSpotifyTask = (candidate: SupportedSpotifyTaskCandidate) => {
+export const parseSpotifyTask = (candidate: SupportedSpotifyAPITaskCandidate) => {
 	switch (candidate.taskType) {
 		case 'tracks':
 			return tracksTaskSchema.parse(candidate);
@@ -221,7 +224,7 @@ export const getSpotifyTaskInputMeta = (
 };
 
 export const getSpotifyTaskParamsSchema = (
-	task: Pick<SupportedSpotifyTaskCandidate, 'dataSource' | 'taskType'>
+	task: Pick<SupportedSpotifyAPITaskCandidate, 'dataSource' | 'taskType'>
 ): z.ZodSchema<ParamsUnion<SpotifyAPITask>> | null => {
 	switch (task.taskType) {
 		case 'artists':

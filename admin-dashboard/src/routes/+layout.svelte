@@ -8,8 +8,10 @@
 
 	const breadCrumbsNameOverrides: Record<string, string> = {
 		'spotify-api': 'Spotify API',
+		'spotify-internal': 'Internal (unofficial) Spotify APIs',
 		'duckdb-demo': 'DuckDB Demo',
-		'artist-albums': 'Artist Albums'
+		'artist-albums': 'Artist Albums',
+		'related-artists': 'Related Artists'
 	};
 
 	let subroutes = $derived(page.route.id?.split('/').filter(Boolean) || []);
@@ -18,12 +20,21 @@
 			let link = '/' + subroutes.slice(0, i + 1).join('/');
 			let subRoutePathComponent = subroutes[i];
 			if (subRoutePathComponent === '[taskId]') {
+				link = link.replace('[taskId]', `${data?.task?.id ?? ''}`);
 				if (data.task) {
 					subRoutePathComponent = `${data.task.id}`;
 				} else {
 					subRoutePathComponent = 'Unknown Task';
 				}
+			} else if (subRoutePathComponent === '[dataSource]') {
+				link = link.replace('[dataSource]', `${page.params?.dataSource ?? ''}`);
+				if (page.params.dataSource) {
+					subRoutePathComponent = page.params.dataSource;
+				} else {
+					subRoutePathComponent = 'Unknown Data Source';
+				}
 			} else if (subRoutePathComponent === '[taskType]') {
+				link = link.replace('[taskType]', `${page.params?.taskType ?? ''}`);
 				if (page.params.taskType) {
 					subRoutePathComponent = page.params.taskType;
 				} else {

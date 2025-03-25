@@ -5,8 +5,18 @@ import {
 	getSpotifyTaskInputMeta,
 	getInitialSpotifyTask,
 	parseSpotifyTask,
-	type SpotifyAPITask
+	type SpotifyAPITask,
+	type SupportedSpotifyAPITaskCandidate
 } from './spotify-api';
+import {
+	getInitialSpotifyInternalTask,
+	getSpotifyInternalTaskInputMeta,
+	getSpotifyInternalTaskParamsSchema,
+	parseSpotifyInternalTask,
+	spotifyInternalApiTaskTypesSchema,
+	type SpotifyInternalAPITask,
+	type SupportedSpotifyInternalAPITaskCandidate
+} from './spotify-internal';
 
 export const scraperSchema = z.object({
 	host: z.string(),
@@ -21,6 +31,12 @@ export const taskSchema = z.discriminatedUnion('dataSource', [
 		taskType: spotifyApiTaskTypesSchema,
 		inputs: z.array(z.unknown()),
 		params: z.record(z.unknown()).optional()
+	}),
+	z.object({
+		dataSource: z.literal('spotify-internal'),
+		taskType: spotifyInternalApiTaskTypesSchema,
+		inputs: z.array(z.unknown()),
+		params: z.record(z.unknown()).optional()
 	})
 ]);
 
@@ -33,13 +49,15 @@ export const taskSchema = z.discriminatedUnion('dataSource', [
  */
 export type SupportedTaskCandidate = z.infer<typeof taskSchema>;
 // TODO: update with types for other data sources as they are added
-export type SupportedTask = SpotifyAPITask;
+export type SupportedTask = SpotifyAPITask | SpotifyInternalAPITask;
 
 export const parseToTaskOrThrowError = (input: unknown): SupportedTask => {
 	const result = taskSchema.parse(input);
 	switch (result.dataSource) {
 		case 'spotify-api':
 			return parseSpotifyTask(result);
+		case 'spotify-internal':
+			return parseSpotifyInternalTask(result);
 	}
 };
 
@@ -60,7 +78,9 @@ export const getTaskInputMeta = (
 ): SupportedTaskInputMeta => {
 	switch (input.dataSource) {
 		case 'spotify-api':
-			return getSpotifyTaskInputMeta(input.taskType);
+			return getSpotifyTaskInputMeta(input.taskType as SpotifyAPITask['taskType']);
+		case 'spotify-internal':
+			return getSpotifyInternalTaskInputMeta(input.taskType as SpotifyInternalAPITask['taskType']);
 	}
 };
 
@@ -70,7 +90,9 @@ export function getParamsSchema(
 ): z.ZodSchema<ParamsUnion<SupportedTask>> | null {
 	switch (input.dataSource) {
 		case 'spotify-api':
-			return getSpotifyTaskParamsSchema(input);
+			return getSpotifyTaskParamsSchema(input as SupportedSpotifyAPITaskCandidate);
+		case 'spotify-internal':
+			return getSpotifyInternalTaskParamsSchema(input as SupportedSpotifyInternalAPITaskCandidate);
 	}
 }
 
@@ -88,5 +110,7 @@ export function getInitialTaskValue(
 	switch (base.dataSource) {
 		case 'spotify-api':
 			return getInitialSpotifyTask(base.taskType);
+		case 'spotify-internal':
+			return getInitialSpotifyInternalTask(base.taskType);
 	}
 }

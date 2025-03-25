@@ -6,8 +6,7 @@ import {
 import { error } from '@sveltejs/kit';
 
 export function load({ params }) {
-	const dataSource = 'spotify-api';
-	const { taskType } = params;
+	const { dataSource, taskType } = params;
 
 	const initialTaskValue = getInitialTaskValue(dataSource, taskType);
 	if (!initialTaskValue) {
