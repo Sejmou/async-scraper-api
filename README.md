@@ -6,3 +6,4 @@ This project is my attempt at coming up with my own scraper infrastructure that 
 - API docs (`./api-docs`): A [Bruno](https://www.usebruno.com/) collection of example requests for the API server.
 - Local S3 instance (`./local-s3`): A local MinIO S3 instance that can be used for testing purposes and launched via Docker Compose. 
 - Admin Dashboard (`./admin-dashboard`): A web application that can be used to control and monitor the scraper instances. It should be able to start/stop jobs and show details about the status of each job.
+- Ansible Playbooks (`./ansible`): Playbooks to deploy multiple scraper nodes from a central 'control node'.
