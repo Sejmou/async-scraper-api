@@ -45,7 +45,7 @@ class SpotifyAPISingleItemFetchFunctionFactory(
                 task_params, ArtistAlbumsParams
             )
 
-            def fetch_artist_albums(artist_id: str) -> Any:
+            async def fetch_artist_albums(artist_id: str) -> Any:
                 return spotify_api_client.artist_albums(
                     artist_id,
                     include_albums=params.release_types.albums,
@@ -65,7 +65,7 @@ class SpotifyAPISingleItemFetchFunctionFactory(
                 task_params, RegionSpecificParams
             )
 
-            def fetch_tracks_for_isrc(isrc: str) -> Any:
+            async def fetch_tracks_for_isrc(isrc: str) -> Any:
                 return spotify_api_client.search_tracks_for_isrc(
                     isrc,
                     region=params.region,
@@ -89,7 +89,7 @@ class SpotifyAPIBatchFetchFunctionFactory(DataSourceBatchFetchFunctionFactory):
                 task_params, RegionSpecificParams
             )
 
-            def fetch_tracks(track_ids: list[str]) -> Any:
+            async def fetch_tracks(track_ids: list[str]) -> Any:
                 return spotify_api_client.tracks(track_ids, region=params.region)
 
             return fetch_tracks
@@ -102,7 +102,7 @@ class SpotifyAPIBatchFetchFunctionFactory(DataSourceBatchFetchFunctionFactory):
                 task_params, RegionSpecificParams
             )
 
-            def fetch_albums(album_ids: list[str]) -> Any:
+            async def fetch_albums(album_ids: list[str]) -> Any:
                 return spotify_api_client.albums(
                     album_ids,
                     region=params.region,

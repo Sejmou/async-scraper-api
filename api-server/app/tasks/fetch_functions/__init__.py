@@ -9,6 +9,10 @@ from app.tasks.fetch_functions.data_sources.spotify_api import (
     SpotifyAPISingleItemFetchFunctionFactory,
     SpotifyAPIBatchFetchFunctionFactory,
 )
+from app.tasks.fetch_functions.data_sources.spotify_internal import (
+    SpotifyInternalAPIBatchFetchFunctionFactory,
+    SpotifyInternalAPISingleItemFetchFunctionFactory,
+)
 
 
 class SingleItemFetchFunctionFactory:
@@ -19,6 +23,9 @@ class SingleItemFetchFunctionFactory:
     spotify_api_factory: DataSourceSingleItemFetchFunctionFactory = (
         SpotifyAPISingleItemFetchFunctionFactory()
     )
+    spotify_internal_api_factory: DataSourceSingleItemFetchFunctionFactory = (
+        SpotifyInternalAPISingleItemFetchFunctionFactory()
+    )
 
     def create(
         self,
@@ -28,6 +35,8 @@ class SingleItemFetchFunctionFactory:
     ) -> SingleItemFetchFunction:
         if data_source == "spotify-api":
             return self.spotify_api_factory.create(task_type, task_params)
+        elif data_source == "spotify-internal":
+            return self.spotify_internal_api_factory.create(task_type, task_params)
 
 
 class BatchFetchFunctionFactory:
@@ -36,6 +45,7 @@ class BatchFetchFunctionFactory:
     """
 
     spotify_api_factory = SpotifyAPIBatchFetchFunctionFactory()
+    spotify_internal_api_factory = SpotifyInternalAPIBatchFetchFunctionFactory()
 
     def create(
         self,
@@ -45,6 +55,8 @@ class BatchFetchFunctionFactory:
     ) -> BatchFetchFunction:
         if data_source == "spotify-api":
             return self.spotify_api_factory.create(task_type, task_params)
+        elif data_source == "spotify-internal":
+            return self.spotify_internal_api_factory.create(task_type, task_params)
 
 
 create_single_item_fetch_function = SingleItemFetchFunctionFactory().create

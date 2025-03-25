@@ -1,0 +1,9 @@
+services:
+  scraper-api:
+    volumes:
+      # mount the source code into the container
+      - ./app:/app/app
+    environment:
+      # set the DEV environment variable to tell the app that it's running in development mode
+      # at the time of this writing this only means that hot-reloading is enabled
+      - DEV=true

@@ -1,27 +1,43 @@
+from logging import Logger
 import nodriver as uc
-import asyncio
+from nodriver import cdp
+from nodriver.cdp.network import Request
+from asyncio import sleep
 
 
-async def example():
+async def get_spotify_related_artists_request_blueprint(
+    artist_id: str, logger: Logger
+) -> Request:
     browser = await uc.start()
-    page = await browser.get("https://www.nowsecure.nl")
+    page = await browser.get(f"https://open.spotify.com/artist/{artist_id}/related")
 
-    await page.save_screenshot()
-    await page.get_content()
-    await page.scroll_down(150)
-    elems = await page.select_all("*[src]")
-    for elem in elems:
-        await elem.flash()
+    req_data: Request | None = None
 
-    page2 = await browser.get("https://twitter.com", new_tab=True)
-    page3 = await browser.get(
-        "https://github.com/ultrafunkamsterdam/nodriver", new_window=True
-    )
+    def handle_request(data: cdp.network.RequestWillBeSent):
+        req = data.request
+        if (
+            req.url.startswith(
+                "https://api-partner.spotify.com/pathfinder/v1/query?operationName=queryArtistRelated"
+            )
+            and req.method == "GET"
+        ):
+            logger.info("Found related artists request")
+            nonlocal req_data
+            req_data = req
 
-    for p in (page, page2, page3):
-        await p.bring_to_front()
-        await p.scroll_down(200)
-        await p  # wait for events to be processed
-        await p.reload()
-        if p != page3:
-            await p.close()
+    page.add_handler(cdp.network.RequestWillBeSent, handle_request)
+
+    logger.info("Getting cookie banner")
+    cookie_banner = await page.find("Accept cookies", best_match=True)
+    if cookie_banner:
+        logger.info("Clicking cookie banner")
+        await cookie_banner.click()
+    else:
+        logger.info("No cookie banner found")
+
+    while not req_data:
+        logger.info("Waiting for request data")
+        await sleep(1)
+
+    browser.stop()
+    return req_data

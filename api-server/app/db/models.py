@@ -23,7 +23,7 @@ class Base(DeclarativeBase, MappedAsDataclass):
     """
 
 
-DataSource = Literal["spotify-api"]
+DataSource = Literal["spotify-api", "spotify-internal"]
 """
 The supported data sources for fetching data.
 """
