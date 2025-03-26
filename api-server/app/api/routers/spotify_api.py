@@ -97,7 +97,6 @@ async def fetch_artist_albums(
         task_type="artist_albums",
         subprefix=f"artist_albums_{payload.params.region}",
         session=session,
-        batch_size=50,
     )
 
     run_in_background(processor, background_tasks)
@@ -117,7 +116,7 @@ async def fetch_albums(
         task_type="albums",
         subprefix=f"albums_{payload.params.region}",
         session=session,
-        batch_size=50,
+        batch_size=20,
     )
     run_in_background(processor, background_tasks)
     return TaskModel.model_validate(task)
@@ -136,7 +135,6 @@ async def fetch_playlists(
         task_type="playlists",
         subprefix="playlists",
         session=session,
-        batch_size=50,
     )
     run_in_background(processor, background_tasks)
 
@@ -156,7 +154,6 @@ async def search_tracks_by_isrc(
         task_type="track_search_isrcs",
         subprefix=f"tracks_{payload.params.region}",
         session=session,
-        batch_size=50,
     )
     run_in_background(processor, background_tasks)
     return TaskModel.model_validate(task)
