@@ -78,7 +78,7 @@ export async function POST({ request }) {
 	// run same task across all scrapers, but give each a different chunk of the input data
 	// roundrobinSplit means that each scraper gets a chunk of the input data in a round-robin fashion
 	// i.e. if data is ordered by priority, each scraper's chunk will start with the most important data
-	const inputChunks = inputs ? roundRobinSplit(inputs, scrapers.length) : null;
+	const inputChunks = roundRobinSplit(inputs, scrapers.length);
 
 	const successes: { scraper: Scraper; subtaskId: number }[] = [];
 	const failures: { scraper: Scraper; inputs: typeof inputs }[] = [];
@@ -97,12 +97,12 @@ export async function POST({ request }) {
 			const taskId = taskCreateRes[0].id;
 
 			for (const [i, scraper] of scrapers.entries()) {
-				const input = inputChunks ? inputChunks[i] : null;
+				task.inputs = inputChunks[i];
 				console.log('Sending task to scraper', {
 					scraper,
-					first10Inputs: input?.slice(0, 10),
-					last10Inputs: input?.slice(-10),
-					inputLength: input?.length,
+					first10Inputs: task.inputs.slice(0, 10),
+					last10Inputs: task.inputs.slice(-10),
+					inputLength: task.inputs.length,
 					params
 				});
 				const taskSendResult = await sendTaskToScraper(scraper, task);
@@ -117,9 +117,9 @@ export async function POST({ request }) {
 				} else {
 					console.error('Failed to send task to scraper', {
 						scraper,
-						first10Inputs: input?.slice(0, 10),
-						last10Inputs: input?.slice(-10),
-						inputLength: input?.length,
+						first10Inputs: task.inputs.slice(0, 10),
+						last10Inputs: task.inputs.slice(-10),
+						inputLength: task.inputs.length,
 						params,
 						error: taskSendResult.error
 					});
