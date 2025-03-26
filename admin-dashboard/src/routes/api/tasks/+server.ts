@@ -69,7 +69,9 @@ export async function POST({ request }) {
 	console.log('Task to send to distribute among scrapers', {
 		dataSource,
 		taskType,
-		inputs,
+		first10Inputs: inputs.slice(0, 10),
+		last10Inputs: inputs.slice(-10),
+		inputLength: inputs.length,
 		params
 	});
 
@@ -96,7 +98,13 @@ export async function POST({ request }) {
 
 			for (const [i, scraper] of scrapers.entries()) {
 				const input = inputChunks ? inputChunks[i] : null;
-				console.log('Sending task to scraper', { scraper, input, params });
+				console.log('Sending task to scraper', {
+					scraper,
+					first10Inputs: input?.slice(0, 10),
+					last10Inputs: input?.slice(-10),
+					inputLength: input?.length,
+					params
+				});
 				const taskSendResult = await sendTaskToScraper(scraper, task);
 				if (taskSendResult.success) {
 					const subtaskId = taskSendResult.data.id;
@@ -109,7 +117,9 @@ export async function POST({ request }) {
 				} else {
 					console.error('Failed to send task to scraper', {
 						scraper,
-						input,
+						first10Inputs: input?.slice(0, 10),
+						last10Inputs: input?.slice(-10),
+						inputLength: input?.length,
 						params,
 						error: taskSendResult.error
 					});
