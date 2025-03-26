@@ -14,20 +14,20 @@
 		{ accessorFn: (row) => row.scraper.port, header: 'Port' },
 		{
 			accessorFn: (row) => row.progress,
-			header: 'Remaining',
-			cell: ({ row }) =>
-				renderComponent(AsyncValueCell<ScraperSubtaskProgress | null>, {
-					valuePromise: row.original.progress,
-					accessorFn: (progress) => (progress ? progress.remaining_count : 'N/A')
-				})
-		},
-		{
-			accessorFn: (row) => row.progress,
 			header: 'Successes',
 			cell: ({ row }) =>
 				renderComponent(AsyncValueCell<ScraperSubtaskProgress | null>, {
 					valuePromise: row.original.progress,
 					accessorFn: (progress) => (progress ? progress.success_count : 'N/A')
+				})
+		},
+		{
+			accessorFn: (row) => row.progress,
+			header: 'Remaining',
+			cell: ({ row }) =>
+				renderComponent(AsyncValueCell<ScraperSubtaskProgress | null>, {
+					valuePromise: row.original.progress,
+					accessorFn: (progress) => (progress ? progress.remaining_count : 'N/A')
 				})
 		},
 		{
