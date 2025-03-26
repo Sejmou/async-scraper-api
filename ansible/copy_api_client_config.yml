@@ -1,6 +1,10 @@
 - name: Copy API client config to hosts
   hosts: scrapers
   gather_facts: no
+  vars_prompt:
+    - name: "ansible_become_password"
+      prompt: "Enter your sudo password (required for removal of dir)"
+      private: yes
 
   pre_tasks:
     - name: Load CSV data from spotify_creds.csv
@@ -21,9 +25,9 @@
 
     - name: Remove the directory for api-client-config.yml
       ansible.builtin.file:
-        path: ~/async-scraper-api/api-server/api-client-config.yml
-        state: directory
-        recurse: yes
+        path: /home/wucloud/async-scraper-api/api-server/api-client-config.yml
+        state: absent
+      become: true
 
     - name: Copy the api-client-config.yml file to the host
       template:
