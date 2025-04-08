@@ -13,6 +13,8 @@ services:
     ports:
       - 4200:80
     volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
       - ./api-client-config.yml:/app/api-client-config.yml
       - ./alembic:/app/alembic
       - ./alembic.ini:/app/alembic.ini

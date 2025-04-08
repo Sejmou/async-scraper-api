@@ -1,7 +1,8 @@
 from contextlib import asynccontextmanager
 from fastapi.responses import JSONResponse
 import uvicorn
-from fastapi import BackgroundTasks, FastAPI, Request
+from fastapi import FastAPI, Request
+from fastapi_pagination import add_pagination
 
 from app.api.routers.spotify_api import router as spotify_api_router
 from app.api.routers.tasks import router as tasks_router
@@ -29,6 +30,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan, title=settings.project_name, docs_url="/docs")
+add_pagination(app)
 
 
 # Override the default exception handler for all unhandled exceptions.
