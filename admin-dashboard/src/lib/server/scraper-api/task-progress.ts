@@ -8,9 +8,9 @@ const taskProgressSchema = z.object({
 	inputs_without_output_count: z.number(),
 	remaining_count: z.number()
 });
-export type ScraperSubtaskProgress = z.infer<typeof taskProgressSchema>;
+export type ScraperTaskProgress = z.infer<typeof taskProgressSchema>;
 
-const getSubtaskProgress = async (scraper: Scraper, subtaskId: number) => {
+const fetchScraperTaskProgress = async (scraper: Scraper, subtaskId: number) => {
 	const res = await makeRequestToScraper(scraper, `tasks/${subtaskId}/progress`);
 	if (res.status === 'error') {
 		throw new Error('Failed to get task progress');
@@ -18,9 +18,9 @@ const getSubtaskProgress = async (scraper: Scraper, subtaskId: number) => {
 	return taskProgressSchema.parse(res.data);
 };
 
-const createSubtaskProgressPromiseSafe = async (scraper: Scraper, subTaskId: number) => {
+const createScraperTaskProgressPromiseSafe = async (scraper: Scraper, subTaskId: number) => {
 	try {
-		const data = await getSubtaskProgress(scraper, subTaskId);
+		const data = await fetchScraperTaskProgress(scraper, subTaskId);
 		return data;
 	} catch (error) {
 		console.error('Failed to get progress for scraper subtask', { scraper, subTaskId, error });
@@ -31,10 +31,10 @@ const createSubtaskProgressPromiseSafe = async (scraper: Scraper, subTaskId: num
 type TaskWithSubtasksAndScrapers = DBTask & { subtasks: (Subtask & { scraper: Scraper })[] };
 export type SubtaskWithScraperAndProgress = Subtask & {
 	scraper: Scraper;
-	progress: Promise<ScraperSubtaskProgress | null>;
+	progress: Promise<ScraperTaskProgress | null>;
 };
 
-export const addSubtaskProgressPromises = (
+export const addScraperTaskProgressPromises = (
 	data: TaskWithSubtasksAndScrapers
 ): {
 	task: DBTask;
@@ -46,7 +46,7 @@ export const addSubtaskProgressPromises = (
 		task,
 		subTasksWithProgress: subtasks.map((s) => ({
 			...s,
-			progress: createSubtaskProgressPromiseSafe(s.scraper, s.scraperTaskId)
+			progress: createScraperTaskProgressPromiseSafe(s.scraper, s.scraperTaskId)
 		}))
 	};
 };

@@ -29,6 +29,7 @@
 	<DropdownMenu.Content>
 		<DropdownMenu.Group>
 			<DropdownMenu.GroupHeading>Actions</DropdownMenu.GroupHeading>
+			<a href={`scrapers/${id}`}><DropdownMenu.Item>View Details</DropdownMenu.Item></a>
 			<DropdownMenu.Item onSelect={() => (deleteDialogOpen = true)}>
 				Delete
 				<!-- <button class="w-full" onclick={() => (deleteDialogOpen = true)}>Delete</button> -->

@@ -1,6 +1,6 @@
 import { db } from '$lib/server/db';
 import { scraperServerTbl } from '$lib/server/db/schema';
-import { getAPIServerInfo } from '$lib/server/scraper-api/about';
+import { getScraperServerInfo } from '$lib/server/scraper-api/about';
 
 export async function load() {
 	const scrapers = await getAvailableScrapers();
@@ -15,7 +15,7 @@ async function getAvailableScrapers() {
 	const onlineServers = (
 		await Promise.allSettled(
 			scrapers.map(async (s) => {
-				await getAPIServerInfo(s);
+				await getScraperServerInfo(s);
 				return s;
 			})
 		)

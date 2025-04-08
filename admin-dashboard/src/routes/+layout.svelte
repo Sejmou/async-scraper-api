@@ -20,27 +20,34 @@
 			let link = '/' + subroutes.slice(0, i + 1).join('/');
 			let subRoutePathComponent = subroutes[i];
 			if (subRoutePathComponent === '[taskId]') {
-				link = link.replace('[taskId]', `${data?.task?.id ?? ''}`);
 				if (data.task) {
 					subRoutePathComponent = `${data.task.id}`;
 				} else {
 					subRoutePathComponent = 'Unknown Task';
 				}
 			} else if (subRoutePathComponent === '[dataSource]') {
-				link = link.replace('[dataSource]', `${page.params?.dataSource ?? ''}`);
 				if (page.params.dataSource) {
 					subRoutePathComponent = page.params.dataSource;
 				} else {
 					subRoutePathComponent = 'Unknown Data Source';
 				}
 			} else if (subRoutePathComponent === '[taskType]') {
-				link = link.replace('[taskType]', `${page.params?.taskType ?? ''}`);
 				if (page.params.taskType) {
 					subRoutePathComponent = page.params.taskType;
 				} else {
 					subRoutePathComponent = 'Unknown Task Type';
 				}
+			} else if (subRoutePathComponent === '[scraperId]') {
+				if (data.scraper) {
+					subRoutePathComponent = `${data.scraper.host}:${data.scraper.port}`;
+				} else {
+					subRoutePathComponent = 'Unknown Scraper';
+				}
 			}
+			link = link.replace('[taskId]', `${data?.task?.id ?? ''}`);
+			link = link.replace('[dataSource]', `${page.params?.dataSource ?? ''}`);
+			link = link.replace('[taskType]', `${page.params?.taskType ?? ''}`);
+			link = link.replace('[scraperId]', `${data?.scraper?.id ?? ''}`);
 			return {
 				name: breadCrumbsNameOverrides[subRoutePathComponent] || titleCase(subRoutePathComponent),
 				link

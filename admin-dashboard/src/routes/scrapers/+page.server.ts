@@ -1,7 +1,7 @@
 import { createTransaction, db } from '$lib/server/db';
 import { scraperServerTbl, type ScraperInsert } from '$lib/server/db/schema';
 import { asc, eq } from 'drizzle-orm';
-import { getAPIServerInfo } from '$lib/server/scraper-api/about';
+import { getScraperServerInfo } from '$lib/server/scraper-api/about';
 import type { APIServerMeta } from './table-columns';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
@@ -16,7 +16,7 @@ export async function load() {
 	type ServerMeta = (typeof serversInDb)[0];
 	const getStatus = async (meta: ServerMeta) => {
 		try {
-			const { version } = await getAPIServerInfo(meta);
+			const { version } = await getScraperServerInfo(meta);
 			return { version, online: true };
 		} catch {
 			return { version: null, online: false };

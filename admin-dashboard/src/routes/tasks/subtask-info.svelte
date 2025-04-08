@@ -4,10 +4,10 @@
 	import DataTable from '$lib/components/ui/data-table.svelte';
 	import { buttonVariants } from '$lib/components/ui/button/index.js';
 	import { renderComponent } from '$lib/components/ui/data-table';
-	import type { SubtaskWithScraperAndProgress } from '$lib/server/scraper-api/subtask-progress';
+	import type { SubtaskWithScraperAndProgress } from '$lib/server/scraper-api/task-progress';
 	import AsyncValueCell from '$lib/components/ui/async-value-cell.svelte';
 
-	import type { ScraperSubtaskProgress } from '$lib/server/scraper-api/subtask-progress';
+	import type { ScraperTaskProgress } from '$lib/server/scraper-api/task-progress';
 
 	const columns: ColumnDef<SubtaskWithScraperAndProgress>[] = [
 		{ accessorFn: (row) => row.scraper.host, header: 'Host' },
@@ -16,7 +16,7 @@
 			accessorFn: (row) => row.progress,
 			header: 'Successes',
 			cell: ({ row }) =>
-				renderComponent(AsyncValueCell<ScraperSubtaskProgress | null>, {
+				renderComponent(AsyncValueCell<ScraperTaskProgress | null>, {
 					valuePromise: row.original.progress,
 					accessorFn: (progress) => (progress ? progress.success_count : 'N/A')
 				})
@@ -25,7 +25,7 @@
 			accessorFn: (row) => row.progress,
 			header: 'Remaining',
 			cell: ({ row }) =>
-				renderComponent(AsyncValueCell<ScraperSubtaskProgress | null>, {
+				renderComponent(AsyncValueCell<ScraperTaskProgress | null>, {
 					valuePromise: row.original.progress,
 					accessorFn: (progress) => (progress ? progress.remaining_count : 'N/A')
 				})
@@ -34,7 +34,7 @@
 			accessorFn: (row) => row.progress,
 			header: 'Failures',
 			cell: ({ row }) =>
-				renderComponent(AsyncValueCell<ScraperSubtaskProgress | null>, {
+				renderComponent(AsyncValueCell<ScraperTaskProgress | null>, {
 					valuePromise: row.original.progress,
 					accessorFn: (progress) => (progress ? progress.failure_count : 'N/A')
 				})
@@ -43,7 +43,7 @@
 			accessorFn: (row) => row.progress,
 			header: 'Empty responses',
 			cell: ({ row }) =>
-				renderComponent(AsyncValueCell<ScraperSubtaskProgress | null>, {
+				renderComponent(AsyncValueCell<ScraperTaskProgress | null>, {
 					valuePromise: row.original.progress,
 					accessorFn: (progress) => (progress ? progress.inputs_without_output_count : 'N/A')
 				})

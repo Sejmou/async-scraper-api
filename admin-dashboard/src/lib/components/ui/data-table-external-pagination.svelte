@@ -27,12 +27,10 @@
 		rowCount,
 		onPaginationChange,
 		pagination,
-		// by specifying default values, our typechecker knows that the optional props cannot be undefined <3
-		paginationPageSize = 10,
 		rowDescSingular = 'row',
 		rowDescPlural = 'rows'
 	}: Props<TData, TValue> = $props();
-	if (paginationPageSize < 1) {
+	if (pagination.pageSize < 1) {
 		throw new Error('paginationPageSize must be greater than 0');
 	}
 
@@ -71,8 +69,8 @@
 	<div class="w-full text-sm text-muted-foreground">
 		{#if pageCount > 1}
 			{rowCountAndDesc} (showing {rowDescPlural}
-			{pageIndex * paginationPageSize + 1} to {Math.min(
-				(pageIndex + 1) * paginationPageSize,
+			{pageIndex * pagination.pageSize + 1} to {Math.min(
+				(pageIndex + 1) * pagination.pageSize,
 				rowCount
 			)})
 		{:else}
@@ -117,7 +115,7 @@
 	</div>
 	{#if pageCount > 1}
 		<div class="mt-2 w-full">
-			<Pagination.Root bind:page={getPage, setPage} count={rowCount} perPage={paginationPageSize}>
+			<Pagination.Root bind:page={getPage, setPage} count={rowCount} perPage={pagination.pageSize}>
 				{#snippet children({ pages, currentPage })}
 					<Pagination.Content>
 						<Pagination.Item>

@@ -2,7 +2,7 @@ import { db } from '$lib/server/db';
 import { taskTbl } from '$lib/server/db/schema.js';
 import { error } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
-import { addSubtaskProgressPromises } from '$lib/server/scraper-api/subtask-progress';
+import { addScraperTaskProgressPromises } from '$lib/server/scraper-api/task-progress';
 
 export async function load({ params }) {
 	const id = parseInt(params.taskId, 10);
@@ -28,5 +28,5 @@ export async function load({ params }) {
 		});
 	}
 
-	return await addSubtaskProgressPromises(taskWithSubTasksAndScrapers);
+	return await addScraperTaskProgressPromises(taskWithSubTasksAndScrapers);
 }

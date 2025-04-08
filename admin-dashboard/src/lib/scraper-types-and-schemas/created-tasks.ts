@@ -51,5 +51,13 @@ export const dataFetchingTaskSchema = z.object({
 	batch_size: z.number()
 });
 
+export const tasksPageSchema = z.object({
+	items: z.array(dataFetchingTaskSchema),
+	page: z.number().int().positive(),
+	size: z.number().int().positive(),
+	total: z.number().int().nonnegative(),
+	pages: z.number().int().positive()
+});
+
 export type DataFetchingTask = z.infer<typeof dataFetchingTaskSchema>;
 export type S3FileUpload = z.infer<typeof s3FileUploadSchema>;

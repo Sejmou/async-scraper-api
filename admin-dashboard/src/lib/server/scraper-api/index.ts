@@ -3,7 +3,8 @@ import { type Scraper as Scraper } from '$lib/server/db/schema';
 export const makeRequestToScraper = async (
 	scraper: Scraper,
 	path: string,
-	payload?: Record<string, unknown>
+	payload?: Record<string, unknown>,
+	params?: Record<string, string | number | boolean>
 ): Promise<
 	| {
 			status: 'success';
@@ -14,7 +15,14 @@ export const makeRequestToScraper = async (
 			error: Record<string, unknown>;
 	  }
 > => {
-	const url = `${scraper.protocol}://${scraper.host}:${scraper.port}/${path}`;
+	const queryString = params
+		? '?' +
+			Object.entries(params)
+				.map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+				.join('&')
+		: '';
+	const pathWithParams = path + queryString;
+	const url = `${scraper.protocol}://${scraper.host}:${scraper.port}/${pathWithParams}`;
 	const res = await fetch(url, {
 		method: payload ? 'POST' : 'GET',
 		headers: {
