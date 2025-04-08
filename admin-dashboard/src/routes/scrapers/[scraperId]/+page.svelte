@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import DataTableExternalPagination from '$lib/components/ui/data-table-external-pagination.svelte';
+	import { renderComponent } from '$lib/components/ui/data-table/render-helpers';
 	import type { ColumnDef, OnChangeFn, PaginationState } from '@tanstack/table-core';
-	import { online } from 'svelte/reactivity/window';
+	import TaskFileUploads from './task-file-uploads.svelte';
 
 	let { data } = $props();
 	let scraper = $derived(data.scraper);
@@ -27,6 +28,21 @@
 			header: 'ID'
 		},
 		{
+			accessorKey: 'data_source',
+			header: 'Data Source'
+		},
+		{
+			accessorKey: 'task_type',
+			header: 'Task Type'
+		},
+		{
+			accessorKey: 'params',
+			header: 'Parameters',
+			cell: ({ row }) => {
+				return row.original.params ? JSON.stringify(row.original.params, null, 2) : 'None';
+			}
+		},
+		{
 			accessorKey: 'status',
 			header: 'Status'
 		},
@@ -36,7 +52,16 @@
 		},
 		{
 			accessorKey: 'updated_at',
-			header: 'Updated At'
+			header: 'Last Updated At'
+		},
+		{
+			accessorKey: 'file_uploads',
+			header: 'Uploaded Files',
+			cell: ({ row }) =>
+				renderComponent(TaskFileUploads, {
+					fileUploads: row.original.file_uploads,
+					taskId: row.original.id
+				})
 		}
 	];
 </script>

@@ -57,7 +57,7 @@
 	let level = $derived(subroutes.length);
 </script>
 
-<main class="mx-auto flex max-w-screen-md flex-col gap-2 p-4 pt-8">
+<main class="mx-auto flex max-w-screen-lg flex-col gap-2 p-4 pt-8">
 	{#if level > 0}
 		<Breadcrumb.Root>
 			<Breadcrumb.List>

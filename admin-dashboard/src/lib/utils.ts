@@ -59,6 +59,21 @@ export function roundRobinSplit<T>(items: T[], k: number): T[][] {
 	return chunks;
 }
 
+/**
+ * Converts a number of bytes into a human-readable string.
+ * @param bytes - The number of bytes.
+ * @returns A string representing the size in human-readable format.
+ */
+export function humanReadableSize(bytes: number): string {
+	if (bytes === 0) return '0 B';
+
+	const units: string[] = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+	const i: number = Math.floor(Math.log(bytes) / Math.log(1024));
+	const size: number = bytes / Math.pow(1024, i);
+
+	return `${size.toFixed(2)} ${units[i]}`;
+}
+
 export type JSONSerializableValue =
 	| string
 	| number
