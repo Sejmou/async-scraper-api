@@ -77,11 +77,34 @@ export const makeRequestToScraper = async <S extends ZodTypeAny>(
 			data: schemaParseRes.data
 		};
 	} catch (e) {
-		console.error(`Error sending request to scraper API endpoint`, {
-			scraper,
-			reqData,
-			error: e
-		});
+		if (e instanceof TypeError) {
+			if (
+				e.cause &&
+				typeof e.cause === 'object' &&
+				'code' in e.cause &&
+				e.cause.code === 'ECONNREFUSED'
+			) {
+				console.error(
+					`Connection to scraper API endpoint refused (probably the server is offline?)`,
+					{
+						scraper,
+						reqData
+					}
+				);
+			} else {
+				console.error(`Network error sending request to scraper API endpoint`, {
+					scraper,
+					reqData,
+					error: e
+				});
+			}
+		} else {
+			console.error(`Unknown error sending request to scraper API endpoint`, {
+				scraper,
+				reqData,
+				error: e
+			});
+		}
 		return {
 			status: 'error',
 			error: {

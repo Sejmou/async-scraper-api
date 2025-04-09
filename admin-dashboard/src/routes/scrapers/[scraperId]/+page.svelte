@@ -66,6 +66,10 @@
 	];
 </script>
 
+<svelte:head>
+	<title>Scraper @ {scraper.protocol}://{scraper.host}:{scraper.port}</title>
+</svelte:head>
+
 <h2 class="text-2xl font-semibold">
 	Scraper at {scraper.protocol}://{scraper.host}:{scraper.port}
 </h2>

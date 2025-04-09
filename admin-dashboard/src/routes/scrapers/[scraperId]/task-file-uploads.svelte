@@ -57,11 +57,15 @@
 		</Dialog.Trigger>
 		<Dialog.Content class="max-w-screen-lg">
 			<Dialog.Header>
-				<Dialog.Title>Uploads for Task ID {taskId}</Dialog.Title>
-				<Dialog.Description>
-					<DataTable data={fileUploads} {columns} />
-				</Dialog.Description>
+				<Dialog.Title>File Uploads for Task ID {taskId}</Dialog.Title>
 			</Dialog.Header>
+			<DataTable
+				data={fileUploads}
+				{columns}
+				rowDescSingular="uploaded file"
+				rowDescPlural="uploaded files"
+				showColumnFilter
+			/>
 		</Dialog.Content>
 	</Dialog.Root>
 {/if}

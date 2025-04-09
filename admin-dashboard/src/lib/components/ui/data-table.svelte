@@ -4,11 +4,15 @@
 		getCoreRowModel,
 		getPaginationRowModel,
 		type PaginationState,
-		type RowSelectionState
+		type RowSelectionState,
+		type VisibilityState
 	} from '@tanstack/table-core';
 	import { createSvelteTable, FlexRender } from '$lib/components/ui/data-table';
 	import * as Table from '$lib/components/ui/table';
 	import * as Pagination from '$lib/components/ui/pagination';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import { Button } from '$lib/components/ui/button';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 
 	type DataTableProps<TData, TValue> = {
 		columns: ColumnDef<TData, TValue>[];
@@ -17,6 +21,7 @@
 		rowDescSingular?: string;
 		rowDescPlural?: string;
 		showSelectedRowCount?: boolean;
+		showColumnFilter?: boolean;
 		onSelectionChange?: (newValue: RowSelectionState) => void;
 	};
 
@@ -28,7 +33,8 @@
 		paginationPageSize = 10,
 		rowDescSingular = 'row',
 		rowDescPlural = 'rows',
-		showSelectedRowCount = false
+		showSelectedRowCount = false,
+		showColumnFilter = false
 	}: DataTableProps<TData, TValue> = $props();
 	if (paginationPageSize < 1) {
 		throw new Error('paginationPageSize must be greater than 0');
@@ -41,6 +47,9 @@
 
 	let rowSelection = $state<RowSelectionState>({});
 
+	let columnVisibility = $state<VisibilityState>({});
+	$inspect(columnVisibility);
+
 	const table = createSvelteTable({
 		get data() {
 			return data;
@@ -52,6 +61,9 @@
 			},
 			get rowSelection() {
 				return rowSelection;
+			},
+			get columnVisibility() {
+				return columnVisibility;
 			}
 		},
 		onPaginationChange: (updater) => {
@@ -69,6 +81,14 @@
 			}
 			onSelectionChange?.(rowSelection);
 		},
+		onColumnVisibilityChange: (updater) => {
+			if (typeof updater === 'function') {
+				columnVisibility = updater(columnVisibility);
+			} else {
+				columnVisibility = updater;
+			}
+		},
+
 		getCoreRowModel: getCoreRowModel(),
 		getPaginationRowModel: getPaginationRowModel()
 	});
@@ -90,15 +110,38 @@
 </script>
 
 <div class="w-full">
-	<div class="w-full text-sm text-muted-foreground">
-		{#if pageCount > 1}
-			{rowCountAndDesc} (showing {rowDescPlural}
-			{pageIndex * paginationPageSize + 1} to {Math.min(
-				(pageIndex + 1) * paginationPageSize,
-				rowCount
-			)})
-		{:else}
-			{rowCountAndDesc}
+	<div class="flex items-center py-4">
+		<div class="text-sm text-muted-foreground">
+			{#if pageCount > 1}
+				{rowCountAndDesc} (showing {rowDescPlural}
+				{pageIndex * paginationPageSize + 1} to {Math.min(
+					(pageIndex + 1) * paginationPageSize,
+					rowCount
+				)})
+			{:else}
+				{rowCountAndDesc}
+			{/if}
+		</div>
+		{#if showColumnFilter}
+			<DropdownMenu.Root>
+				<DropdownMenu.Trigger>
+					{#snippet child({ props })}
+						<Button {...props} variant="outline" class="ml-auto">
+							Columns <ChevronDown class="ml-2 size-4" />
+						</Button>
+					{/snippet}
+				</DropdownMenu.Trigger>
+				<DropdownMenu.Content align="end">
+					{#each table.getAllColumns().filter((col) => col.getCanHide()) as column (column.id)}
+						<DropdownMenu.CheckboxItem
+							class="capitalize"
+							bind:checked={() => column.getIsVisible(), (v) => column.toggleVisibility(!!v)}
+						>
+							{column.id}
+						</DropdownMenu.CheckboxItem>
+					{/each}
+				</DropdownMenu.Content>
+			</DropdownMenu.Root>
 		{/if}
 	</div>
 
