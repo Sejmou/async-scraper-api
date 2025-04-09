@@ -3,14 +3,14 @@ import TableStatus from './table-status.svelte';
 import TableActions from './table-actions.svelte';
 import { renderComponent } from '$lib/components/ui/data-table';
 
-export type APIServerMeta = {
+export type ScraperMetadata = {
 	id: number;
 	host: string;
 	version: string | null;
 	online: boolean;
 };
 
-export const columns: ColumnDef<APIServerMeta>[] = [
+export const columns: ColumnDef<ScraperMetadata>[] = [
 	{
 		accessorKey: 'host',
 		header: 'Host'

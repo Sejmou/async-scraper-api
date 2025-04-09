@@ -106,7 +106,7 @@ export async function POST({ request }) {
 					params
 				});
 				const taskSendResult = await sendTaskToScraper(scraper, task);
-				if (taskSendResult.success) {
+				if (taskSendResult.status === 'success') {
 					const subtaskId = taskSendResult.data.id;
 					await db.insert(subtaskTbl).values({
 						taskId,

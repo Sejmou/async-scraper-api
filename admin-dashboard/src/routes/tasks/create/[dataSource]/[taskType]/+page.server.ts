@@ -1,6 +1,6 @@
 import { db } from '$lib/server/db';
 import { scraperServerTbl } from '$lib/server/db/schema';
-import { getScraperServerInfo } from '$lib/server/scraper-api/about';
+import { getScraperInfo } from '$lib/server/scraper-api/about';
 
 export async function load() {
 	const scrapers = await getAvailableScrapers();
@@ -15,7 +15,10 @@ async function getAvailableScrapers() {
 	const onlineServers = (
 		await Promise.allSettled(
 			scrapers.map(async (s) => {
-				await getScraperServerInfo(s);
+				const res = await getScraperInfo(s);
+				if (res.status === 'error') {
+					throw new Error(`Failed to get scraper info for ${s.protocol}://${s.host}:${s.port}`);
+				}
 				return s;
 			})
 		)

@@ -1,7 +1,7 @@
-<script lang="ts" generics="T">
+<script lang="ts" generics="T extends Promise<any>">
 	type Props<T> = {
-		valuePromise: Promise<T>;
-		accessorFn: (value: T) => any;
+		valuePromise: T;
+		accessorFn: (value: Awaited<T>) => any;
 	};
 
 	let { valuePromise, accessorFn }: Props<T> = $props();

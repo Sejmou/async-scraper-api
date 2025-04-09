@@ -7,45 +7,43 @@
 	import type { SubtaskWithScraperAndProgress } from '$lib/server/scraper-api/task-progress';
 	import AsyncValueCell from '$lib/components/ui/async-value-cell.svelte';
 
-	import type { ScraperTaskProgress } from '$lib/server/scraper-api/task-progress';
-
 	const columns: ColumnDef<SubtaskWithScraperAndProgress>[] = [
 		{ accessorFn: (row) => row.scraper.host, header: 'Host' },
 		{ accessorFn: (row) => row.scraper.port, header: 'Port' },
 		{
-			accessorFn: (row) => row.progress,
 			header: 'Successes',
 			cell: ({ row }) =>
-				renderComponent(AsyncValueCell<ScraperTaskProgress | null>, {
+				renderComponent(AsyncValueCell<typeof row.original.progress>, {
 					valuePromise: row.original.progress,
-					accessorFn: (progress) => (progress ? progress.success_count : 'N/A')
+					accessorFn: (progress) =>
+						progress.status === 'success' ? progress.data.success_count : 'N/A'
 				})
 		},
 		{
-			accessorFn: (row) => row.progress,
 			header: 'Remaining',
 			cell: ({ row }) =>
-				renderComponent(AsyncValueCell<ScraperTaskProgress | null>, {
+				renderComponent(AsyncValueCell<typeof row.original.progress>, {
 					valuePromise: row.original.progress,
-					accessorFn: (progress) => (progress ? progress.remaining_count : 'N/A')
+					accessorFn: (progress) =>
+						progress.status === 'success' ? progress.data.remaining_count : 'N/A'
 				})
 		},
 		{
-			accessorFn: (row) => row.progress,
 			header: 'Failures',
 			cell: ({ row }) =>
-				renderComponent(AsyncValueCell<ScraperTaskProgress | null>, {
+				renderComponent(AsyncValueCell<typeof row.original.progress>, {
 					valuePromise: row.original.progress,
-					accessorFn: (progress) => (progress ? progress.failure_count : 'N/A')
+					accessorFn: (progress) =>
+						progress.status === 'success' ? progress.data.failure_count : 'N/A'
 				})
 		},
 		{
-			accessorFn: (row) => row.progress,
 			header: 'Empty responses',
 			cell: ({ row }) =>
-				renderComponent(AsyncValueCell<ScraperTaskProgress | null>, {
+				renderComponent(AsyncValueCell<typeof row.original.progress>, {
 					valuePromise: row.original.progress,
-					accessorFn: (progress) => (progress ? progress.inputs_without_output_count : 'N/A')
+					accessorFn: (progress) =>
+						progress.status === 'success' ? progress.data.inputs_without_output_count : 'N/A'
 				})
 		}
 	];

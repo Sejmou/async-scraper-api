@@ -3,31 +3,33 @@ import { eq } from 'drizzle-orm';
 import { scraperServerTbl, type Scraper } from '$lib/server/db/schema';
 import { fetchScraperTasks } from '$lib/server/scraper-api/get-tasks';
 import { error } from '@sveltejs/kit';
-import { getScraperServerInfo } from '$lib/server/scraper-api/about';
+import { getScraperInfo } from '$lib/server/scraper-api/about';
 
 const getScraperData = async (scraper: Scraper, tasksPage: number, pageSize = 10) => {
+	// definining this as handling null/error case on client would be more annoying than just returning this 'empty' data
+	const tasksFallbackData = {
+		page: 1,
+		items: [],
+		size: pageSize,
+		total: 0,
+		pages: 1
+	};
 	try {
-		const [info, tasks] = await Promise.all([
-			getScraperServerInfo(scraper),
+		const [infoRes, tasksRes] = await Promise.all([
+			getScraperInfo(scraper),
 			fetchScraperTasks(scraper, tasksPage, pageSize)
 		]);
 		return {
-			status: 'online' as const,
-			version: info.version,
-			tasks
+			status: infoRes.status === 'success' ? ('online' as const) : ('offline' as const),
+			version: infoRes.status === 'success' ? infoRes.data.version : 'unknown',
+			tasks: tasksRes.status === 'success' ? tasksRes.data : tasksFallbackData
 		};
 	} catch (e) {
 		console.error('Failed to get scraper data', { scraper, error: e });
 		return {
 			status: 'offline' as const,
 			version: 'unknown',
-			tasks: {
-				page: 1,
-				items: [],
-				size: pageSize,
-				total: 0,
-				pages: 1
-			}
+			tasks: tasksFallbackData
 		};
 	}
 };

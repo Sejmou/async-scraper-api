@@ -1,34 +1,24 @@
 import { createTransaction, db } from '$lib/server/db';
 import { scraperServerTbl, type ScraperInsert } from '$lib/server/db/schema';
 import { asc, eq } from 'drizzle-orm';
-import { getScraperServerInfo } from '$lib/server/scraper-api/about';
-import type { APIServerMeta } from './table-columns';
+import { getScraperInfo } from '$lib/server/scraper-api/about';
+import type { ScraperMetadata } from './table-columns';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { formSchemaBatchImport, formSchemaSingleInsert, baseUrlSchema } from './form-schema';
 import { fail } from '@sveltejs/kit';
 
 export async function load() {
-	const serversInDb = await db
-		.select()
-		.from(scraperServerTbl)
-		.orderBy(asc(scraperServerTbl.addedAt));
-	type ServerMeta = (typeof serversInDb)[0];
-	const getStatus = async (meta: ServerMeta) => {
-		try {
-			const { version } = await getScraperServerInfo(meta);
-			return { version, online: true };
-		} catch {
-			return { version: null, online: false };
-		}
-	};
+	const scrapers = await db.select().from(scraperServerTbl).orderBy(asc(scraperServerTbl.addedAt));
 
-	const serverMeta: APIServerMeta[] = await Promise.all(
-		serversInDb.map(async (server) => {
-			const { version, online } = await getStatus(server);
+	const scraperMeta: ScraperMetadata[] = await Promise.all(
+		scrapers.map(async (scraper) => {
+			const infoRes = await getScraperInfo(scraper);
+			const version = infoRes.status === 'error' ? null : infoRes.data.version;
+			const online = infoRes.status === 'error' ? false : true;
 			return {
-				id: server.id,
-				host: `${server.protocol}://${server.host}:${server.port}`,
+				id: scraper.id,
+				host: `${scraper.protocol}://${scraper.host}:${scraper.port}`,
 				version,
 				online
 			};
@@ -36,7 +26,7 @@ export async function load() {
 	);
 
 	return {
-		servers: serverMeta,
+		servers: scraperMeta,
 		singleInsertForm: await superValidate(zod(formSchemaSingleInsert)),
 		batchInsertForm: await superValidate(zod(formSchemaBatchImport))
 	};
