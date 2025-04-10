@@ -3,9 +3,9 @@
 	import DataTableExternalPagination from '$lib/components/ui/data-table-external-pagination.svelte';
 	import { renderComponent } from '$lib/components/ui/data-table/render-helpers';
 	import type { ColumnDef, OnChangeFn, PaginationState } from '@tanstack/table-core';
-	import TaskFileUploads from './task-file-uploads.svelte';
 	import TaskStatus from './task-status.svelte';
 	import TaskActions from './task-actions.svelte';
+	import TaskFileUploads from './task-file-uploads.svelte';
 
 	let { data } = $props();
 	let scraper = $derived(data.scraper);
@@ -59,7 +59,7 @@
 		},
 		{
 			accessorKey: 'file_uploads',
-			header: 'Uploaded Files',
+			header: 'Uploads',
 			cell: ({ row }) =>
 				renderComponent(TaskFileUploads, {
 					fileUploads: row.original.file_uploads,
@@ -70,7 +70,10 @@
 			accessorKey: 'actions',
 			header: '',
 			cell: ({ row }) =>
-				renderComponent(TaskActions, { scraperId: scraper.id, taskId: row.original.id })
+				renderComponent(TaskActions, {
+					scraperId: scraper.id,
+					taskId: row.original.id
+				})
 		}
 	];
 </script>

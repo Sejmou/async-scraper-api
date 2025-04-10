@@ -110,7 +110,7 @@
 </script>
 
 <div class="w-full">
-	<div class="flex items-center py-4">
+	<div class="flex items-end pb-4">
 		<div class="text-sm text-muted-foreground">
 			{#if pageCount > 1}
 				{rowCountAndDesc} (showing {rowDescPlural}

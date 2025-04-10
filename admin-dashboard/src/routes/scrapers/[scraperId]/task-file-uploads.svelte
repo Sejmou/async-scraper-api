@@ -5,23 +5,25 @@
 	import { humanReadableSize } from '$lib/utils';
 	import type { ColumnDef } from '@tanstack/table-core';
 
+	type FileUploadMeta = {
+		id: number;
+		task_id: number;
+		s3_key: string;
+		s3_bucket: string;
+		s3_endpoint_url: string;
+		size_bytes: number;
+		uploaded_at: string;
+	};
+
 	let {
 		fileUploads,
 		taskId
 	}: {
-		fileUploads: {
-			id: number;
-			task_id: number;
-			s3_key: string;
-			s3_bucket: string;
-			s3_endpoint_url: string;
-			size_bytes: number;
-			uploaded_at: string;
-		}[];
+		fileUploads: FileUploadMeta[];
 		taskId: number;
 	} = $props();
 
-	const columns: ColumnDef<(typeof fileUploads)[number]>[] = [
+	const columns: ColumnDef<FileUploadMeta>[] = [
 		{
 			accessorKey: 's3_key',
 			header: 'S3 Key'
@@ -47,7 +49,7 @@
 </script>
 
 {#if fileUploads.length === 0}
-	<p class="text-sm text-muted-foreground">None yet.</p>
+	<p class="text-sm text-muted-foreground">No uploads yet.</p>
 {:else}
 	<Dialog.Root>
 		<Dialog.Trigger class={buttonVariants({ variant: 'outline' })}>
