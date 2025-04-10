@@ -39,7 +39,7 @@
 				}
 			} else if (subRoutePathComponent === '[scraperId]') {
 				if (data.scraper) {
-					subRoutePathComponent = `${data.scraper.host}:${data.scraper.port}`;
+					subRoutePathComponent = `Scraper ${data.scraper.id} (${data.scraper.host}:${data.scraper.port})`;
 				} else {
 					subRoutePathComponent = 'Unknown Scraper';
 				}

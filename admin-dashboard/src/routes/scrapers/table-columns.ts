@@ -12,6 +12,10 @@ export type ScraperMetadata = {
 
 export const columns: ColumnDef<ScraperMetadata>[] = [
 	{
+		accessorKey: 'id',
+		header: 'ID'
+	},
+	{
 		accessorKey: 'host',
 		header: 'Host'
 	},
