@@ -5,6 +5,7 @@
 	import type { ColumnDef, OnChangeFn, PaginationState } from '@tanstack/table-core';
 	import TaskFileUploads from './task-file-uploads.svelte';
 	import TaskStatus from './task-status.svelte';
+	import TaskActions from './task-actions.svelte';
 
 	let { data } = $props();
 	let scraper = $derived(data.scraper);
@@ -64,6 +65,12 @@
 					fileUploads: row.original.file_uploads,
 					taskId: row.original.id
 				})
+		},
+		{
+			accessorKey: 'actions',
+			header: '',
+			cell: ({ row }) =>
+				renderComponent(TaskActions, { scraperId: scraper.id, taskId: row.original.id })
 		}
 	];
 </script>

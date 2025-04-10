@@ -21,6 +21,21 @@ type ScraperRequestData<S extends ZodTypeAny> =
 	| ScraperGetRequestData<S>
 	| ScraperPostRequestData<S>;
 
+export const constructScraperRequestUrl = (
+	scraper: Scraper,
+	path: string,
+	params?: Record<string, string | number | boolean>
+): string => {
+	const queryString = params
+		? '?' +
+			Object.entries(params)
+				.map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+				.join('&')
+		: '';
+	const pathWithParams = path + queryString;
+	return `${scraper.protocol}://${scraper.host}:${scraper.port}/${pathWithParams}`;
+};
+
 export const makeRequestToScraper = async <S extends ZodTypeAny>(
 	reqData: ScraperRequestData<S>
 ): Promise<
@@ -34,14 +49,7 @@ export const makeRequestToScraper = async <S extends ZodTypeAny>(
 	  }
 > => {
 	const { scraper, path, params, method, responseSchema } = reqData;
-	const queryString = params
-		? '?' +
-			Object.entries(params)
-				.map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
-				.join('&')
-		: '';
-	const pathWithParams = path + queryString;
-	const url = `${scraper.protocol}://${scraper.host}:${scraper.port}/${pathWithParams}`;
+	const url = constructScraperRequestUrl(scraper, path, params);
 
 	try {
 		const res = await fetch(url, {
