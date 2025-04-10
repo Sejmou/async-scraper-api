@@ -35,28 +35,6 @@ def run_in_background(task_processor: TaskProcessor, background_tasks: Backgroun
     background_tasks.add_task(run_task, task_processor)
 
 
-def pause_task(task_id: int):
-    """
-    Pause a task processor with the given ID.
-    """
-    task_processor = task_processors.get(task_id)
-    if task_processor:
-        task_processor.pause()
-    else:
-        raise ValueError(f"No task processor found with ID {task_id}")
-
-
-def resume_task(task_id: int, background_tasks: BackgroundTasks):
-    """
-    Resume a task processor with the given ID.
-    """
-    task_processor = task_processors.get(task_id)
-    if task_processor:
-        run_in_background(task_processor, background_tasks)
-    else:
-        raise ValueError(f"No task processor found with ID {task_id}")
-
-
 async def correct_stuck_tasks_state_to_pending(db_session: AsyncDBSession):
     """
     Corrects the state of tasks that are 'running' according to the DB but have no associated task processor.
@@ -107,13 +85,13 @@ async def resume_pending_tasks(db_session: AsyncDBSession):
         return
 
     for task in tasks:
-        processor = task_processors.get(task.id) or create_processor(task)
+        processor = task_processors.get(task.id) or _create_and_add_processor(task)
         task_processors[task.id] = processor
         app_logger.info(f"Resuming task with ID {task.id}...")
         asyncio.create_task(run_task(processor))
 
 
-def create_processor(task: DataFetchingTask) -> TaskProcessor:
+def _create_processor(task: DataFetchingTask) -> TaskProcessor:
     if task.batch_size > 1:
         batch_fetch_fn = create_batch_fetch_function(
             task.data_source, task.task_type, task.params
@@ -139,6 +117,18 @@ def create_processor(task: DataFetchingTask) -> TaskProcessor:
             task_id=task.id,
             fetch_fn=single_item_fetch_fn,
         )
+
+
+def _create_and_add_processor(task: DataFetchingTask) -> TaskProcessor:
+    processor = _create_processor(task)
+    app_logger.info(f"Created processor for task ID {task.id}")
+    task_processors[task.id] = processor
+    app_logger.info(f"Added processor for task ID {task.id} to task processors")
+    return processor
+
+
+def get_task_processor(task: DataFetchingTask) -> TaskProcessor:
+    return task_processors.get(task.id) or _create_and_add_processor(task)
 
 
 async def create_new_task[T: JSONValue](
@@ -188,7 +178,7 @@ async def create_new_task[T: JSONValue](
     session.add(task)
     await session.commit()
 
-    processor = create_processor(task)
+    processor = _create_and_add_processor(task)
 
     # the task processor maintains its own input queue for the task (data is not stored in the main task DB for performance reasons)
     # so, we need to add the inputs to it separately

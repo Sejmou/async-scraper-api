@@ -1,6 +1,6 @@
-from datetime import datetime
+from datetime import datetime, timezone as tz
 from typing import Literal, get_args
-from sqlalchemy import String, DateTime, Integer, JSON, func, Enum, ForeignKey
+from sqlalchemy import String, DateTime, Integer, JSON, func, Enum, ForeignKey, event
 from sqlalchemy.orm import (
     DeclarativeBase,
     MappedAsDataclass,
@@ -28,7 +28,9 @@ DataSource = Literal["spotify-api", "spotify-internal"]
 The supported data sources for fetching data.
 """
 
-DataFetchingTaskStatus = Literal["pending", "running", "done", "error", "paused"]
+DataFetchingTaskStatus = Literal[
+    "pending", "running", "done", "error", "pausing", "paused"
+]
 
 
 class DataFetchingTask(Base):
@@ -100,7 +102,6 @@ class DataFetchingTask(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime,
         default=func.current_timestamp(),
-        onupdate=func.current_timestamp(),
     )
 
     batch_size: Mapped[int] = mapped_column(Integer, default=1)
@@ -111,6 +112,14 @@ class DataFetchingTask(Base):
     def __repr__(self) -> str:
         # NOTE: cannot use len(self.inputs) here as it would load all inputs from the database on every call to __repr__ - i.e., every time the object is printed, we would refetch all inputs from the database!
         return f"Task for {self.task_type!r} endpoint (ID: {self.id!r}, metadata: {self.params!r}, S3 prefix: {self.s3_prefix!r}"
+
+
+# NOTE: this a workaround as onupdate within mapped_column apparently does NOT work with async SQLite DB connections
+# Add event listener to handle the automatic update of updated_at
+@event.listens_for(DataFetchingTask, "before_update", propagate=True)
+def timestamp_before_update(mapper, connection, target):
+    # Update the updated_at column with the current timestamp
+    target.updated_at = datetime.now(tz.utc)
 
 
 class S3FileUpload(Base):
