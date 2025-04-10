@@ -1,7 +1,9 @@
+import os
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
-from fastapi_pagination import Page, add_pagination
+from fastapi_pagination import Page
 from fastapi_pagination.ext.sqlalchemy import paginate
 
 from app.api.dependencies.core import DBSessionDep
@@ -9,6 +11,7 @@ from app.db.models import DataFetchingTask as DBTask
 from app.api.models import DataFetchingTask as TaskModel
 from app.tasks.progress.public_models import TaskProgress, TaskProgressDetails
 from app.tasks.progress import TaskProgressTracker
+from app.config import settings
 
 router = APIRouter(prefix="/tasks")
 
@@ -59,3 +62,22 @@ async def task_progress_details(task_id: int, session: DBSessionDep):
         raise HTTPException(status_code=404, detail="Task not found")
     tracker = TaskProgressTracker(task_id)
     return await tracker.get_progress_details()
+
+
+@router.get("/{task_id}/logs")
+async def task_logs(task_id: int, session: DBSessionDep):
+    task = await session.scalar(
+        select(DBTask)
+        .where(DBTask.id == task_id)
+        .options(joinedload(DBTask.file_uploads))
+    )
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    task_path = os.path.join(settings.task_log_dir, f"{task_id}.log")
+    if not os.path.exists(task_path):
+        raise HTTPException(status_code=404, detail="Log file not found")
+    return FileResponse(
+        task_path,
+        media_type="text/plain",
+        filename=f"{task_id}.log",
+    )
