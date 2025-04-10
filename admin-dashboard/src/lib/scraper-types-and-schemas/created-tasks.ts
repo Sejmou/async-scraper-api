@@ -18,6 +18,7 @@ const dataFetchingTaskStatusSchema = z.union([
 	z.literal('error'),
 	z.literal('paused')
 ]);
+export type DataFetchingTaskStatus = z.infer<typeof dataFetchingTaskStatusSchema>;
 
 export const dataSourceSchema = z.union([z.literal('spotify-api'), z.literal('spotify-internal')]);
 export type DataSource = z.infer<typeof dataSourceSchema>;

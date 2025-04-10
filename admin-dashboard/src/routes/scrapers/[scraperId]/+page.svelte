@@ -4,6 +4,7 @@
 	import { renderComponent } from '$lib/components/ui/data-table/render-helpers';
 	import type { ColumnDef, OnChangeFn, PaginationState } from '@tanstack/table-core';
 	import TaskFileUploads from './task-file-uploads.svelte';
+	import TaskStatus from './task-status.svelte';
 
 	let { data } = $props();
 	let scraper = $derived(data.scraper);
@@ -44,7 +45,8 @@
 		},
 		{
 			accessorKey: 'status',
-			header: 'Status'
+			header: 'Status',
+			cell: ({ row }) => renderComponent(TaskStatus, { status: row.original.status })
 		},
 		{
 			accessorKey: 'created_at',
