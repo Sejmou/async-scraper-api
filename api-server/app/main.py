@@ -8,6 +8,7 @@ from app.api.routers.spotify_api import router as spotify_api_router
 from app.api.routers.tasks import router as tasks_router
 from app.api.routers.about import router as about_router
 from app.api.routers.spotify_internal import router as spotify_internal_router
+from app.api.routers.dummy_api import router as dummy_api_router
 from app.config import PUBLIC_IP, settings, app_logger
 from app.tasks import correct_stuck_tasks_state_to_pending, resume_pending_tasks
 from app.db import sessionmanager
@@ -50,6 +51,7 @@ app.include_router(spotify_api_router)
 app.include_router(tasks_router)
 app.include_router(about_router)
 app.include_router(spotify_internal_router)
+app.include_router(dummy_api_router)
 
 
 if __name__ == "__main__":

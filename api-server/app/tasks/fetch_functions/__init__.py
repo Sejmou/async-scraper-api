@@ -13,9 +13,13 @@ from app.tasks.fetch_functions.data_sources.spotify_internal import (
     SpotifyInternalAPIBatchFetchFunctionFactory,
     SpotifyInternalAPISingleItemFetchFunctionFactory,
 )
+from app.tasks.fetch_functions.data_sources.dummy_api import (
+    DummyAPIBatchFetchFunctionFactory,
+    DummyAPISingleItemFetchFunctionFactory,
+)
 
 
-class SingleItemFetchFunctionFactory:
+class _SingleItemFetchFunctionFactory:
     """
     A factory for SingleItemFetchFunctions that can be used by TaskProcessors to do the data fetching without having to know about the exact logic themselves.
     """
@@ -25,6 +29,9 @@ class SingleItemFetchFunctionFactory:
     )
     spotify_internal_api_factory: DataSourceSingleItemFetchFunctionFactory = (
         SpotifyInternalAPISingleItemFetchFunctionFactory()
+    )
+    dummy_api_factory: DataSourceSingleItemFetchFunctionFactory = (
+        DummyAPISingleItemFetchFunctionFactory()
     )
 
     def create(
@@ -37,15 +44,18 @@ class SingleItemFetchFunctionFactory:
             return self.spotify_api_factory.create(task_type, task_params)
         elif data_source == "spotify-internal":
             return self.spotify_internal_api_factory.create(task_type, task_params)
+        elif data_source == "dummy-api":
+            return self.dummy_api_factory.create(task_type, task_params)
 
 
-class BatchFetchFunctionFactory:
+class _BatchFetchFunctionFactory:
     """
     A factory for BatchFetchFunctions that can be used by TaskProcessors to do the data fetching without having to know about the exact logic themselves.
     """
 
     spotify_api_factory = SpotifyAPIBatchFetchFunctionFactory()
     spotify_internal_api_factory = SpotifyInternalAPIBatchFetchFunctionFactory()
+    dummy_api_factory = DummyAPIBatchFetchFunctionFactory()
 
     def create(
         self,
@@ -57,7 +67,9 @@ class BatchFetchFunctionFactory:
             return self.spotify_api_factory.create(task_type, task_params)
         elif data_source == "spotify-internal":
             return self.spotify_internal_api_factory.create(task_type, task_params)
+        elif data_source == "dummy-api":
+            return self.dummy_api_factory.create(task_type, task_params)
 
 
-create_single_item_fetch_function = SingleItemFetchFunctionFactory().create
-create_batch_fetch_function = BatchFetchFunctionFactory().create
+create_single_item_fetch_function = _SingleItemFetchFunctionFactory().create
+create_batch_fetch_function = _BatchFetchFunctionFactory().create

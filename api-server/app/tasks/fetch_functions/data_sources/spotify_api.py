@@ -46,7 +46,7 @@ class SpotifyAPISingleItemFetchFunctionFactory(
             )
 
             async def fetch_artist_albums(artist_id: str) -> Any:
-                return spotify_api_client.artist_albums(
+                return await spotify_api_client.artist_albums(
                     artist_id,
                     include_albums=params.release_types.albums,
                     include_singles=params.release_types.singles,
@@ -66,7 +66,7 @@ class SpotifyAPISingleItemFetchFunctionFactory(
             )
 
             async def fetch_tracks_for_isrc(isrc: str) -> Any:
-                return spotify_api_client.search_tracks_for_isrc(
+                return await spotify_api_client.search_tracks_for_isrc(
                     isrc,
                     region=params.region,
                 )
@@ -80,7 +80,6 @@ class SpotifyAPIBatchFetchFunctionFactory(DataSourceBatchFetchFunctionFactory):
     """
 
     def create(self, task_type: str, task_params: ParamsInput) -> BatchFetchFunction:
-
         if not is_batch_task_type(task_type):
             raise ValueError(f"Unsupported batch task type: {task_type}")
 
@@ -90,7 +89,7 @@ class SpotifyAPIBatchFetchFunctionFactory(DataSourceBatchFetchFunctionFactory):
             )
 
             async def fetch_tracks(track_ids: list[str]) -> Any:
-                return spotify_api_client.tracks(track_ids, region=params.region)
+                return await spotify_api_client.tracks(track_ids, region=params.region)
 
             return fetch_tracks
 
@@ -103,7 +102,7 @@ class SpotifyAPIBatchFetchFunctionFactory(DataSourceBatchFetchFunctionFactory):
             )
 
             async def fetch_albums(album_ids: list[str]) -> Any:
-                return spotify_api_client.albums(
+                return await spotify_api_client.albums(
                     album_ids,
                     region=params.region,
                 )

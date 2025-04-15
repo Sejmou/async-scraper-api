@@ -16,7 +16,8 @@
       ],
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
-      "justMyCode": true
+      // setting this to true means that even things running in FastAPI's BackgroundTasks will not cause breaktpo
+      "justMyCode": false
     }
   ]
 }
