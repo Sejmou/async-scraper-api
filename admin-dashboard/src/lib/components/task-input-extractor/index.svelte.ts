@@ -1,17 +1,19 @@
+import type { SupportedTask } from '$lib/scraper-types-and-schemas/new-tasks';
 import Root from './root.svelte';
 import { z } from 'zod';
 
-type TSchema = z.ZodSchema;
+// TODO: think about if and how it's possible to rid of some of the type madness here
+type TaskInputs<T extends z.ZodSchema> = z.infer<T> & SupportedTask['inputs'];
 
-export type InputExtractorProps<T extends TSchema> = {
+export type InputExtractorProps<T extends z.ZodSchema> = {
 	inputsDescription: string;
 	inputSchema: T;
-	exampleInput: z.infer<T>;
+	exampleInput: TaskInputs<T>[number];
 	/**
 	 * The name of the DuckDB table which the task inputs should temporarily be stored in before passing them to the scrapers.
 	 */
 	inputsTableName: string;
-	onInputsAdded: (inputs: z.infer<T>[]) => void;
+	onInputsAdded: (inputs: TaskInputs<T>) => void;
 };
 
 /**
@@ -21,8 +23,8 @@ export type InputExtractorProps<T extends TSchema> = {
  *
  * CAUTION: The object should only be created in the root component! All other components should receive the created state instance as a prop.
  */
-export class InputExtractorState<T extends TSchema> {
-	#inputs: z.infer<TSchema>[] = $state([]);
+export class InputExtractorState<T extends z.ZodSchema> {
+	#inputs: z.infer<z.ZodSchema>[] = $state([]);
 	#inputsTableHasData = $state(false);
 	#props: InputExtractorProps<T>;
 
@@ -34,7 +36,7 @@ export class InputExtractorState<T extends TSchema> {
 		return this.#inputs;
 	}
 
-	set inputs(inputs: z.infer<TSchema>[]) {
+	set inputs(inputs: z.infer<z.ZodSchema>[]) {
 		this.#inputs = inputs;
 		this.#props.onInputsAdded(inputs);
 	}

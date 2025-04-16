@@ -57,6 +57,23 @@ function getPageData(dataSource: DataSource): PageData {
 				]
 			};
 		}
+		case 'dummy-api':
+			return {
+				dataSource: {
+					name: 'Dummy API',
+					description: `Fetch data from a dummy API (useful for debugging of task execution logic without actually (ab-)using any real APIs).`
+				},
+				taskCreatePages: [
+					{
+						label: 'Flaky',
+						href: '/tasks/create/dummy-api/flaky'
+					},
+					{
+						label: 'Throw Above Threshold',
+						href: '/tasks/create/dummy-api/throw-above-threshold'
+					}
+				]
+			};
 	}
 }
 

@@ -11,7 +11,8 @@
 		'spotify-internal': 'Internal (unofficial) Spotify APIs',
 		'duckdb-demo': 'DuckDB Demo',
 		'artist-albums': 'Artist Albums',
-		'related-artists': 'Related Artists'
+		'related-artists': 'Related Artists',
+		'dummy-api': 'Dummy API'
 	};
 
 	let subroutes = $derived(page.route.id?.split('/').filter(Boolean) || []);

@@ -78,7 +78,8 @@ export async function POST({ request }) {
 	// run same task across all scrapers, but give each a different chunk of the input data
 	// roundrobinSplit means that each scraper gets a chunk of the input data in a round-robin fashion
 	// i.e. if data is ordered by priority, each scraper's chunk will start with the most important data
-	const inputChunks = roundRobinSplit(inputs, scrapers.length);
+	// TODO: figure out why TS cannot infer correct type of inputChunks here and remove this ugly, completely counter-intuitive cast here
+	const inputChunks: (typeof inputs)[] = roundRobinSplit(inputs as string[], scrapers.length);
 
 	const successes: { scraper: Scraper; subtaskId: number }[] = [];
 	const failures: { scraper: Scraper; inputs: typeof inputs }[] = [];
@@ -167,10 +168,11 @@ function parseTask(task: unknown):
 		};
 	} catch (e) {
 		if (e instanceof ZodError) {
-			console.warn('Failed to parse task', e.errors);
+			console.error('Zod validation for task provided by client failed', { task, error: e });
+
 			return {
 				success: false,
-				errors: e.errors.map((err) => err.message)
+				errors: taskCreationZodErrorToLines(e)
 			};
 		} else if (e instanceof Error) {
 			return {
@@ -191,4 +193,32 @@ function sendResponse(res: CreateTaskResponseData, status: number) {
 	} else {
 		return json({ status: 'error', error: res.error }, { status });
 	}
+}
+
+function taskCreationZodErrorToLines(e: ZodError): string[] {
+	const maxVisible = 7;
+	const messages = e.errors.slice(0, maxVisible).map((err) => {
+		const path = parseTaskCreationZodValidationErrorPath(err.path);
+		return `${path}: ${err.message}`;
+	});
+
+	if (e.errors.length > maxVisible) {
+		messages.push(`... (${e.errors.length - maxVisible} more)`);
+	}
+
+	return messages;
+}
+
+function parseTaskCreationZodValidationErrorPath(path: (string | number)[]) {
+	if (path.length === 0) {
+		return 'value';
+	}
+	if (path.length === 1) {
+		return path[0];
+	}
+	const [first, second] = path;
+	if (first === 'inputs' && typeof second === 'number') {
+		return `input ${second + 1} is invalid`;
+	}
+	return path.join('.');
 }

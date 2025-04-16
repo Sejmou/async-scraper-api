@@ -16,4 +16,9 @@
 			Internal (unofficial) Spotify APIs
 		</a>
 	</li>
+	<li>
+		<a class="text-sm text-blue-500 hover:underline" href="/tasks/create/dummy-api">
+			Dummy API (for testing)
+		</a>
+	</li>
 </ul>

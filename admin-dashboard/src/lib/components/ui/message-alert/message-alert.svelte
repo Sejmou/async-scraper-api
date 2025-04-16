@@ -4,11 +4,11 @@
 	import Info from 'lucide-svelte/icons/info';
 	import type { Message } from '.';
 
-	let { type, title, text }: Message = $props();
+	let { type, title, text, class: className = '' }: Message & { class?: string } = $props();
 	let lines = text.split('\n');
 </script>
 
-<Alert.Root variant={type === 'error' ? 'destructive' : 'default'}>
+<Alert.Root class={className} variant={type === 'error' ? 'destructive' : 'default'}>
 	{#if type === 'error'}
 		<CircleAlert class="h-4 w-4" />
 	{:else}

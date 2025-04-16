@@ -16,11 +16,16 @@ const dataFetchingTaskStatusSchema = z.union([
 	z.literal('running'),
 	z.literal('done'),
 	z.literal('error'),
+	z.literal('pausing'),
 	z.literal('paused')
 ]);
 export type DataFetchingTaskStatus = z.infer<typeof dataFetchingTaskStatusSchema>;
 
-export const dataSourceSchema = z.union([z.literal('spotify-api'), z.literal('spotify-internal')]);
+export const dataSourceSchema = z.union([
+	z.literal('spotify-api'),
+	z.literal('spotify-internal'),
+	z.literal('dummy-api')
+]);
 export type DataSource = z.infer<typeof dataSourceSchema>;
 
 export const s3FileUploadSchema = z.object({

@@ -17,6 +17,7 @@
 		validating = true;
 		const out = await db.executeQueryColMajor(`SELECT * FROM ${ieState.inputsTableName}`);
 		if (out.type === 'error') {
+			validating = false;
 			message = {
 				type: 'error',
 				title: 'Error validating inputs',
@@ -26,6 +27,7 @@
 		}
 		const columns = out.columns;
 		if (columns.length !== 1) {
+			validating = false;
 			message = {
 				type: 'error',
 				title: 'Error validating inputs',

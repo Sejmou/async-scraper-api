@@ -34,7 +34,9 @@ class TaskFormState<TaskType extends SupportedTask, ParamsType extends z.ZodSche
 			SPA: true,
 			dataType: 'json',
 			validators: zod(taskParamsSchema),
-			resetForm: false
+			resetForm: false,
+			// don't fully understand why, but if this is set to true, custom errors I set by updating #form.message if validation fails on the server are immediately cleared
+			invalidateAll: false
 		});
 	}
 
@@ -55,6 +57,8 @@ class TaskFormState<TaskType extends SupportedTask, ParamsType extends z.ZodSche
 	}
 
 	updateInputs(newInputs: TaskType['inputs']) {
+		// reset message (there could be leftover input errors from previous server-side validation)
+		this.#form.message.set(undefined);
 		this.#inputs = newInputs;
 	}
 
@@ -136,7 +140,7 @@ class TaskFormState<TaskType extends SupportedTask, ParamsType extends z.ZodSche
 		task.inputs = this.#inputs;
 		const formData = get(this.formData);
 		if ('params' in task) {
-			task.params = formData.params;
+			task.params = formData;
 		}
 		return task;
 	}

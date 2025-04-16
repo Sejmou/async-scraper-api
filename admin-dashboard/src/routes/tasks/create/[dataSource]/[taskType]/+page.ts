@@ -18,8 +18,6 @@ export async function load({ params, data }) {
 	const paramsSchema = getParamsSchema(initialTaskValue);
 	const taskInputMeta = getTaskInputMeta(initialTaskValue);
 
-	console.log({ initialTaskValue, paramsSchema, taskInputMeta });
-
 	return {
 		scrapers: data.scrapers,
 		dataSource,

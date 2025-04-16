@@ -6,7 +6,8 @@ import {
 	getInitialSpotifyTask,
 	parseSpotifyTask,
 	type SpotifyAPITask,
-	type SupportedSpotifyAPITaskCandidate
+	type SupportedSpotifyAPITaskCandidate,
+	type SpotifyAPITaskType
 } from './spotify-api';
 import {
 	getInitialSpotifyInternalTask,
@@ -15,8 +16,19 @@ import {
 	parseSpotifyInternalTask,
 	spotifyInternalApiTaskTypesSchema,
 	type SpotifyInternalAPITask,
+	type SpotifyInternalAPITaskType,
 	type SupportedSpotifyInternalAPITaskCandidate
 } from './spotify-internal';
+import {
+	dummyApiTaskTypesSchema,
+	getDummyTaskInputMeta,
+	getDummyTaskParamsSchema,
+	getInitialDummyTask,
+	parseDummyTask,
+	type DummyAPITask,
+	type DummyAPITaskType,
+	type SupportedDummyAPITaskCandidate
+} from './dummy-api';
 
 export const scraperSchema = z.object({
 	host: z.string(),
@@ -37,6 +49,12 @@ export const taskSchema = z.discriminatedUnion('dataSource', [
 		taskType: spotifyInternalApiTaskTypesSchema,
 		inputs: z.array(z.unknown()),
 		params: z.record(z.unknown()).optional()
+	}),
+	z.object({
+		dataSource: z.literal('dummy-api'),
+		taskType: dummyApiTaskTypesSchema,
+		inputs: z.array(z.unknown()),
+		params: z.record(z.unknown()).optional()
 	})
 ]);
 
@@ -49,7 +67,7 @@ export const taskSchema = z.discriminatedUnion('dataSource', [
  */
 export type SupportedTaskCandidate = z.infer<typeof taskSchema>;
 // TODO: update with types for other data sources as they are added
-export type SupportedTask = SpotifyAPITask | SpotifyInternalAPITask;
+export type SupportedTask = SpotifyAPITask | SpotifyInternalAPITask | DummyAPITask;
 
 export const parseToTaskOrThrowError = (input: unknown): SupportedTask => {
 	const result = taskSchema.parse(input);
@@ -58,6 +76,8 @@ export const parseToTaskOrThrowError = (input: unknown): SupportedTask => {
 			return parseSpotifyTask(result);
 		case 'spotify-internal':
 			return parseSpotifyInternalTask(result);
+		case 'dummy-api':
+			return parseDummyTask(result);
 	}
 };
 
@@ -78,9 +98,11 @@ export const getTaskInputMeta = (
 ): SupportedTaskInputMeta => {
 	switch (input.dataSource) {
 		case 'spotify-api':
-			return getSpotifyTaskInputMeta(input.taskType as SpotifyAPITask['taskType']);
+			return getSpotifyTaskInputMeta(input.taskType as SpotifyAPITaskType);
 		case 'spotify-internal':
-			return getSpotifyInternalTaskInputMeta(input.taskType as SpotifyInternalAPITask['taskType']);
+			return getSpotifyInternalTaskInputMeta(input.taskType as SpotifyInternalAPITaskType);
+		case 'dummy-api':
+			return getDummyTaskInputMeta(input.taskType as DummyAPITaskType);
 	}
 };
 
@@ -93,6 +115,8 @@ export function getParamsSchema(
 			return getSpotifyTaskParamsSchema(input as SupportedSpotifyAPITaskCandidate);
 		case 'spotify-internal':
 			return getSpotifyInternalTaskParamsSchema(input as SupportedSpotifyInternalAPITaskCandidate);
+		case 'dummy-api':
+			return getDummyTaskParamsSchema(input as SupportedDummyAPITaskCandidate);
 	}
 }
 
@@ -112,5 +136,7 @@ export function getInitialTaskValue(
 			return getInitialSpotifyTask(base.taskType);
 		case 'spotify-internal':
 			return getInitialSpotifyInternalTask(base.taskType);
+		case 'dummy-api':
+			return getInitialDummyTask(base.taskType);
 	}
 }

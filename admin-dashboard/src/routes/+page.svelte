@@ -9,7 +9,7 @@
 	];
 </script>
 
-<div class="flex w-full max-w-screen-md flex-col items-center gap-4">
+<div class="mx-auto flex w-full max-w-screen-md flex-col items-center gap-4">
 	<h1 class="text-5xl font-bold">Welcome</h1>
 	<div class="flex w-full flex-col justify-center gap-2 lg:flex-row">
 		{#each subpages as { label, href, description }}

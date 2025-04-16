@@ -53,8 +53,8 @@
 			>
 				<h2 class="text-center font-semibold">File</h2>
 				<p class="text-center text-sm text-muted-foreground">
-					Upload a file containing the data you want to extract. If necessary, you can use DuckDB
-					SQL to specify how exactly the data should be extracted (e.g. if data types don't match).
+					Upload a file containing the data you want to extract (with a custom DuckDB SQL query, if
+					needed).
 				</p>
 			</button>
 			<button

@@ -48,7 +48,6 @@
 	let rowSelection = $state<RowSelectionState>({});
 
 	let columnVisibility = $state<VisibilityState>({});
-	$inspect(columnVisibility);
 
 	const table = createSvelteTable({
 		get data() {

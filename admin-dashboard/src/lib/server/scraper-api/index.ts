@@ -37,7 +37,7 @@ export const constructScraperRequestUrl = (
 };
 
 export const makeRequestToScraper = async <S extends ZodTypeAny>(
-	reqData: ScraperRequestData<S>
+	requestData: ScraperRequestData<S>
 ): Promise<
 	| {
 			status: 'success';
@@ -48,7 +48,7 @@ export const makeRequestToScraper = async <S extends ZodTypeAny>(
 			error: Record<string, unknown>;
 	  }
 > => {
-	const { scraper, path, params, method, responseSchema } = reqData;
+	const { scraper, path, params, method, responseSchema } = requestData;
 	const url = constructScraperRequestUrl(scraper, path, params);
 
 	try {
@@ -57,11 +57,14 @@ export const makeRequestToScraper = async <S extends ZodTypeAny>(
 			headers: {
 				'Content-Type': 'application/json'
 			},
-			body: reqData.method === 'POST' && reqData.body ? JSON.stringify(reqData.body) : undefined
+			body:
+				requestData.method === 'POST' && requestData.body
+					? JSON.stringify(requestData.body)
+					: undefined
 		});
 		const data = await res.json();
 		if (!res.ok) {
-			console.error(`Request to scraper API endpoint failed`, reqData);
+			console.error(`Request to scraper API endpoint failed`, requestData);
 			return {
 				status: 'error',
 				error: data
@@ -85,6 +88,9 @@ export const makeRequestToScraper = async <S extends ZodTypeAny>(
 			data: schemaParseRes.data
 		};
 	} catch (e) {
+		// remove responseSchema as it isn't relevant for handling errors (they cannot be related to schema validation!)
+		// eslint-disable-next-line @typescript-eslint/no-unused-vars
+		const { responseSchema, ...data } = requestData;
 		if (e instanceof TypeError) {
 			if (
 				e.cause &&
@@ -92,24 +98,23 @@ export const makeRequestToScraper = async <S extends ZodTypeAny>(
 				'code' in e.cause &&
 				e.cause.code === 'ECONNREFUSED'
 			) {
-				console.error(
-					`Connection to scraper API endpoint refused (probably the server is offline?)`,
-					{
-						scraper,
-						reqData
+				console.warn(`Request to ${url} failed (scraper is probably offline)`, {
+					scraper,
+					requestData: {
+						data
 					}
-				);
+				});
 			} else {
 				console.error(`Network error sending request to scraper API endpoint`, {
 					scraper,
-					reqData,
+					requestData: data,
 					error: e
 				});
 			}
 		} else {
 			console.error(`Unknown error sending request to scraper API endpoint`, {
 				scraper,
-				reqData,
+				requestData: data,
 				error: e
 			});
 		}
