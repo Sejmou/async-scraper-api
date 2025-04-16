@@ -20,6 +20,9 @@ dependencies:
   drizzle-zod:
     specifier: ^0.7.0
     version: 0.7.0(drizzle-orm@0.38.4)(zod@3.24.2)
+  monaco-editor:
+    specifier: ^0.52.2
+    version: 0.52.2
 
 devDependencies:
   '@eslint/compat':
@@ -31,6 +34,9 @@ devDependencies:
   '@lucide/svelte':
     specifier: ^0.482.0
     version: 0.482.0(svelte@5.22.6)
+  '@monaco-editor/loader':
+    specifier: ^1.5.0
+    version: 1.5.0
   '@playwright/test':
     specifier: ^1.49.1
     version: 1.51.0
@@ -91,6 +97,9 @@ devDependencies:
   svelte-check:
     specifier: ^4.0.0
     version: 4.1.5(svelte@5.22.6)(typescript@5.8.2)
+  svelte-client-components:
+    specifier: ^0.1.0
+    version: 0.1.0(svelte@5.22.6)
   sveltekit-superforms:
     specifier: ^2.24.0
     version: 2.24.0(@sveltejs/kit@2.19.0)(svelte@5.22.6)(typescript@5.8.2)
@@ -1033,6 +1042,12 @@ packages:
       svelte: ^5
     dependencies:
       svelte: 5.22.6
+    dev: true
+
+  /@monaco-editor/loader@1.5.0:
+    resolution: {integrity: sha512-hKoGSM+7aAc7eRTRjpqAZucPmoNOC4UUbknb/VNoTkEIkCPhqV8LfbsgM1webRM7S/z21eHEx9Fkwx8Z/C/+Xw==}
+    dependencies:
+      state-local: 1.0.7
     dev: true
 
   /@nodelib/fs.scandir@2.1.5:
@@ -3131,6 +3146,10 @@ packages:
     resolution: {integrity: sha512-gKLcREMhtuZRwRAfqP3RFW+TK4JqApVBtOIftVgjuABpAtpxhPGaDcfvbhNvD0B8iD1oUr/txX35NjcaY6Ns/A==}
     dev: false
 
+  /monaco-editor@0.52.2:
+    resolution: {integrity: sha512-GEQWEZmfkOGLdd3XK8ryrfWz3AIP8YymVXiPHEdewrUq7mh0qrKrfHLNCXcbB6sTnMLnOZ3ztSiKcciFUkIJwQ==}
+    dev: false
+
   /mri@1.2.0:
     resolution: {integrity: sha512-tzzskb3bG8LvYGFF/mDTpq3jpI6Q9wc3LEmBaghu+DdCssd1FakN7Bc0hVNmEyGq1bq3RgfkCb3cmQLpNPOroA==}
     engines: {node: '>=4'}
@@ -3750,6 +3769,10 @@ packages:
     resolution: {integrity: sha512-1XMJE5fQo1jGH6Y/7ebnwPOBEkIEnT4QF32d5R1+VXdXveM0IBMJt8zfaxX1P3QhVwrYe+576+jkANtSS2mBbw==}
     dev: true
 
+  /state-local@1.0.7:
+    resolution: {integrity: sha512-HTEHMNieakEnoe33shBYcZ7NX83ACUjCu8c40iOGEZsngj9zRnkqS9j1pqQPXwobB0ZcVTk27REb7COQ0UR59w==}
+    dev: true
+
   /std-env@3.8.1:
     resolution: {integrity: sha512-vj5lIj3Mwf9D79hBkltk5qmkFI+biIKWS2IBxEyEU3AX1tUf7AoL8nSazCOiiqQsGKIq01SClsKEzweu34uwvA==}
     dev: true
@@ -3857,6 +3880,16 @@ packages:
       typescript: 5.8.2
     transitivePeerDependencies:
       - picomatch
+    dev: true
+
+  /svelte-client-components@0.1.0(svelte@5.22.6):
+    resolution: {integrity: sha512-2cxPAitlg70A5aPCBJTinE78IaReZTGuwOxdhvLON/x6o+aMx4Jx0EecWFVy+kHKlqwuDIIf6ovDALp8B2ugyQ==}
+    peerDependencies:
+      svelte: ^4
+    dependencies:
+      magic-string: 0.30.17
+      svelte: 5.22.6
+      zimmerframe: 1.1.2
     dev: true
 
   /svelte-eslint-parser@0.43.0(svelte@5.22.6):

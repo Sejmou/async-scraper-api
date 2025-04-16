@@ -6,9 +6,10 @@
 	} from '$lib/duckdb.svelte';
 	import { truncate } from '$lib/utils';
 	import { type Message, ConsoleMessageAlert } from '$lib/components/ui/console-message-alert';
-	import Textarea from '$lib/components/ui/textarea/textarea.svelte';
+	import CodeEditor from '$lib/components/code-editor.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import DuckDBTableViewer from '$lib/components/duckdb/duckdb-table-viewer.svelte';
+	import { KeyCode, KeyMod } from 'monaco-editor';
 
 	let {
 		db,
@@ -92,28 +93,27 @@
 			resultsComputed = false;
 		}
 	};
-
-	function handleKeydown(event: KeyboardEvent) {
-		// Check if the user pressed "Enter"
-		if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
-			event.preventDefault(); // Prevent default behavior if necessary
-			processQueries(db, importSqlStr);
-		}
-	}
 </script>
 
 {#if message !== null}
 	{@const { type, title, text } = message}
 	<ConsoleMessageAlert {type} {title} {text} />
 {/if}
-<Textarea
+<CodeEditor
 	bind:value={importSqlStr}
-	onkeydown={handleKeydown}
-	placeholder="Enter SQL quer(ies) for data import here..."
-	rows={20}
+	language="sql"
+	class="min-h-[600px]"
+	keybindings={[
+		{
+			keybinding: KeyMod.CtrlCmd | KeyCode.Enter,
+			handler: () => {
+				processQueries(db, importSqlStr);
+			}
+		}
+	]}
 />
 <div class="flex w-full justify-end">
-	<Button onclick={() => processQueries(db, importSqlStr)}>Run (Ctrl + Enter)</Button>
+	<Button onclick={() => processQueries(db, importSqlStr)}>Run (Ctrl/Cmd + Enter)</Button>
 </div>
 <div class="w-full">
 	<h3 class="font-semibold">Results</h3>

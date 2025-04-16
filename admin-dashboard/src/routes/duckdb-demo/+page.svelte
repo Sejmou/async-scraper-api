@@ -1,5 +1,5 @@
 <script lang="ts">
-	import DuckDBConsole from '$lib/components/duckdb/duckdb-console.svelte';
+	import DuckDBConsole from '$lib/components/duckdb/duckdb-console.client.svelte';
 	import PageHeading from '$lib/components/ui/page-heading.svelte';
 	import { getDuckDB } from '$lib/duckdb.svelte';
 	const duckDB = getDuckDB();

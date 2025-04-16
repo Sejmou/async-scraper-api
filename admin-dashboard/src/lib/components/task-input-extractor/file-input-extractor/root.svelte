@@ -6,7 +6,7 @@
 	import { Label } from '$lib/components/ui/label';
 	import * as Alert from '$lib/components/ui/alert';
 	import CircleAlert from 'lucide-svelte/icons/circle-alert';
-	import DuckDBConsole from '$lib/components/duckdb/duckdb-console.svelte';
+	import DuckDBConsole from '$lib/components/duckdb/duckdb-console.client.svelte';
 	import { z } from 'zod';
 	import type { InputExtractorState } from '../index.svelte';
 	import InputValidatorAndAdder from '../input-validator-and-adder.svelte';

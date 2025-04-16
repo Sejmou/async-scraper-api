@@ -8,6 +8,10 @@ export default defineConfig({
 		target: 'ES2022'
 	},
 
+	ssr: {
+		noExternal: ['monaco-editor'] // to completely exclude Monaco in SSR
+	},
+
 	test: {
 		include: ['src/**/*.{test,spec}.{js,ts}']
 	}
