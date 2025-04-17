@@ -4,7 +4,7 @@
 	import DataTable from '$lib/components/ui/data-table.svelte';
 	import { buttonVariants } from '$lib/components/ui/button/index.js';
 	import { renderComponent } from '$lib/components/ui/data-table';
-	import type { SubtaskWithScraperAndProgress } from '$lib/server/scraper-api/task-progress';
+	import type { SubtaskWithScraperAndProgress } from '$lib/server/scraper-api/tasks/get-progress';
 	import AsyncValueCell from '$lib/components/ui/async-value-cell.svelte';
 
 	const columns: ColumnDef<SubtaskWithScraperAndProgress>[] = [

@@ -9,7 +9,7 @@ import {
 } from '$lib/scraper-types-and-schemas/new-tasks';
 import { roundRobinSplit } from '$lib/utils';
 import { z, ZodError } from 'zod';
-import { sendTaskToScraper } from '$lib/server/scraper-api/send-new-task';
+import { sendTaskToScraper } from '$lib/server/scraper-api/tasks/create';
 import { type CreateTaskResponseData } from '$lib/client-api/scraper-tasks';
 import { TransactionRollbackError } from 'drizzle-orm';
 
@@ -122,7 +122,7 @@ export async function POST({ request }) {
 						last10Inputs: task.inputs.slice(-10),
 						inputLength: task.inputs.length,
 						params,
-						error: taskSendResult.error
+						errorMessage: taskSendResult.message
 					});
 					failures.push({ scraper, inputs });
 				}

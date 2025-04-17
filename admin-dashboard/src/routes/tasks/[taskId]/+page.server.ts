@@ -2,7 +2,7 @@ import { db } from '$lib/server/db';
 import { taskTbl } from '$lib/server/db/schema.js';
 import { error } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
-import { addScraperTaskProgressPromises } from '$lib/server/scraper-api/task-progress';
+import { addScraperTaskProgressPromises } from '$lib/server/scraper-api/tasks/get-progress';
 
 export async function load({ params }) {
 	const id = parseInt(params.taskId, 10);

@@ -6,7 +6,7 @@ const scraperAboutResponseSchema = z.object({
 	version: z.string()
 });
 
-export const getScraperInfo = async (scraper: Scraper) => {
+export const getScraperServerMetadata = async (scraper: Scraper) => {
 	return await makeRequestToScraper({
 		method: 'GET',
 		scraper,

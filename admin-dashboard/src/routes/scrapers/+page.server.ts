@@ -1,7 +1,7 @@
 import { createTransaction, db } from '$lib/server/db';
 import { scraperServerTbl, type ScraperInsert } from '$lib/server/db/schema';
 import { asc, eq } from 'drizzle-orm';
-import { getScraperInfo } from '$lib/server/scraper-api/about';
+import { getScraperServerMetadata } from '$lib/server/scraper-api/get-server-metadata';
 import type { ScraperMetadata } from './table-columns';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
@@ -13,7 +13,7 @@ export async function load() {
 
 	const scraperMeta: ScraperMetadata[] = await Promise.all(
 		scrapers.map(async (scraper) => {
-			const infoRes = await getScraperInfo(scraper);
+			const infoRes = await getScraperServerMetadata(scraper);
 			const version = infoRes.status === 'error' ? null : infoRes.data.version;
 			const online = infoRes.status === 'error' ? false : true;
 			return {

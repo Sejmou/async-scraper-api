@@ -17,7 +17,7 @@ type ScraperPostRequestData<S extends ZodTypeAny> = ScraperRequestDataBase<S> & 
 	body?: Record<string, unknown>;
 };
 
-type ScraperRequestData<S extends ZodTypeAny> =
+type ScraperRequestMetaData<S extends ZodTypeAny> =
 	| ScraperGetRequestData<S>
 	| ScraperPostRequestData<S>;
 
@@ -36,8 +36,12 @@ export const constructScraperRequestUrl = (
 	return `${scraper.protocol}://${scraper.host}:${scraper.port}/${pathWithParams}`;
 };
 
+const errorResponseSchema = z.object({
+	detail: z.string()
+});
+
 export const makeRequestToScraper = async <S extends ZodTypeAny>(
-	requestData: ScraperRequestData<S>
+	reqMeta: ScraperRequestMetaData<S>
 ): Promise<
 	| {
 			status: 'success';
@@ -45,10 +49,13 @@ export const makeRequestToScraper = async <S extends ZodTypeAny>(
 	  }
 	| {
 			status: 'error';
-			error: Record<string, unknown>;
+			scraperApiHttpCode?: number;
+			message: string;
 	  }
 > => {
-	const { scraper, path, params, method, responseSchema } = requestData;
+	// separate out the responseSchema from the requestData
+	const { responseSchema, ...requestData } = reqMeta;
+	const { scraper, path, params, method } = requestData;
 	const url = constructScraperRequestUrl(scraper, path, params);
 
 	try {
@@ -57,30 +64,42 @@ export const makeRequestToScraper = async <S extends ZodTypeAny>(
 			headers: {
 				'Content-Type': 'application/json'
 			},
-			body:
-				requestData.method === 'POST' && requestData.body
-					? JSON.stringify(requestData.body)
-					: undefined
+			body: reqMeta.method === 'POST' && reqMeta.body ? JSON.stringify(reqMeta.body) : undefined
 		});
-		const data = await res.json();
+		const responseData = await res.json();
 		if (!res.ok) {
-			console.error(`Request to scraper API endpoint failed`, requestData);
-			return {
-				status: 'error',
-				error: data
-			};
+			const errorParseRes = errorResponseSchema.safeParse(responseData);
+			if (errorParseRes.success) {
+				const { detail } = errorParseRes.data;
+				return {
+					status: 'error',
+					scraperApiHttpCode: res.status,
+					message: detail
+				};
+			} else {
+				const message = `Request to ${url} failed with status ${res.status} and unexpected response body (check server logs)`;
+				console.error(message, {
+					responseData,
+					validationError: errorParseRes.error
+				});
+				return {
+					status: 'error',
+					scraperApiHttpCode: res.status,
+					message
+				};
+			}
 		}
-		const schemaParseRes = responseSchema.safeParse(data);
+		const schemaParseRes = responseSchema.safeParse(responseData);
 		if (!schemaParseRes.success) {
-			console.error(`Response from scraper API endpoint did not match expected schema`, {
-				data,
+			const message = `Response from scraper at ${url} did not match expected schema`;
+			console.error(message, {
+				responseData,
 				validationError: schemaParseRes.error
 			});
 			return {
 				status: 'error',
-				error: {
-					message: 'Response from scraper API endpoint did not match expected schema'
-				}
+				message,
+				scraperApiHttpCode: res.status
 			};
 		}
 		return {
@@ -88,41 +107,33 @@ export const makeRequestToScraper = async <S extends ZodTypeAny>(
 			data: schemaParseRes.data
 		};
 	} catch (e) {
-		// remove responseSchema as it isn't relevant for handling errors (they cannot be related to schema validation!)
-		// eslint-disable-next-line @typescript-eslint/no-unused-vars
-		const { responseSchema, ...data } = requestData;
-		if (e instanceof TypeError) {
-			if (
-				e.cause &&
-				typeof e.cause === 'object' &&
-				'code' in e.cause &&
-				e.cause.code === 'ECONNREFUSED'
-			) {
-				console.warn(`Request to ${url} failed (scraper is probably offline)`, {
-					scraper,
-					requestData: {
-						data
-					}
-				});
-			} else {
-				console.error(`Network error sending request to scraper API endpoint`, {
-					scraper,
-					requestData: data,
-					error: e
-				});
-			}
-		} else {
-			console.error(`Unknown error sending request to scraper API endpoint`, {
+		if (
+			e instanceof TypeError &&
+			e.cause &&
+			typeof e.cause === 'object' &&
+			'code' in e.cause &&
+			e.cause.code === 'ECONNREFUSED'
+		) {
+			const message = `Request to ${url} could not be sent (scraper is probably offline)`;
+			console.warn(message, {
 				scraper,
-				requestData: data,
+				requestData
+			});
+			return {
+				status: 'error',
+				message
+			};
+		} else {
+			const message = `Request to ${url} failed (unexpected error, see server logs)`;
+			console.error(message, {
+				scraper,
+				requestData,
 				error: e
 			});
+			return {
+				status: 'error',
+				message
+			};
 		}
-		return {
-			status: 'error',
-			error: {
-				message: 'Error sending request to scraper API endpoint'
-			}
-		};
 	}
 };

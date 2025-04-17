@@ -1,8 +1,8 @@
-import { makeRequestToScraper } from '.';
+import { makeRequestToScraper } from '..';
 import type { Scraper } from '$lib/server/db/schema';
 import { tasksPageSchema } from '$lib/scraper-types-and-schemas/created-tasks';
 
-export const fetchScraperTasks = async (scraper: Scraper, page: number, pageSize: number) => {
+export const getScraperTaskMetadata = async (scraper: Scraper, page: number, pageSize: number) => {
 	return await makeRequestToScraper({
 		method: 'GET',
 		scraper,

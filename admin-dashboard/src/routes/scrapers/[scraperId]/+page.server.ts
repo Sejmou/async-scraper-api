@@ -1,9 +1,9 @@
 import { db } from '$lib/server/db/index.js';
 import { eq } from 'drizzle-orm';
 import { scraperServerTbl, type Scraper } from '$lib/server/db/schema';
-import { fetchScraperTasks } from '$lib/server/scraper-api/get-tasks';
+import { getScraperTaskMetadata } from '$lib/server/scraper-api/tasks/get-basic-task-meta';
 import { error } from '@sveltejs/kit';
-import { getScraperInfo } from '$lib/server/scraper-api/about';
+import { getScraperServerMetadata } from '$lib/server/scraper-api/get-server-metadata';
 
 const getScraperData = async (scraper: Scraper, tasksPage: number, pageSize = 10) => {
 	// definining this as handling null/error case on client would be more annoying than just returning this 'empty' data
@@ -16,8 +16,8 @@ const getScraperData = async (scraper: Scraper, tasksPage: number, pageSize = 10
 	};
 	try {
 		const [infoRes, tasksRes] = await Promise.all([
-			getScraperInfo(scraper),
-			fetchScraperTasks(scraper, tasksPage, pageSize)
+			getScraperServerMetadata(scraper),
+			getScraperTaskMetadata(scraper, tasksPage, pageSize)
 		]);
 		return {
 			status: infoRes.status === 'success' ? ('online' as const) : ('offline' as const),

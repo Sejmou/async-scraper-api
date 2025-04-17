@@ -1,4 +1,4 @@
-import { makeRequestToScraper } from '.';
+import { makeRequestToScraper } from '..';
 import type { Scraper, Subtask, DBTask } from '$lib/server/db/schema';
 import { z } from 'zod';
 
