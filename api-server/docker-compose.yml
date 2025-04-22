@@ -8,10 +8,14 @@ services:
       - S3_SECRET
       - S3_ENDPOINT_URL
       - S3_BUCKET
-      # needed for xvfb
+      # needed for virtual X server (used by programs requiring an X server for automated GUI interactions, e.g. browser scrapers in non-headless mode)
       - DISPLAY=:99
+      # tells the service to store its persistent data and logs in a subdirectory named after the value of the HOSTNAME env var (set by Docker, equals container ID)
+      - USE_HOSTNAME_SUBDIR=True
     ports:
-      - 4200:80
+      # to run n replicas, add --scale scraper-api=n to docker compose up command
+      # modify port range to allow each container to get its own port if you need more than max_port - min_port services
+      - 4200-4209:80
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs

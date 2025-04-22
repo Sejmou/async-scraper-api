@@ -33,4 +33,8 @@ COPY app /app/app
 EXPOSE 80
 
 # Run the FastAPI application using uvicorn
-CMD ["sh", "-c", "alembic upgrade head && xvfb-run uvicorn app.main:app --host 0.0.0.0 --port 80 ${DEV:+--reload}"]
+# we use xvfb-run to add a virtual X display server so that any programs requiring a GUI or, more specifically an X server also work (e.g. web scrapers using a browser)
+# if the container doesn't exit cleanly, temporary files created by xvfb-run might remain -> we make sure they are always deleted (if they exist)
+# furthermore, we run alembic to apply any database migrations before starting the FastAPI application
+# the ${DEV:+--reload} syntax is a way to conditionally include the --reload flag if the DEV environment variable is set
+CMD ["sh", "-c", "rm -f /tmp/.X${DISPLAY#:}-lock /tmp/.X11-unix/X${DISPLAY#:} && alembic upgrade head && xvfb-run uvicorn app.main:app --host 0.0.0.0 --port 80 ${DEV:+--reload}"]
