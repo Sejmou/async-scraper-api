@@ -51,7 +51,7 @@ async def fetch_flaky(
     return TaskModel.model_validate(task)
 
 
-@router.post("throw-above-threshold", status_code=202, response_model=TaskModel)
+@router.post("/throw-above-threshold", status_code=202, response_model=TaskModel)
 async def fetch_throw_above_threshold(
     payload: FlakyPayload, background_tasks: BackgroundTasks, session: DBSessionDep
 ):
