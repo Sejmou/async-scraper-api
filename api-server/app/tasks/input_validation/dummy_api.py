@@ -32,7 +32,7 @@ class ThrowAboveThresholdParams(BaseModel):
     """
 
 
-class DummyThrowAboveThresholdPayload(BaseModel):
+class ThrowAboveThresholdPayload(BaseModel):
     inputs: list[int]
     """
     The list of IDs to be processed by the dummy API.

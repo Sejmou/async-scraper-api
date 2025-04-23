@@ -10,7 +10,10 @@ from sqlalchemy.ext.asyncio import AsyncSession as AsyncDBSession
 
 from app.db.models import JSONValue
 from app.api.dependencies.core import DBSessionDep
-from app.tasks.input_validation.dummy_api import FlakyPayload
+from app.tasks.input_validation.dummy_api import (
+    FlakyPayload,
+    ThrowAboveThresholdPayload,
+)
 from app.tasks import create_new_task, run_in_background
 from app.tasks.processing import TaskProcessor, DataFetchingTask as DBTask
 from app.api.models import DataFetchingTask as TaskModel
@@ -53,7 +56,9 @@ async def fetch_flaky(
 
 @router.post("/throw-above-threshold", status_code=202, response_model=TaskModel)
 async def fetch_throw_above_threshold(
-    payload: FlakyPayload, background_tasks: BackgroundTasks, session: DBSessionDep
+    payload: ThrowAboveThresholdPayload,
+    background_tasks: BackgroundTasks,
+    session: DBSessionDep,
 ):
     task, processor = await create_dummy_api_task(
         inputs=payload.inputs,
