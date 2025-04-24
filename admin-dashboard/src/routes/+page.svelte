@@ -4,8 +4,16 @@
 		href: string;
 		description: string;
 	}[] = [
-		{ label: 'Scrapers', href: 'scrapers', description: 'Manage servers running the Scraper API' },
-		{ label: 'Tasks', href: 'tasks', description: 'Schedule tasks on the scrapers' }
+		{
+			label: 'Scrapers',
+			href: 'scrapers',
+			description: 'Manage a cluster of servers running the Scraper API'
+		},
+		{
+			label: 'Tasks',
+			href: 'tasks',
+			description: 'Schedule and monitor/manage tasks on the scrapers'
+		}
 	];
 </script>
 

@@ -5,7 +5,6 @@
 	import type { Message } from '.';
 
 	let { type, title, text, class: className = '' }: Message & { class?: string } = $props();
-	let lines = text.split('\n');
 </script>
 
 <Alert.Root class={className} variant={type === 'error' ? 'destructive' : 'default'}>
@@ -23,12 +22,7 @@
 			Heads up!
 		{/if}
 	</Alert.Title>
-	<Alert.Description
-		>{#each lines as line}
-			{line}
-			{#if line !== lines[lines.length - 1]}
-				<br />
-			{/if}
-		{/each}
+	<Alert.Description class="whitespace-pre">
+		{text}
 	</Alert.Description>
 </Alert.Root>

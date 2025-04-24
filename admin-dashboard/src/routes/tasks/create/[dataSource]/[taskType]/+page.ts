@@ -2,7 +2,7 @@ import {
 	getInitialTaskValue,
 	getParamsSchema,
 	getTaskInputMeta
-} from '$lib/scraper-types-and-schemas/new-tasks';
+} from '$lib/types-and-schemas/tasks/data-sources';
 import { error } from '@sveltejs/kit';
 
 export async function load({ params, data }) {

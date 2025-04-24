@@ -12,6 +12,14 @@ export function truncate(input: string, maxLength: number) {
 	return input;
 }
 
+export function indent(input: string, spaces = 2) {
+	const indent = ' '.repeat(spaces);
+	return input
+		.split('\n')
+		.map((line) => indent + line)
+		.join('\n');
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function colMajorToRowMajor<T extends Record<string, any[]>>(
 	data: T

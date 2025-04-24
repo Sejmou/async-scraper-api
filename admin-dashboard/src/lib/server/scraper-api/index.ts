@@ -21,6 +21,10 @@ type ScraperRequestMetaData<S extends ZodTypeAny> =
 	| ScraperGetRequestData<S>
 	| ScraperPostRequestData<S>;
 
+export const constructScraperBaseUrl = (scraper: Scraper): string => {
+	return `${scraper.protocol}://${scraper.host}:${scraper.port}`;
+};
+
 export const constructScraperRequestUrl = (
 	scraper: Scraper,
 	path: string,
@@ -33,7 +37,7 @@ export const constructScraperRequestUrl = (
 				.join('&')
 		: '';
 	const pathWithParams = path + queryString;
-	return `${scraper.protocol}://${scraper.host}:${scraper.port}/${pathWithParams}`;
+	return `${constructScraperBaseUrl(scraper)}/${pathWithParams}`;
 };
 
 const errorResponseSchema = z.object({
@@ -77,7 +81,7 @@ export const makeRequestToScraper = async <S extends ZodTypeAny>(
 					message: detail
 				};
 			} else {
-				const message = `Request to ${url} failed with status ${res.status} and unexpected response body (check server logs)`;
+				const message = `Unexpected response body (check server logs)`;
 				console.error(message, {
 					responseData,
 					validationError: errorParseRes.error
@@ -91,7 +95,7 @@ export const makeRequestToScraper = async <S extends ZodTypeAny>(
 		}
 		const schemaParseRes = responseSchema.safeParse(responseData);
 		if (!schemaParseRes.success) {
-			const message = `Response from scraper at ${url} did not match expected schema`;
+			const message = `Response did not match expected schema`;
 			console.error(message, {
 				responseData,
 				validationError: schemaParseRes.error
@@ -114,7 +118,7 @@ export const makeRequestToScraper = async <S extends ZodTypeAny>(
 			'code' in e.cause &&
 			e.cause.code === 'ECONNREFUSED'
 		) {
-			const message = `Request to ${url} could not be sent (scraper is probably offline)`;
+			const message = `Request could not be sent (scraper is probably offline)`;
 			console.warn(message, {
 				scraper,
 				requestData
@@ -124,7 +128,7 @@ export const makeRequestToScraper = async <S extends ZodTypeAny>(
 				message
 			};
 		} else {
-			const message = `Request to ${url} failed (unexpected error, see server logs)`;
+			const message = `Request failed (unexpected error, see server logs)`;
 			console.error(message, {
 				scraper,
 				requestData,

@@ -1,4 +1,4 @@
-import type { SupportedTask } from '$lib/scraper-types-and-schemas/new-tasks';
+import type { SupportedTask } from '$lib/types-and-schemas/tasks/data-sources';
 import Root from './root.svelte';
 import { z } from 'zod';
 

@@ -1,6 +1,6 @@
 import { makeRequestToScraper } from '..';
 import type { Scraper } from '$lib/server/db/schema';
-import { dataFetchingTaskSchema } from '$lib/scraper-types-and-schemas/created-tasks';
+import { dataFetchingTaskSchema } from '$lib/types-and-schemas/tasks/common';
 
 export async function pauseTask(scraper: Scraper, taskId: string) {
 	return await makeRequestToScraper({

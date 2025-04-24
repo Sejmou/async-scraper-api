@@ -15,8 +15,22 @@ type Transaction = {
 	readonly nestedIndex: number;
 	readonly savepointName: string;
 	transaction: <T>(tx: (t: Transaction) => Promise<T>) => Promise<T>;
-	rollback: () => void;
+	rollback: (cause?: string | Error) => void;
 };
+
+/**
+ * Custom error class to handle transaction rollback errors.
+ * This is part of a workaround for the currently broken SQLite transactions in drizzle.
+ */
+export class WorkaroundTransactionRollbackError extends Error {
+	cause?: Error | string;
+
+	constructor(cause?: string | Error) {
+		super('Transaction was rolled back');
+		this.name = 'CustomTransactionRollbackError';
+		this.cause = cause;
+	}
+}
 
 export function createTransaction(
 	db: Database,
@@ -43,8 +57,8 @@ export function createTransaction(
 				throw e;
 			}
 		},
-		rollback: () => {
-			throw new Error('Rollback called.  Reverting transaction');
+		rollback: (error?: string | Error) => {
+			throw new WorkaroundTransactionRollbackError(error);
 		}
 	};
 }

@@ -1,9 +1,9 @@
 import { superForm, defaults, type SuperForm, type ValidationErrors } from 'sveltekit-superforms';
 import { z } from 'zod';
 import { zod } from 'sveltekit-superforms/adapters';
-import { createTask } from '$lib/client-api/scraper-tasks';
+import { createTask } from '$lib/client-server-communication/create-distributed-task';
 import { goto } from '$app/navigation';
-import type { SupportedTask, TaskInputMeta } from '$lib/scraper-types-and-schemas/new-tasks';
+import type { SupportedTask, TaskInputMeta } from '$lib/types-and-schemas/tasks/data-sources';
 import { get } from 'svelte/store';
 import NewTaskForm from './new-task-form.svelte';
 import { getContext, setContext } from 'svelte';
@@ -116,12 +116,11 @@ class TaskFormState<TaskType extends SupportedTask, ParamsType extends z.ZodSche
 
 		const res = await createTask(task, this.selectedScraperIds);
 		if (res.status === 'success') {
-			await goto(`/tasks/${res.id}`);
+			await goto(`/tasks/${res.data.id}`);
 		} else {
-			console.error('Error while creating task', res.error);
 			this.#form.message.set({
 				type: 'error',
-				text: res.error
+				text: res.message
 			});
 		}
 	}

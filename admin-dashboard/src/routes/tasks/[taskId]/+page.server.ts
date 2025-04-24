@@ -1,5 +1,5 @@
 import { db } from '$lib/server/db';
-import { taskTbl } from '$lib/server/db/schema.js';
+import { distTaskTbl } from '$lib/server/db/schema.js';
 import { error } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 import { addScraperTaskProgressPromises } from '$lib/server/scraper-api/tasks/get-progress';
@@ -11,8 +11,8 @@ export async function load({ params }) {
 			message: 'Invalid task ID'
 		});
 	}
-	const taskWithSubTasksAndScrapers = await db.query.taskTbl.findFirst({
-		where: eq(taskTbl.id, id),
+	const taskWithSubTasksAndScrapers = await db.query.distTaskTbl.findFirst({
+		where: eq(distTaskTbl.id, id),
 		with: {
 			subtasks: {
 				with: {

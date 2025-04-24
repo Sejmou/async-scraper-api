@@ -1,4 +1,4 @@
-import { dataSourceSchema, type DataSource } from '$lib/scraper-types-and-schemas/created-tasks.js';
+import { dataSourceSchema, type DataSource } from '$lib/types-and-schemas/tasks/common.js';
 import { error } from '@sveltejs/kit';
 
 type PageData = {

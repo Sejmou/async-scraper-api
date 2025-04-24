@@ -1,7 +1,7 @@
 import { db } from '$lib/server/db/index.js';
 import { eq } from 'drizzle-orm';
 import { scraperServerTbl, type Scraper } from '$lib/server/db/schema';
-import { getScraperTaskMetadata } from '$lib/server/scraper-api/tasks/get-basic-task-meta';
+import { getScraperTaskMetadataPage } from '$lib/server/scraper-api/tasks/get-basic-metadata';
 import { error } from '@sveltejs/kit';
 import { getScraperServerMetadata } from '$lib/server/scraper-api/get-server-metadata';
 
@@ -17,7 +17,7 @@ const getScraperData = async (scraper: Scraper, tasksPage: number, pageSize = 10
 	try {
 		const [infoRes, tasksRes] = await Promise.all([
 			getScraperServerMetadata(scraper),
-			getScraperTaskMetadata(scraper, tasksPage, pageSize)
+			getScraperTaskMetadataPage(scraper, tasksPage, pageSize)
 		]);
 		return {
 			status: infoRes.status === 'success' ? ('online' as const) : ('offline' as const),
