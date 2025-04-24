@@ -8,7 +8,7 @@
 	import { type Message, ConsoleMessageAlert } from '$lib/components/ui/console-message-alert';
 	import CodeEditor from '$lib/components/code-editor.svelte';
 	import { Button } from '$lib/components/ui/button';
-	import DuckDBTableViewer from '$lib/components/duckdb/duckdb-table-viewer.svelte';
+	import DuckDBTableViewer from './duckdb-table-viewer.svelte';
 	import { KeyCode, KeyMod } from 'monaco-editor';
 
 	let {

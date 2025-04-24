@@ -3,11 +3,11 @@
 	generics="Variables extends readonly string[], GroupLabels extends readonly string[]"
 >
 	import { scaleBand, scaleLinear } from 'd3-scale';
-	import { stack, stackOrderNone, type Series } from 'd3-shape'; // Functions to stack data for the chart
+	import { stack, stackOrderNone } from 'd3-shape'; // Functions to stack data for the chart
 	import { max } from 'd3-array';
-	import AxisLeft from './axis-left.svelte';
-	import XAxisLabel from './x-axis-label.svelte';
-	import YAxisLabel from './y-axis-label.svelte';
+	import AxisLeft from './helpers/axis-left.svelte';
+	import XAxisLabel from './helpers/x-axis-label.svelte';
+	import YAxisLabel from './helpers/y-axis-label.svelte';
 
 	type Props<Variables extends readonly string[], GroupLabels extends readonly string[]> = {
 		variables: Variables;
@@ -70,7 +70,7 @@
 </script>
 
 <div
-	class=" p relative box-border min-w-full rounded-xl border-gray-100 p-4 pt-0"
+	class="relative box-border min-w-full rounded-xl border-gray-100 p-4 pt-0"
 	bind:clientWidth={width}
 >
 	<svg width={width - margin.left - margin.right} {height}>

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { DuckDBAPI, QueryOutputRowMajor, QueryResultRowMajor } from '$lib/duckdb.svelte';
+	import type { DuckDBAPI, QueryResultRowMajor } from '$lib/duckdb.svelte';
 	import DataTableExternalPagination from '$lib/components/ui/data-table-external-pagination.svelte';
 	import { type OnChangeFn, type PaginationState } from '@tanstack/table-core';
 
