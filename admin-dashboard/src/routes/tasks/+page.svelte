@@ -1,46 +1,39 @@
-<!-- fyi: This script block needs to be here to make TS syntax work for #snippet, even if we don't import anything -->
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import DataTable from '$lib/components/ui/data-table.svelte';
 	import { renderComponent } from '$lib/components/ui/data-table/render-helpers.js';
 	import PageHeading from '$lib/components/ui/page-heading.svelte';
 	import type { ColumnDef } from '@tanstack/table-core';
-	import SubtaskInfo from './subtask-info.svelte';
+	import SubtaskTable from './subtasks-progress.svelte';
 	import ButtonWithTextProp from '$lib/components/ui/button-with-text-prop.svelte';
 
 	let { data } = $props();
 
 	const tableColumns: ColumnDef<(typeof data.tasks)[number]>[] = [
 		{
-			accessorFn: (row) => row.task.id,
+			accessorFn: (row) => row.id,
 			header: 'ID'
 		},
 		{
-			accessorFn: (row) => row.task.dataSource,
+			accessorFn: (row) => row.dataSource,
 			header: 'Data Source'
 		},
 		{
-			accessorFn: (row) => row.task.taskType,
+			accessorFn: (row) => row.taskType,
 			header: 'Task Type'
 		},
 		{
-			accessorFn: (row) => row.task.params,
+			accessorFn: (row) => (row.params ? JSON.stringify(row.params) : 'No parameters'),
 			header: 'Parameters'
 		},
 		{
-			accessorFn: (row) => row.subTasksWithProgress,
-			header: 'Subtasks',
+			header: 'Progress',
 			cell: ({ row }) =>
-				renderComponent(SubtaskInfo, { subtasksWithProgress: row.original.subTasksWithProgress })
-		},
-		{
-			accessorKey: 'details',
-			header: '',
-			cell: ({ row }) =>
-				renderComponent(ButtonWithTextProp, {
-					href: `/tasks/${row.original.task.id}`,
-					variant: 'outline',
-					text: 'Details'
+				renderComponent(SubtaskTable, {
+					taskId: row.original.id,
+					taskType: row.original.taskType,
+					dataSource: row.original.dataSource,
+					subtasks: row.original.subtasks
 				})
 		}
 	];

@@ -1,8 +1,9 @@
 import { db } from '$lib/server/db';
-import { addScraperTaskProgressPromises } from '$lib/server/scraper-api/tasks/get-progress';
+import { desc } from 'drizzle-orm';
 
 export async function load() {
 	const tasks = await db.query.distTaskTbl.findMany({
+		orderBy: (t) => desc(t.createdAt),
 		with: {
 			subtasks: {
 				with: {
@@ -13,6 +14,6 @@ export async function load() {
 	});
 
 	return {
-		tasks: tasks.map(addScraperTaskProgressPromises)
+		tasks
 	};
 }

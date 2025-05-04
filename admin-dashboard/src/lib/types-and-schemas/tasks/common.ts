@@ -65,5 +65,13 @@ export const tasksPageSchema = z.object({
 	pages: z.number().int().positive()
 });
 
+export const taskProgressSchema = z.object({
+	success_count: z.number(),
+	failure_count: z.number(),
+	inputs_without_output_count: z.number(),
+	remaining_count: z.number()
+});
+
 export type DataFetchingTask = z.infer<typeof dataFetchingTaskSchema>;
 export type S3FileUpload = z.infer<typeof s3FileUploadSchema>;
+export type TaskProgress = z.infer<typeof taskProgressSchema>;
