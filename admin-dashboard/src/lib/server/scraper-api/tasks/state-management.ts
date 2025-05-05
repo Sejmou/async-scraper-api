@@ -2,7 +2,7 @@ import { makeRequestToScraper } from '..';
 import type { Scraper } from '$lib/server/db/schema';
 import { dataFetchingTaskSchema } from '$lib/types-and-schemas/tasks/common';
 
-export async function pauseTask(scraper: Scraper, taskId: string) {
+export async function pauseTask(scraper: Scraper, taskId: number) {
 	return await makeRequestToScraper({
 		method: 'POST',
 		scraper,
@@ -11,7 +11,7 @@ export async function pauseTask(scraper: Scraper, taskId: string) {
 	});
 }
 
-export async function resumeTask(scraper: Scraper, taskId: string) {
+export async function resumeTask(scraper: Scraper, taskId: number) {
 	return await makeRequestToScraper({
 		method: 'POST',
 		scraper,

@@ -2,7 +2,15 @@
 	import { type TaskProgressFetchPromise } from '$lib/client-server-communication/scraper-api/tasks/progress';
 	import StackedBarChartHorizontal from '$lib/components/charts/stacked-bar-chart-horizontal.svelte';
 
-	let { promise }: { promise: TaskProgressFetchPromise } = $props();
+	let {
+		promise,
+		dataDescSingular = 'item',
+		dataDescPlural = 'items'
+	}: {
+		promise: TaskProgressFetchPromise;
+		dataDescSingular?: string;
+		dataDescPlural?: string;
+	} = $props();
 </script>
 
 {#await promise}
@@ -31,7 +39,7 @@
 				color: '#ccc'
 			}
 		]}
-		<StackedBarChartHorizontal {data} dataDescSingular="item" dataDescPlural="items" />
+		<StackedBarChartHorizontal {data} {dataDescSingular} {dataDescPlural} />
 	{:else}
 		<p>HTTP Error {progress.httpCode}: {progress.message}</p>
 	{/if}

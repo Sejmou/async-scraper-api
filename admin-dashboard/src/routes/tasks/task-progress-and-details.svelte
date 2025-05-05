@@ -19,11 +19,13 @@
 		taskId,
 		dataSource,
 		taskType,
+		createdAt,
 		subtasks
 	}: {
 		taskId: number;
 		dataSource: string;
 		taskType: string;
+		createdAt: string;
 		subtasks: SubtaskWithScraper[];
 	} = $props();
 
@@ -54,6 +56,10 @@
 	let columns: ColumnDef<SubtaskWithScraper>[] = $derived([
 		{ accessorFn: (row) => row.scraper.host, header: 'Host' },
 		{ accessorFn: (row) => row.scraper.port, header: 'Port' },
+		{
+			header: 'Status',
+			accessorFn: (row) => 'asdf'
+		},
 		{
 			header: 'Progress',
 			cell: ({ row }) =>
@@ -93,21 +99,25 @@
 			};
 		})
 	);
+
+	let scraperDesc = $derived(subtasks.length > 1 ? `${subtasks.length} scrapers` : '1 scraper');
 </script>
 
 {#if subtasks.length > 0}
-	<div class="flex flex-col gap-2">
-		<ScraperTaskProgress promise={overallProgressPromise} />
+	<div class="flex gap-2">
+		<ScraperTaskProgress
+			promise={overallProgressPromise}
+			dataDescSingular={`item (${scraperDesc})`}
+			dataDescPlural={`items (${scraperDesc})`}
+		/>
 		<Dialog.Root>
-			<div class="flex w-full justify-end">
-				<Dialog.Trigger class={buttonVariants({ variant: 'outline' })}>View details</Dialog.Trigger>
-			</div>
+			<Dialog.Trigger class={buttonVariants({ variant: 'outline' })}>Details</Dialog.Trigger>
 			<Dialog.Content class="max-w-screen-md">
 				<Dialog.Header>
 					<Dialog.Title>
-						<code>{dataSource}/{taskType}</code> (ID: {taskId})
+						Task {taskId} (<code>{dataSource}/{taskType}</code>, {scraperDesc})
 					</Dialog.Title>
-					<Dialog.Description>Created at: TODO</Dialog.Description>
+					<Dialog.Description>created at: {createdAt}</Dialog.Description>
 				</Dialog.Header>
 				<DataTable {columns} data={subtasks} />
 			</Dialog.Content>

@@ -11,15 +11,14 @@
 		}[];
 		dataDescSingular: string;
 		dataDescPlural: string;
+		barWidth?: number;
 	};
 
-	let { data, dataDescSingular, dataDescPlural }: Props = $props();
-
-	let width = $state(100);
+	let { data, dataDescSingular, dataDescPlural, barWidth = 100 }: Props = $props();
 	const height = 15;
 	let total = $derived(sum(data, (d) => d.value));
 
-	let scaleX = $derived(scaleLinear().domain([0, total]).range([0, width]));
+	let scaleX = $derived(scaleLinear().domain([0, total]).range([0, barWidth]));
 
 	let cumSumData = $derived(cumsum(data, (d) => d.value));
 </script>
@@ -27,10 +26,10 @@
 <Popover.Root>
 	<Popover.Trigger>
 		<div class="flex items-center gap-2 px-4 py-2">
-			<div bind:clientWidth={width} class="w-full rounded-xl">
+			<div style="width: {barWidth}px" class="w-full rounded-xl">
 				<svg
 					width="100%"
-					viewBox={`0 0 ${width} ${height}`}
+					viewBox={`0 0 ${barWidth} ${height}`}
 					{height}
 					xmlns="http://www.w3.org/2000/svg"
 					font-family="sans-serif"

@@ -4,8 +4,7 @@
 	import { renderComponent } from '$lib/components/ui/data-table/render-helpers.js';
 	import PageHeading from '$lib/components/ui/page-heading.svelte';
 	import type { ColumnDef } from '@tanstack/table-core';
-	import SubtaskTable from './subtasks-progress.svelte';
-	import ButtonWithTextProp from '$lib/components/ui/button-with-text-prop.svelte';
+	import TaskProgressAndDetails from './task-progress-and-details.svelte';
 
 	let { data } = $props();
 
@@ -29,10 +28,11 @@
 		{
 			header: 'Progress',
 			cell: ({ row }) =>
-				renderComponent(SubtaskTable, {
+				renderComponent(TaskProgressAndDetails, {
 					taskId: row.original.id,
 					taskType: row.original.taskType,
 					dataSource: row.original.dataSource,
+					createdAt: row.original.createdAt,
 					subtasks: row.original.subtasks
 				})
 		}

@@ -1,11 +1,22 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { goto, invalidate } from '$app/navigation';
 	import DataTableExternalPagination from '$lib/components/ui/data-table-external-pagination.svelte';
 	import { renderComponent } from '$lib/components/ui/data-table/render-helpers';
 	import type { ColumnDef, OnChangeFn, PaginationState } from '@tanstack/table-core';
-	import TaskStatus from './task-status.svelte';
+	import TaskStatus from '$lib/components/scraper-task-status.svelte';
 	import TaskActions from './task-actions.svelte';
 	import TaskFileUploads from './task-file-uploads.svelte';
+	import {
+		pauseTask,
+		resumeTask
+	} from '$lib/client-server-communication/scraper-api/tasks/state-management';
+	import { timeAgo } from '$lib/utils';
+	import {
+		fetchTaskProgress,
+		type TaskProgressFetchPromise
+	} from '$lib/client-server-communication/scraper-api/tasks/progress';
+	import { browser } from '$app/environment';
+	import ScraperTaskProgress from '$lib/components/scraper-task-progress.svelte';
 
 	let { data } = $props();
 	let scraper = $derived(data.scraper);
@@ -23,6 +34,26 @@
 	};
 
 	type ScraperTask = (typeof data.tasks.items)[0];
+
+	let progressPromises: Map<number, TaskProgressFetchPromise> = $derived.by(() => {
+		if (!browser) {
+			return new Map(
+				tasks.map((task) => [
+					task.id,
+					Promise.resolve({
+						status: 'success',
+						data: {
+							success_count: 0,
+							failure_count: 0,
+							inputs_without_output_count: 0,
+							remaining_count: 0
+						}
+					})
+				])
+			);
+		}
+		return new Map(tasks.map((task) => [task.id, fetchTaskProgress(scraper.id, task.id)]));
+	});
 
 	const taskTableColumns: ColumnDef<ScraperTask>[] = [
 		{
@@ -47,15 +78,35 @@
 		{
 			accessorKey: 'status',
 			header: 'Status',
-			cell: ({ row }) => renderComponent(TaskStatus, { status: row.original.status })
+			cell: ({ row }) =>
+				renderComponent(TaskStatus, {
+					status: row.original.status,
+					onPause: () => {
+						pauseTask(scraper.id, row.original.id).then(() =>
+							invalidate(`/scrapers/${scraper.id}`)
+						);
+					},
+					onResume: () => {
+						resumeTask(scraper.id, row.original.id).then(() =>
+							invalidate(`/scrapers/${scraper.id}`)
+						);
+					}
+				})
 		},
 		{
-			accessorKey: 'created_at',
-			header: 'Created At'
+			header: 'Progress',
+			cell: ({ row }) =>
+				renderComponent(ScraperTaskProgress, {
+					promise: progressPromises.get(row.original.id)!
+				})
 		},
 		{
-			accessorKey: 'updated_at',
-			header: 'Last Updated At'
+			header: 'Created',
+			accessorFn: (row) => timeAgo(row.created_at)
+		},
+		{
+			header: 'Last Update',
+			accessorFn: (row) => timeAgo(row.updated_at)
 		},
 		{
 			accessorKey: 'file_uploads',
