@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { type TaskProgressFetchPromise } from '$lib/client-server-communication/scraper-api/tasks/progress';
+	import { type TaskProgressResponse } from '$lib/client-api/scrapers/tasks/progress';
 	import StackedBarChartHorizontal from '$lib/components/charts/stacked-bar-chart-horizontal.svelte';
 
 	let {
@@ -7,7 +7,7 @@
 		dataDescSingular = 'item',
 		dataDescPlural = 'items'
 	}: {
-		promise: TaskProgressFetchPromise;
+		promise: TaskProgressResponse;
 		dataDescSingular?: string;
 		dataDescPlural?: string;
 	} = $props();

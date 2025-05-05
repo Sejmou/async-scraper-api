@@ -15,7 +15,7 @@ import {
 import { indent, roundRobinSplit } from '$lib/utils';
 import { z, ZodError } from 'zod';
 import { sendTaskToScraper } from '$lib/server/scraper-api/tasks/create';
-import { type DistributedTaskCreateResponse } from '$lib/client-server-communication/create-distributed-task';
+import { type DistributedTaskCreateResponse } from '$lib/client-api/distributed-tasks';
 import { safeParseRequestJSON } from '$lib/server/utils.js';
 import { constructScraperBaseUrl } from '$lib/server/scraper-api/index.js';
 import { getScraperServerMetadata } from '$lib/server/scraper-api/get-server-metadata.js';

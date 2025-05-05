@@ -6,12 +6,13 @@
 	import ScraperTaskProgress from '$lib/components/scraper-task-progress.svelte';
 	import {
 		fetchTaskProgress,
-		type TaskProgressFetchPromise
-	} from '$lib/client-server-communication/scraper-api/tasks/progress';
+		type TaskProgressResponse
+	} from '$lib/client-api/scrapers/tasks/progress';
 	import type { TaskProgress } from '$lib/types-and-schemas/tasks/common';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { buttonVariants } from '$lib/components/ui/button';
 	import { browser } from '$app/environment';
+	import type { TaskStateResponse } from '$lib/client-api/scrapers/tasks/state-management';
 
 	type SubtaskWithScraper = Subtask & { scraper: Scraper };
 
@@ -29,28 +30,48 @@
 		subtasks: SubtaskWithScraper[];
 	} = $props();
 
-	let subtasksAndProgressPromises: {
-		subtask: SubtaskWithScraper;
-		progressPromise: TaskProgressFetchPromise;
-	}[] = $derived.by(() => {
+	let progressResponses: Map<number, TaskProgressResponse> = $derived.by(() => {
 		if (!browser) {
-			return subtasks.map((subtask) => ({
-				subtask,
-				progressPromise: Promise.resolve({
-					status: 'success',
-					data: {
-						success_count: 0,
-						failure_count: 0,
-						inputs_without_output_count: 0,
-						remaining_count: 0
-					}
-				})
-			}));
+			return new Map<number, TaskProgressResponse>(
+				subtasks.map((subtask) => [
+					subtask.id,
+					Promise.resolve({
+						status: 'success',
+						data: {
+							success_count: 0,
+							failure_count: 0,
+							inputs_without_output_count: 0,
+							remaining_count: 0
+						}
+					})
+				])
+			);
 		}
-		return subtasks.map((subtask) => ({
-			subtask,
-			progressPromise: fetchTaskProgress(subtask.scraperId, subtask.taskId)
-		}));
+		return new Map<number, TaskProgressResponse>(
+			subtasks.map((subtask) => [subtask.id, fetchTaskProgress(subtask.scraperId, subtask.taskId)])
+		);
+	});
+
+	let taskStatusResponses: Map<number, TaskStateResponse> = $derived.by(() => {
+		if (!browser) {
+			return new Map<number, TaskStateResponse>(
+				subtasks.map((subtask) => [
+					subtask.id,
+					Promise.resolve({
+						status: 'success',
+						data: {
+							id: subtask.id,
+							scraperId: subtask.scraperId,
+							taskId: subtask.taskId,
+							createdAt: subtask.createdAt,
+							updatedAt: subtask.updatedAt,
+							state: 'running'
+						}
+					})
+				])
+			);
+		}
+		return new Map();
 	});
 
 	let columns: ColumnDef<SubtaskWithScraper>[] = $derived([
@@ -64,17 +85,13 @@
 			header: 'Progress',
 			cell: ({ row }) =>
 				renderComponent(ScraperTaskProgress, {
-					promise: subtasksAndProgressPromises.find(
-						(el) =>
-							el.subtask.scraperId === row.original.scraperId &&
-							el.subtask.scraperTaskId === row.original.scraperTaskId
-					)!.progressPromise
+					promise: progressResponses.get(row.original.id)!
 				})
 		}
 	]);
 
-	let overallProgressPromise: TaskProgressFetchPromise = $derived(
-		Promise.all(subtasksAndProgressPromises.map((el) => el.progressPromise)).then((results) => {
+	let overallProgressPromise: TaskProgressResponse = $derived(
+		Promise.all(progressResponses.values()).then((results) => {
 			let cumulative: TaskProgress = {
 				success_count: 0,
 				failure_count: 0,

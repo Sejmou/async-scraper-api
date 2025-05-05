@@ -1,7 +1,9 @@
-import { makeRequestToServerApi } from '$lib/client-server-communication';
+import { makeRequestToServerApi, type SvelteKitServerApiResponse } from '$lib/client-api';
 import { dataFetchingTaskSchema } from '$lib/types-and-schemas/tasks/common';
 
-export async function pauseTask(scraperId: number, taskId: number) {
+export type TaskStateResponse = SvelteKitServerApiResponse<typeof dataFetchingTaskSchema>;
+
+export async function pauseTask(scraperId: number, taskId: number): TaskStateResponse {
 	return await makeRequestToServerApi({
 		method: 'POST',
 		path: `scrapers/${scraperId}/tasks/${taskId}/pause`,
@@ -9,7 +11,7 @@ export async function pauseTask(scraperId: number, taskId: number) {
 	});
 }
 
-export async function resumeTask(scraperId: number, taskId: number) {
+export async function resumeTask(scraperId: number, taskId: number): TaskStateResponse {
 	return await makeRequestToServerApi({
 		method: 'POST',
 		path: `scrapers/${scraperId}/tasks/${taskId}/resume`,

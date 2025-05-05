@@ -6,15 +6,12 @@
 	import TaskStatus from '$lib/components/scraper-task-status.svelte';
 	import TaskActions from './task-actions.svelte';
 	import TaskFileUploads from './task-file-uploads.svelte';
-	import {
-		pauseTask,
-		resumeTask
-	} from '$lib/client-server-communication/scraper-api/tasks/state-management';
+	import { pauseTask, resumeTask } from '$lib/client-api/scrapers/tasks/state-management';
 	import { timeAgo } from '$lib/utils';
 	import {
 		fetchTaskProgress,
-		type TaskProgressFetchPromise
-	} from '$lib/client-server-communication/scraper-api/tasks/progress';
+		type TaskProgressResponse
+	} from '$lib/client-api/scrapers/tasks/progress';
 	import { browser } from '$app/environment';
 	import ScraperTaskProgress from '$lib/components/scraper-task-progress.svelte';
 
@@ -35,7 +32,7 @@
 
 	type ScraperTask = (typeof data.tasks.items)[0];
 
-	let progressPromises: Map<number, TaskProgressFetchPromise> = $derived.by(() => {
+	let progressPromises: Map<number, TaskProgressResponse> = $derived.by(() => {
 		if (!browser) {
 			return new Map(
 				tasks.map((task) => [

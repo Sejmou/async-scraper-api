@@ -1,7 +1,7 @@
 import { superForm, defaults, type SuperForm, type ValidationErrors } from 'sveltekit-superforms';
 import { z } from 'zod';
 import { zod } from 'sveltekit-superforms/adapters';
-import { createTask } from '$lib/client-server-communication/create-distributed-task';
+import { createDistributedTask } from '$lib/client-api/distributed-tasks';
 import { goto } from '$app/navigation';
 import type { SupportedTask, TaskInputMeta } from '$lib/types-and-schemas/tasks/data-sources';
 import { get } from 'svelte/store';
@@ -114,7 +114,7 @@ class TaskFormState<TaskType extends SupportedTask, ParamsType extends z.ZodSche
 
 		const task = this.#createTaskObjToSend();
 
-		const res = await createTask(task, this.selectedScraperIds);
+		const res = await createDistributedTask(task, this.selectedScraperIds);
 		if (res.status === 'success') {
 			await goto(`/tasks/${res.data.id}`);
 		} else {

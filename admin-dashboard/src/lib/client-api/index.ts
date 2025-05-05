@@ -24,9 +24,7 @@ const errorResponseSchema = z.object({
 	message: z.string()
 });
 
-export const makeRequestToServerApi = async <S extends ZodTypeAny>(
-	reqMeta: SvelteKitServerApiRequestMetaData<S>
-): Promise<
+export type SvelteKitServerApiResponse<S extends ZodTypeAny> = Promise<
 	| {
 			status: 'success';
 			data: z.infer<S>;
@@ -36,7 +34,11 @@ export const makeRequestToServerApi = async <S extends ZodTypeAny>(
 			httpCode: number;
 			message: string;
 	  }
-> => {
+>;
+
+export const makeRequestToServerApi = async <S extends ZodTypeAny>(
+	reqMeta: SvelteKitServerApiRequestMetaData<S>
+): SvelteKitServerApiResponse<S> => {
 	const { path, method, responseSchema } = reqMeta;
 	const url = `/api/${path}`;
 	const res = await fetch(url, {
