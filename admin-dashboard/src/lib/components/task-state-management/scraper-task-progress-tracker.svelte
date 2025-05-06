@@ -8,7 +8,9 @@
 	let query = $derived(
 		createQuery({
 			queryKey: [`${scraperId}/${scraperTaskId}/progress`],
-			queryFn: () => fetchTaskProgress(scraperId, scraperTaskId)
+			queryFn: () => fetchTaskProgress(scraperId, scraperTaskId),
+			refetchInterval: 1000,
+			refetchIntervalInBackground: false
 		})
 	);
 </script>

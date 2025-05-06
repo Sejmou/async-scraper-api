@@ -1,5 +1,5 @@
 import { type SupportedTask } from '$lib/types-and-schemas/tasks/data-sources';
-import { taskSchema } from '$lib/types-and-schemas/tasks/data-sources';
+import { z } from 'zod';
 import { makeRequestToServerApi } from '.';
 
 /**
@@ -13,6 +13,6 @@ export const createDistributedTask = async (task: SupportedTask, scraperIds: num
 			task,
 			scraperIds
 		},
-		responseSchema: taskSchema
+		responseSchema: z.object({ id: z.number() })
 	});
 };

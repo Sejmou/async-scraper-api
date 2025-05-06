@@ -12,7 +12,9 @@
 	let statusQuery = $derived(
 		createQuery({
 			queryKey,
-			queryFn: () => fetchTaskMetadata(scraperId, scraperTaskId)
+			queryFn: () => fetchTaskMetadata(scraperId, scraperTaskId),
+			refetchInterval: 1000,
+			refetchIntervalInBackground: false
 		})
 	);
 
@@ -20,7 +22,17 @@
 		createMutation({
 			mutationFn: () => pauseTask(scraperId, scraperTaskId),
 			onSuccess: (data) => {
+				console.log('Updating task status after pause', data);
 				queryClient.setQueryData(queryKey, data);
+			},
+			onError: (error) => {
+				console.error('Error pausing task:', error);
+			},
+			onMutate: () => {
+				console.log('Pausing task...');
+			},
+			onSettled: () => {
+				console.log('Task paused');
 			}
 		})
 	);
@@ -29,7 +41,17 @@
 		createMutation({
 			mutationFn: () => resumeTask(scraperId, scraperTaskId),
 			onSuccess: (data) => {
+				console.log('Updating task status after resume', data);
 				queryClient.setQueryData(queryKey, data);
+			},
+			onError: (error) => {
+				console.error('Error resuming task:', error);
+			},
+			onMutate: () => {
+				console.log('Resuming task...');
+			},
+			onSettled: () => {
+				console.log('Task resumed');
 			}
 		})
 	);

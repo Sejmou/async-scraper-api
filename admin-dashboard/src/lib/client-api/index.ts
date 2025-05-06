@@ -39,6 +39,7 @@ export type SvelteKitServerApiResponse<S extends ZodTypeAny> = Promise<
 export const makeRequestToServerApi = async <S extends ZodTypeAny>(
 	reqMeta: SvelteKitServerApiRequestMetaData<S>
 ): SvelteKitServerApiResponse<S> => {
+	// console.log('Making request to server API', reqMeta);
 	const { path, method, responseSchema } = reqMeta;
 	const url = `/api/${path}`;
 	const res = await fetch(url, {
@@ -109,9 +110,11 @@ export const makeRequestToServerApi = async <S extends ZodTypeAny>(
 			httpCode: res.status
 		};
 	}
+	const data = schemaParseRes.data;
+	// console.log('Got success response from server matching provided schema', data);
 	return {
 		status: 'success',
-		data: schemaParseRes.data
+		data
 	};
 };
 

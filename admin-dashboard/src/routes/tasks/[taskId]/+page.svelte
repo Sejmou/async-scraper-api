@@ -7,7 +7,6 @@
 
 	let { data } = $props();
 	let task = $derived(data.task);
-	$inspect(data);
 
 	type Subtask = (typeof task)['subtasks'][number];
 
