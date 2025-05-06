@@ -24,7 +24,8 @@
 		'duckdb-demo': 'DuckDB Demo',
 		'artist-albums': 'Artist Albums',
 		'related-artists': 'Related Artists',
-		'dummy-api': 'Dummy API'
+		'dummy-api': 'Dummy API',
+		'scraper-tasks': 'Scraper Tasks'
 	};
 
 	let subroutes = $derived(page.route.id?.split('/').filter(Boolean) || []);
@@ -55,6 +56,12 @@
 					subRoutePathComponent = `Scraper ${data.scraper.id} (${data.scraper.host}:${data.scraper.port})`;
 				} else {
 					subRoutePathComponent = 'Unknown Scraper';
+				}
+			} else if (subRoutePathComponent === '[scraperTaskId]') {
+				if (data.scraperTask) {
+					subRoutePathComponent = `${data.scraperTask.id}`;
+				} else {
+					subRoutePathComponent = 'Unknown Scraper Task';
 				}
 			}
 			link = link.replace('[taskId]', `${data?.task?.id ?? ''}`);

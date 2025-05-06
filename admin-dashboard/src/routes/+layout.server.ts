@@ -13,8 +13,15 @@ export const load = async ({ params }) => {
 			)[0]
 		: null;
 
+	const scraperTask = params.scraperTaskId
+		? await db.query.subtaskTbl.findFirst({
+				where: (t, { eq }) => eq(t.id, +params.scraperTaskId!)
+			})
+		: null;
+
 	return {
 		task,
-		scraper
+		scraper,
+		scraperTask
 	};
 };
