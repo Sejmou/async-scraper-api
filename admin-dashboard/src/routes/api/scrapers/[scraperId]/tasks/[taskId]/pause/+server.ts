@@ -24,6 +24,6 @@ export async function POST({ params }) {
 	if (res.status === 'success') {
 		return json(res.data);
 	} else {
-		error(res.scraperApiHttpCode ?? 500, res.message);
+		error(res.httpCode, res.message);
 	}
 }

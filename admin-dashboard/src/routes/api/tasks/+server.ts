@@ -15,23 +15,22 @@ import {
 import { indent, roundRobinSplit } from '$lib/utils';
 import { z, ZodError } from 'zod';
 import { sendTaskToScraper } from '$lib/server/scraper-api/tasks/create';
-import { type DistributedTaskCreateResponse } from '$lib/client-api/distributed-tasks';
 import { safeParseRequestJSON } from '$lib/server/utils.js';
 import { constructScraperBaseUrl } from '$lib/server/scraper-api/index.js';
-import { getScraperServerMetadata } from '$lib/server/scraper-api/get-server-metadata.js';
+import { fetchScraperServerMetadata } from '$lib/server/scraper-api/get-server-metadata.js';
 
 export async function POST({ request }) {
 	return json(await createDistributedTask(request));
 }
 
-async function createDistributedTask(request: Request): Promise<DistributedTaskCreateResponse> {
+async function createDistributedTask(request: Request) {
 	const body = await safeParseRequestJSON(request);
 	const { taskData, scraperIds } = validateRequestBody(body);
 	const scrapers = await getScrapersForIds(scraperIds);
 
 	try {
 		const transaction = createTransaction(db);
-		const taskId = await transaction.transaction(async ({ db, rollback }) => {
+		const task = await transaction.transaction(async ({ db, rollback }) => {
 			const taskCreateRes = await db
 				.insert(distTaskTbl)
 				.values({
@@ -39,11 +38,11 @@ async function createDistributedTask(request: Request): Promise<DistributedTaskC
 					taskType: taskData.taskType,
 					params: 'params' in taskData ? taskData.params : undefined
 				})
-				.returning({ id: distTaskTbl.id });
-			const taskId = taskCreateRes[0].id;
+				.returning();
+			const task = taskCreateRes[0];
 
 			try {
-				await distributeAcrossScrapers(taskId, taskData, scrapers);
+				await distributeAcrossScrapers(task.id, taskData, scrapers);
 			} catch (e) {
 				console.error('Failed to distribute task across scrapers', {
 					taskData,
@@ -55,9 +54,9 @@ async function createDistributedTask(request: Request): Promise<DistributedTaskC
 					rollback('Unknown error');
 				}
 			}
-			return taskId;
+			return task;
 		});
-		return { id: taskId };
+		return task;
 	} catch (e) {
 		console.error('Error while creating task', e);
 		if (e instanceof WorkaroundTransactionRollbackError) {
@@ -150,8 +149,8 @@ async function distributeAcrossScrapers(
 					);
 				}
 			} else {
-				const errorDesc = taskSendResult.scraperApiHttpCode
-					? `HTTP error (code ${taskSendResult.scraperApiHttpCode})`
+				const errorDesc = taskSendResult.httpCode
+					? `HTTP error (code ${taskSendResult.httpCode})`
 					: 'unknown error';
 				throw new SubtaskCreationError(
 					`Task creation request produced ${errorDesc}\n${indent(taskSendResult.message)}`,
@@ -294,7 +293,7 @@ async function getScrapersForIds(scraperIds: number[]) {
 	const scraperMetadataResponses = await Promise.all(
 		scrapers.map(async (scraper) => ({
 			scraper,
-			metadataRequestResponse: await getScraperServerMetadata(scraper)
+			metadataRequestResponse: await fetchScraperServerMetadata(scraper)
 		}))
 	);
 	const offlineScrapers = scraperMetadataResponses

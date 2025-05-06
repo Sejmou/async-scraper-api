@@ -25,7 +25,7 @@
 
 <Popover.Root>
 	<Popover.Trigger>
-		<div class="flex items-center gap-2 px-4 py-2">
+		<div class="flex items-center gap-2">
 			<div style="width: {barWidth}px" class="w-full rounded-xl">
 				<svg
 					width="100%"

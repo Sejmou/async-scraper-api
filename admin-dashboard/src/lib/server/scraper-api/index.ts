@@ -53,7 +53,7 @@ export const makeRequestToScraper = async <S extends ZodTypeAny>(
 	  }
 	| {
 			status: 'error';
-			scraperApiHttpCode?: number;
+			httpCode: number;
 			message: string;
 	  }
 > => {
@@ -77,7 +77,7 @@ export const makeRequestToScraper = async <S extends ZodTypeAny>(
 				const { detail } = errorParseRes.data;
 				return {
 					status: 'error',
-					scraperApiHttpCode: res.status,
+					httpCode: res.status,
 					message: detail
 				};
 			} else {
@@ -88,7 +88,7 @@ export const makeRequestToScraper = async <S extends ZodTypeAny>(
 				});
 				return {
 					status: 'error',
-					scraperApiHttpCode: res.status,
+					httpCode: res.status,
 					message
 				};
 			}
@@ -103,7 +103,7 @@ export const makeRequestToScraper = async <S extends ZodTypeAny>(
 			return {
 				status: 'error',
 				message,
-				scraperApiHttpCode: res.status
+				httpCode: res.status
 			};
 		}
 		return {
@@ -125,6 +125,7 @@ export const makeRequestToScraper = async <S extends ZodTypeAny>(
 			});
 			return {
 				status: 'error',
+				httpCode: 503,
 				message
 			};
 		} else {
@@ -136,6 +137,7 @@ export const makeRequestToScraper = async <S extends ZodTypeAny>(
 			});
 			return {
 				status: 'error',
+				httpCode: 500,
 				message
 			};
 		}

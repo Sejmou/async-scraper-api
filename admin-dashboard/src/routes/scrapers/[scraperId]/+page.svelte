@@ -3,17 +3,12 @@
 	import DataTableExternalPagination from '$lib/components/ui/data-table-external-pagination.svelte';
 	import { renderComponent } from '$lib/components/ui/data-table/render-helpers';
 	import type { ColumnDef, OnChangeFn, PaginationState } from '@tanstack/table-core';
-	import TaskStatus from '$lib/components/scraper-task-status.svelte';
+	import TaskStatus from '$lib/components/task-state-management/task-status.svelte';
 	import TaskActions from './task-actions.svelte';
 	import TaskFileUploads from './task-file-uploads.svelte';
 	import { pauseTask, resumeTask } from '$lib/client-api/scrapers/tasks/state-management';
 	import { timeAgo } from '$lib/utils';
-	import {
-		fetchTaskProgress,
-		type TaskProgressResponse
-	} from '$lib/client-api/scrapers/tasks/progress';
-	import { browser } from '$app/environment';
-	import ScraperTaskProgress from '$lib/components/scraper-task-progress.svelte';
+	import ScraperTaskProgressTracker from '$lib/components/task-state-management/scraper-task-progress-tracker.svelte';
 
 	let { data } = $props();
 	let scraper = $derived(data.scraper);
@@ -31,26 +26,6 @@
 	};
 
 	type ScraperTask = (typeof data.tasks.items)[0];
-
-	let progressPromises: Map<number, TaskProgressResponse> = $derived.by(() => {
-		if (!browser) {
-			return new Map(
-				tasks.map((task) => [
-					task.id,
-					Promise.resolve({
-						status: 'success',
-						data: {
-							success_count: 0,
-							failure_count: 0,
-							inputs_without_output_count: 0,
-							remaining_count: 0
-						}
-					})
-				])
-			);
-		}
-		return new Map(tasks.map((task) => [task.id, fetchTaskProgress(scraper.id, task.id)]));
-	});
 
 	const taskTableColumns: ColumnDef<ScraperTask>[] = [
 		{
@@ -93,8 +68,9 @@
 		{
 			header: 'Progress',
 			cell: ({ row }) =>
-				renderComponent(ScraperTaskProgress, {
-					promise: progressPromises.get(row.original.id)!
+				renderComponent(ScraperTaskProgressTracker, {
+					scraperId: scraper.id,
+					scraperTaskId: row.original.id
 				})
 		},
 		{

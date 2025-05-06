@@ -9,7 +9,7 @@ export async function POST({ params }) {
 	}
 
 	const scraper = await db.query.scraperServerTbl.findFirst({
-		where: (scrapers, { eq }) => eq(scrapers.id, 1)
+		where: (scrapers, { eq }) => eq(scrapers.id, scraperId)
 	});
 	if (!scraper) {
 		error(404, 'Scraper not found');
@@ -24,6 +24,6 @@ export async function POST({ params }) {
 	if (res.status === 'success') {
 		return json(res.data);
 	} else {
-		error(res.scraperApiHttpCode ?? 500, res.message);
+		error(res.httpCode, res.message);
 	}
 }

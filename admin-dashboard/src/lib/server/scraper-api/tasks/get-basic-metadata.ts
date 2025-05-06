@@ -5,7 +5,7 @@ import { tasksPageSchema, dataFetchingTaskSchema } from '$lib/types-and-schemas/
 /**
  * Fetches a page of task metadata from the scraper.
  */
-export const getScraperTaskMetadataPage = async (
+export const fetchScraperTaskMetadataPage = async (
 	scraper: Scraper,
 	page: number,
 	pageSize: number
@@ -25,7 +25,7 @@ export const getScraperTaskMetadataPage = async (
 /**
  * Fetches metadata for a specific task from the scraper.
  */
-export const getScraperTaskMetadata = async (scraper: Scraper, taskId: number) => {
+export const fetchScraperTaskMetadata = async (scraper: Scraper, taskId: number) => {
 	return await makeRequestToScraper({
 		method: 'GET',
 		scraper,

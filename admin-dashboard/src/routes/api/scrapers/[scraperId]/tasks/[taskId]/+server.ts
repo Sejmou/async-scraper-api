@@ -1,6 +1,6 @@
 import { db } from '$lib/server/db';
 import { scraperServerTbl } from '$lib/server/db/schema';
-import { getScraperTaskMetadata } from '$lib/server/scraper-api/tasks/get-basic-metadata.js';
+import { fetchScraperTaskMetadata } from '$lib/server/scraper-api/tasks/get-basic-metadata.js';
 import { json, error } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 
@@ -20,10 +20,10 @@ export async function GET({ params }) {
 		error(400, 'Invalid taskId');
 	}
 
-	const res = await getScraperTaskMetadata(scraper, taskId);
+	const res = await fetchScraperTaskMetadata(scraper, taskId);
 	if (res.status === 'success') {
 		return json(res.data);
 	} else {
-		error(res.scraperApiHttpCode ?? 500, res.message);
+		error(res.httpCode, res.message);
 	}
 }
