@@ -2,8 +2,9 @@
 	import Button from '$lib/components/ui/button/button.svelte';
 	import PageHeading from '$lib/components/ui/page-heading.svelte';
 	import * as Card from '$lib/components/ui/card';
-	import ScraperTaskProgressTracker from '$lib/components/task-state-management/scraper-task-progress-tracker.svelte';
-	import ScraperTaskManager from '$lib/components/task-state-management/scraper-task-manager.svelte';
+	import ScraperTaskProgressTracker from '$lib/components/tasks/scraper-task-progress-tracker.svelte';
+	import ScraperTaskManager from '$lib/components/tasks/scraper-task-manager.svelte';
+	import TaskLogViewer from '$lib/components/tasks/task-log-viewer.svelte';
 
 	let { data } = $props();
 
@@ -90,3 +91,5 @@
 
 <h3 class="mt-4 text-xl font-semibold">Inputs</h3>
 TODO: Find way to display inputs
+
+<TaskLogViewer scraperId={scraperTask.scraperId} scraperTaskId={scraperTask.scraperTaskId} />

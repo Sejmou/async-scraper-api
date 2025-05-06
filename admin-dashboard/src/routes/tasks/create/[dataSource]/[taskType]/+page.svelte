@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { z } from 'zod';
-	import { setTaskFormState } from '$lib/components/new-task-form/index.svelte.js';
-	import NewTaskForm from '$lib/components/new-task-form/new-task-form.svelte';
+	import { setTaskFormState } from '$lib/components/tasks/new-task-form/index.svelte.js';
+	import NewTaskForm from '$lib/components/tasks/new-task-form/new-task-form.svelte';
 
 	let { data } = $props();
 

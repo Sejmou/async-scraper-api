@@ -3,12 +3,12 @@
 	import DataTableExternalPagination from '$lib/components/ui/data-table-external-pagination.svelte';
 	import { renderComponent } from '$lib/components/ui/data-table/render-helpers';
 	import type { ColumnDef, OnChangeFn, PaginationState } from '@tanstack/table-core';
-	import TaskStatus from '$lib/components/task-state-management/task-status.svelte';
-	import TaskActions from './task-actions.svelte';
+	import TaskStatus from '$lib/components/tasks/task-status.svelte';
+	import TaskActions from './scraper-task-actions.svelte';
 	import TaskFileUploads from './task-file-uploads.svelte';
 	import { pauseTask, resumeTask } from '$lib/client-api/scrapers/tasks/state-management';
-	import { timeAgo } from '$lib/utils';
-	import ScraperTaskProgressTracker from '$lib/components/task-state-management/scraper-task-progress-tracker.svelte';
+	import { timeAgoFromDateString } from '$lib/utils';
+	import ScraperTaskProgressTracker from '$lib/components/tasks/scraper-task-progress-tracker.svelte';
 
 	let { data } = $props();
 	let scraper = $derived(data.scraper);
@@ -75,11 +75,11 @@
 		},
 		{
 			header: 'Created',
-			accessorFn: (row) => timeAgo(row.created_at)
+			accessorFn: (row) => timeAgoFromDateString(row.created_at)
 		},
 		{
 			header: 'Last Update',
-			accessorFn: (row) => timeAgo(row.updated_at)
+			accessorFn: (row) => timeAgoFromDateString(row.updated_at)
 		},
 		{
 			accessorKey: 'file_uploads',

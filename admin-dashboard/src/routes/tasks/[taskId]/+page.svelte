@@ -1,8 +1,8 @@
 <script lang="ts">
 	import type { ColumnDef } from '@tanstack/table-core';
 	import { renderComponent } from '$lib/components/ui/data-table';
-	import ScraperTaskProgressTracker from '$lib/components/task-state-management/scraper-task-progress-tracker.svelte';
-	import ScraperTaskManager from '$lib/components/task-state-management/scraper-task-manager.svelte';
+	import ScraperTaskProgressTracker from '$lib/components/tasks/scraper-task-progress-tracker.svelte';
+	import ScraperTaskManager from '$lib/components/tasks/scraper-task-manager.svelte';
 	import DataTable from '$lib/components/ui/data-table.svelte';
 	import PageHeading from '$lib/components/ui/page-heading.svelte';
 	import ButtonWithTextProp from '$lib/components/ui/button-with-text-prop.svelte';

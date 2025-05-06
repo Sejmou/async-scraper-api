@@ -1,5 +1,5 @@
 <script lang="ts">
-	import ScraperTaskProgress from '$lib/components/task-state-management/task-progress-display.svelte';
+	import ScraperTaskProgress from '$lib/components/tasks/task-progress-display.svelte';
 	import type { TaskProgress } from '$lib/types-and-schemas/tasks/common';
 
 	let {
@@ -7,7 +7,7 @@
 		scraperCount
 	}: { progressPromise: Promise<TaskProgress>; scraperCount: number } = $props();
 
-	let scraperDesc = $derived(scraperCount > 1 ? `${scraperCount} scrapers` : '1 scraper');
+	let scraperDesc = $derived(scraperCount > 1 ? `on ${scraperCount} scrapers` : 'on 1 scraper');
 </script>
 
 {#if scraperCount > 0}
@@ -16,8 +16,8 @@
 	{:then progress}
 		<ScraperTaskProgress
 			{progress}
-			dataDescSingular={`item (${scraperDesc})`}
-			dataDescPlural={`items (${scraperDesc})`}
+			dataDescSingular={`item ${scraperDesc}`}
+			dataDescPlural={`items ${scraperDesc}`}
 		/>
 	{:catch}
 		<span>Error while fetching</span>

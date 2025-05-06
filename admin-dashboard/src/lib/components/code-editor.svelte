@@ -19,6 +19,8 @@
 			keybinding: number;
 			handler: Monaco.editor.ICommandHandler;
 		}[];
+		readOnly?: boolean;
+		scrollbarAlwaysConsumeMouseWheel?: boolean;
 	};
 
 	let {
@@ -27,7 +29,9 @@
 		language = 'sql',
 		theme = 'quietlight',
 		minimap = false,
-		keybindings = []
+		keybindings = [],
+		readOnly = false,
+		scrollbarAlwaysConsumeMouseWheel = false
 	}: Props = $props();
 
 	onMount(() => {
@@ -41,12 +45,13 @@
 				value,
 				language,
 				theme,
+				readOnly,
 				minimap: {
 					enabled: minimap
 				},
 				automaticLayout: true,
 				scrollbar: {
-					alwaysConsumeMouseWheel: false
+					alwaysConsumeMouseWheel: scrollbarAlwaysConsumeMouseWheel
 				},
 				overviewRulerLanes: 0,
 				overviewRulerBorder: false,

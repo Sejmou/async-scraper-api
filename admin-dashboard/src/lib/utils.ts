@@ -20,19 +20,30 @@ export function indent(input: string, spaces = 2) {
 		.join('\n');
 }
 
-export function timeAgo(input: string, assumeUTC = true): string {
-	const dateString = assumeUTC && !input.endsWith('Z') ? input + 'Z' : input;
-	const parsedDate = new Date(dateString);
+export function downloadAsFile(text: string, filename: string) {
+	const blob = new Blob([text], { type: 'text/plain' });
+	const url = URL.createObjectURL(blob);
 
+	const a = document.createElement('a');
+	a.href = url;
+	a.download = filename;
+	a.click();
+
+	URL.revokeObjectURL(url);
+}
+
+export function currentTimestampToFilenameCompatibleString() {
+	return new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').replace('Z', '');
+}
+
+export function timeAgoUTCDate(input: Date): string {
 	const now = new Date();
 
-	const seconds = Math.floor((now.getTime() - parsedDate.getTime()) / 1000);
+	const seconds = Math.floor((now.getTime() - input.getTime()) / 1000);
 	if (seconds < 0) {
 		console.warn({
 			message: 'timeAgo called with a future date',
 			input,
-			parsedDate,
-			assumeUTC,
 			now
 		});
 		return 'in the future? wtf lol';
@@ -52,6 +63,21 @@ export function timeAgo(input: string, assumeUTC = true): string {
 	if (months < 12) return `${months} month${months === 1 ? '' : 's'} ago`;
 	const years = Math.floor(days / 365);
 	return `${years} year${years === 1 ? '' : 's'} ago`;
+}
+
+export function timeAgoFromDateString(input: string, assumeUTC = true): string {
+	const dateString = assumeUTC && !input.endsWith('Z') ? input + 'Z' : input;
+	const parsedDate = new Date(dateString);
+	if (isNaN(parsedDate.getTime())) {
+		console.warn({
+			message: 'timeAgoFromDateString called with an invalid date string',
+			input,
+			parsedDate,
+			assumeUTC
+		});
+		return 'Invalid date';
+	}
+	return timeAgoUTCDate(parsedDate);
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
