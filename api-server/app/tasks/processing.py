@@ -394,7 +394,7 @@ class TaskProcessor[T: JSONValue](ABC):
             self._output_file.write(json.dumps(output) + "\n")
             self._logger.debug(f"Wrote output to {self._output_fp}")
         except Exception as e:
-            self._handle_failure(output)
+            self._handle_failure(output, e)
             raise e
 
         if (
@@ -413,7 +413,8 @@ class TaskProcessor[T: JSONValue](ABC):
         await self._write_output(output, db_session)
         self._successes_q.put(input_item)
 
-    def _handle_failure(self, input_item: T):
+    def _handle_failure(self, input_item: T, e: Exception):
+        self._logger.exception(e)
         self._failure_q.put(input_item)
 
     def _handle_input_without_output(self, input_without_output: T):
@@ -454,9 +455,8 @@ class SequentialTaskProcessor[T: JSONValue](TaskProcessor[T]):
                     self._handle_input_without_output(input_item)
                     item_processed = True
             except Exception as e:
-                self._handle_failure(input_item)
+                self._handle_failure(input_item, e)
                 item_processed = True
-                raise e
             finally:
                 if item_processed:
                     # 'commit changes' to the queue so that they are persisted even if the server crashes immediately after processing the input item
@@ -512,9 +512,8 @@ class BatchTaskProcessor[T: JSONValue](TaskProcessor[T]):
                     batch_processed = True
             except Exception as e:
                 for input_item in batch:
-                    self._handle_failure(input_item)
+                    self._handle_failure(input_item, e)
                 batch_processed = True
-                raise e
             finally:
                 if batch_processed:
                     # 'commit changes' to the queue so that they are persisted even if the server crashes immediately after processing the batch
