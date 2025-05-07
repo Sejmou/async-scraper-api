@@ -14,9 +14,9 @@ _table_names = {
 }
 
 
-class TaskQueueItemFetcher:
+class TaskQueueItemManager:
     """
-    A simple class to fetch items from the SQLite database storing the `persist-queue` SQLite queues for scraper task inputs (cf. processing.py)
+    A simple class to manage items in the `persist-queue` SQLite queues for scraper task inputs (created by the TaskProcessor for a particular task, cf. processing.py)
     """
 
     def __init__(self, db_path):
@@ -69,9 +69,28 @@ class TaskQueueItemFetcher:
 
             return rows
 
+    def remove_queue_item(self, id: int, queue_type: QueueType):
+        """Remove an item from the queue.
+
+        Args:
+            id (int): The ID of the item to remove.
+            queue_type (str): The type of queue to remove the item from. Must be one of 'remaining_inputs', 'successes', 'failures', or 'inputs_without_outputs'.
+
+        Returns:
+            bool: True if the item was successfully removed, False otherwise.
+        """
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                f"DELETE FROM {_table_names[queue_type]} WHERE _id = ?",
+                (id,),
+            )
+            conn.commit()
+            return cursor.rowcount > 0
+
 
 if __name__ == "__main__":
     db_path = "/Users/sejmou/Repos/Python/scraper-api-v2/api-server/data/task_progress_dbs/72.db"
-    fetcher = TaskQueueItemFetcher(db_path)
+    fetcher = TaskQueueItemManager(db_path)
     queue_items = fetcher.get_queue_items("successes")
     print(queue_items)

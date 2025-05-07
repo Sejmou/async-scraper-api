@@ -13,17 +13,17 @@ from app.tasks import get_task_processor, run_in_background
 from app.tasks.progress.public_models import TaskProgress, TaskProgressDetails
 from app.tasks.progress import TaskProgressTracker
 from app.config import settings, app_logger
-from app.tasks.queue_items import QueueType, TaskQueueItemFetcher
+from app.tasks.queue_items import QueueType, TaskQueueItemManager
 
 router = APIRouter(prefix="/tasks")
 
 
-def create_task_queue_item_fetcher(task_id: int) -> TaskQueueItemFetcher:
+def create_task_queue_item_fetcher(task_id: int) -> TaskQueueItemManager:
     """
     Create a TaskQueueItemFetcher instance with the proper database path, inferred from settings.
     """
     db_path = os.path.join(settings.task_progress_dbs_dir, f"{task_id}.db")
-    return TaskQueueItemFetcher(db_path)
+    return TaskQueueItemManager(db_path)
 
 
 @router.get("/", response_model=Page[TaskModel])
@@ -172,3 +172,32 @@ async def task_queue_items(
     item_fetcher = create_task_queue_item_fetcher(task_id)
     items = item_fetcher.get_queue_items(queue_type, last_id, limit)
     return items
+
+
+@router.delete("/{task_id}/queue_items/{queue_type}/{item_id}")
+async def delete_task_queue_item(
+    task_id: int,
+    queue_type: QueueType,
+    item_id: int,
+    session: DBSessionDep,
+):
+    """
+    Delete an item from the queue for a given task.
+    """
+    task = await session.scalar(
+        select(DBTask)
+        .where(DBTask.id == task_id)
+        .options(joinedload(DBTask.file_uploads))
+    )
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    item_fetcher = create_task_queue_item_fetcher(task_id)
+
+    removed = item_fetcher.remove_queue_item(item_id, queue_type)
+    if not removed:
+        raise HTTPException(status_code=404, detail="Item not found in queue")
+
+    return {
+        "message": f"Item {item_id} removed from {queue_type} queue for task {task_id}"
+    }
