@@ -1,7 +1,7 @@
 <script lang="ts">
 	import * as Form from '$lib/components/ui/form';
 	import { MessageAlert } from '$lib/components/ui/message-alert';
-	import { InputExtractor } from '$lib/components/task-input-extractor/index.svelte';
+	import { InputExtractor } from '$lib/components/tasks/task-input-extractor/index.svelte';
 	import SpotifyRegionParamFormField from './task-params-form-fields/spotify/region.svelte';
 	import SpotifyArtistAlbumsReleaseTypesFormFields from './task-params-form-fields/spotify/artist-albums-release-types.svelte';
 

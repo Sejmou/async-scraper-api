@@ -2,7 +2,7 @@
 	import { z } from 'zod';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { type InputExtractorState } from './index.svelte';
-	import { Button } from '../ui/button';
+	import { Button } from '$lib/components/ui/button';
 	import type { Message } from '$lib/components/ui/console-message-alert';
 	import { ConsoleMessageAlert } from '$lib/components/ui/console-message-alert';
 

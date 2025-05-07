@@ -2,7 +2,7 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { z } from 'zod';
 	import type { InputExtractorState } from './index.svelte';
-	import DataTableExternalPagination from '../ui/data-table-external-pagination.svelte';
+	import DataTableExternalPagination from '$lib/components/ui/data-table-external-pagination.svelte';
 	import type { OnChangeFn, PaginationState } from '@tanstack/table-core';
 
 	let { ieState, open = $bindable() }: { ieState: InputExtractorState<T>; open: boolean } =
