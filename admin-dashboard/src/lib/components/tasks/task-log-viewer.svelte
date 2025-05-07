@@ -63,25 +63,27 @@
 	<p>Error: {$logFileQuery.error.message}</p>
 {:else if $logFileQuery.isSuccess}
 	{@const fileContents = $logFileQuery.data}
-	<h3 class="mt-4 text-xl font-semibold">
-		Logs
-		<Button class="ml-2" variant="outline" size="sm" onclick={handleDownloadClick}>
-			<Download />
-			Download
-		</Button>
-	</h3>
-	<div class="flex w-full items-center justify-between">
-		<span class="text-sm text-muted-foreground">
-			Last update: {timeAgoUTCDate(lastRefreshDate)}
-		</span>
-		<Button variant="outline" size="sm" onclick={$logFileQuery.refetch}><RefreshCw />Refresh</Button
-		>
+	<div class="flex w-full flex-col gap-2">
+		<div class="flex w-full items-center justify-between">
+			<span class="text-sm text-muted-foreground">
+				Last update: {timeAgoUTCDate(lastRefreshDate)}
+			</span>
+			<div class="flex gap-2">
+				<Button variant="outline" size="sm" onclick={$logFileQuery.refetch}>
+					<RefreshCw />Refresh
+				</Button>
+				<Button class="ml-2" variant="outline" size="sm" onclick={handleDownloadClick}>
+					<Download />
+					Download
+				</Button>
+			</div>
+		</div>
+		<CodeEditor
+			class={cn('min-h-[420px]', className)}
+			value={fileContents}
+			language="plaintext"
+			readOnly
+			scrollbarAlwaysConsumeMouseWheel
+		/>
 	</div>
-	<CodeEditor
-		class={cn('min-h-[420px]', className)}
-		value={fileContents}
-		language="plaintext"
-		readOnly
-		scrollbarAlwaysConsumeMouseWheel
-	/>
 {/if}

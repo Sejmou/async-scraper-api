@@ -2,7 +2,7 @@
 	import { createInfiniteQuery } from '@tanstack/svelte-query';
 	import type { TaskQueueType } from '$lib/types-and-schemas/tasks/common';
 	import { fetchTaskQueueItems } from '$lib/client-api/scrapers/tasks/queue-items';
-	import * as Table from '$lib/components/ui/table';
+	import * as Table from '$lib/components/ui/table-sticky-header';
 	import { Button } from '$lib/components/ui/button';
 
 	let {
@@ -60,8 +60,8 @@
 		Some pages have errors. Please check the logs for more details.
 	{:else}
 		{#if successPages.length > 0 && successPages[0].items.length > 0}
-			<div class="max-h-[520px] overflow-y-auto rounded-lg border">
-				<Table.Root>
+			<div class="rounded-lg border">
+				<Table.Root maxHeight="520px">
 					<Table.Header>
 						<Table.Row>
 							<Table.Head>ID</Table.Head>
@@ -83,6 +83,8 @@
 					</Table.Body>
 				</Table.Root>
 			</div>
+		{:else}
+			<div class="h-[520px] p-4"><p class="text-sm text-muted-foreground">No items.</p></div>
 		{/if}
 		<div class="mt-2 flex w-full flex-col items-center">
 			<Button

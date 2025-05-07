@@ -28,6 +28,7 @@
 	</div>
 {:else}
 	<Button
+		size="sm"
 		variant={status === 'error' ? 'destructive' : 'outline'}
 		onclick={handleClick}
 		disabled={status === 'pausing'}
