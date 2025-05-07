@@ -8,7 +8,8 @@
 		timeAgoUTCDate
 	} from '$lib/utils';
 	import { Button } from '$lib/components/ui/button';
-	import { Download, RefreshCw } from 'lucide-svelte/icons';
+	import Download from 'lucide-svelte/icons/download';
+	import RefreshCw from 'lucide-svelte/icons/refresh-cw';
 	import { onMount } from 'svelte';
 
 	let {

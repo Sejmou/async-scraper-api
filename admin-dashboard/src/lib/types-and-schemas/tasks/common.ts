@@ -72,6 +72,31 @@ export const taskProgressSchema = z.object({
 	remaining_count: z.number()
 });
 
+export const deleteConfirmMessageSchema = z.object({
+	message: z.string()
+});
+
 export type DataFetchingTask = z.infer<typeof dataFetchingTaskSchema>;
 export type S3FileUpload = z.infer<typeof s3FileUploadSchema>;
 export type TaskProgress = z.infer<typeof taskProgressSchema>;
+
+const taskQueueItemSchema = z.object({
+	id: z.number(),
+	data: jsonValueSchema,
+	added_at: z.string().refine((val) => !isNaN(Date.parse(val)), {
+		message: 'Invalid date format for created_at'
+	})
+});
+export const taskQueueItemsPageSchema = z.object({
+	items: z.array(taskQueueItemSchema),
+	next_cursor: z.number().int().positive().nullable(),
+	total: z.number().int().nonnegative()
+});
+
+export const taskQueueTypeSchema = z.union([
+	z.literal('remaining-inputs'),
+	z.literal('successes'),
+	z.literal('failures'),
+	z.literal('inputs-without-output')
+]);
+export type TaskQueueType = z.infer<typeof taskQueueTypeSchema>;

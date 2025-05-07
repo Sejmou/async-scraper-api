@@ -2,6 +2,7 @@ import { z, ZodError, type ZodTypeAny } from 'zod';
 
 type SvelteKitServerApiRequestDataBase<S extends ZodTypeAny> = {
 	path: string;
+	params?: Record<string, string | number | boolean>;
 	responseSchema: S;
 };
 
@@ -16,9 +17,15 @@ type SvelteKitServerApiPostRequestData<S extends ZodTypeAny> =
 		body?: Record<string, unknown>;
 	};
 
+type SvelteKitServerApiDeleteRequestData<S extends ZodTypeAny> =
+	SvelteKitServerApiRequestDataBase<S> & {
+		method: 'DELETE';
+	};
+
 type SvelteKitServerApiRequestMetaData<S extends ZodTypeAny> =
 	| SvelteKitServerApiGetRequestData<S>
-	| SvelteKitServerApiPostRequestData<S>;
+	| SvelteKitServerApiPostRequestData<S>
+	| SvelteKitServerApiDeleteRequestData<S>;
 
 const errorResponseSchema = z.object({
 	message: z.string()
@@ -40,8 +47,16 @@ export const makeRequestToServerApi = async <S extends ZodTypeAny>(
 	reqMeta: SvelteKitServerApiRequestMetaData<S>
 ): SvelteKitServerApiResponse<S> => {
 	// console.log('Making request to server API', reqMeta);
-	const { path, method, responseSchema } = reqMeta;
-	const url = `/api/${path}`;
+	const { path, method, responseSchema, params } = reqMeta;
+	const urlParams = new URLSearchParams();
+	if (params) {
+		for (const [key, value] of Object.entries(params)) {
+			urlParams.append(key, String(value));
+		}
+	}
+	const url = `/api/${path}${urlParams.toString() ? '?' + urlParams.toString() : ''}`;
+	// console.log('Request URL:', url);
+
 	const res = await fetch(url, {
 		method,
 		headers: {

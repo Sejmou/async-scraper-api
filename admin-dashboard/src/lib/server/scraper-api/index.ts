@@ -17,9 +17,14 @@ type ScraperPostRequestData<S extends ZodTypeAny> = ScraperRequestDataBase<S> & 
 	body?: Record<string, unknown>;
 };
 
+type ScraperDeleteRequestData<S extends ZodTypeAny> = ScraperRequestDataBase<S> & {
+	method: 'DELETE';
+};
+
 type ScraperRequestMetaData<S extends ZodTypeAny> =
 	| ScraperGetRequestData<S>
-	| ScraperPostRequestData<S>;
+	| ScraperPostRequestData<S>
+	| ScraperDeleteRequestData<S>;
 
 export const constructScraperBaseUrl = (scraper: Scraper): string => {
 	return `${scraper.protocol}://${scraper.host}:${scraper.port}`;
