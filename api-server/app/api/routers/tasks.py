@@ -157,10 +157,17 @@ async def task_queue_items(
     queue_type: QueueType,
     session: DBSessionDep,
     limit: int = 10,
-    last_id: int | None = None,
+    cursor_id: int | None = None,
 ):
     """
     Get the items in the queue for a given task.
+
+    Args:
+        task_id (int): The ID of the task.
+        queue_type (QueueType): The type of queue to fetch items from.
+        session (DBSessionDep): The database session dependency.
+        limit (int, optional): The maximum number of items to fetch. Defaults to 10.
+        cursor_id (int, optional): The ID to start fetching items from (cursor-based pagination!). Defaults to None.
     """
     task = await session.scalar(
         select(DBTask)
@@ -170,7 +177,7 @@ async def task_queue_items(
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     item_fetcher = create_task_queue_item_fetcher(task_id)
-    items = item_fetcher.get_queue_items(queue_type, last_id, limit)
+    items = item_fetcher.get_queue_items(queue_type, cursor_id, limit)
     return items
 
 

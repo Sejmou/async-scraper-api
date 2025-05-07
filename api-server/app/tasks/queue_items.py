@@ -32,20 +32,23 @@ class TaskQueueItemManager:
     def get_queue_items(
         self,
         queue_type: QueueType,
-        last_id: int | None = None,
+        cursor_id: int | None = None,
         limit: int = 10,
     ):
-        """Retrieve items from the item fetcher's SQLite database for the scraper task input queues using cursor-based pagination (i.e. the last ID of the previous page is used to fetch the next page).
+        """Retrieve items from the item fetcher's SQLite database for the scraper task input queues using cursor-based pagination (i.e. a cursor ID is used to fetch the next set of items).
+        This method fetches items from the specified queue type, starting from the given cursor ID (if provided) and limiting the number of items returned to the specified limit.
+
+        The items are ordered by their ID in ascending order (i.e. oldest come first).
 
         Args:
             queue_type (QueueType): The type of queue to fetch items from.
-            last_id (int, optional): The ID of the last item fetched. If provided, only items with IDs greater than this will be fetched.
+            cursor_id (int, optional): The ID
             limit (int, optional): The maximum number of items to fetch. Defaults to 10.
 
         Returns:
-            dict: A dictionary containing the fetched items and the ID of the next item to fetch.
+            dict: A dictionary containing the fetched items and the ID of the next item in the queue (after the last item returned in "items").
                 - "items": A list of dictionaries representing the fetched items. Each dictionary contains the keys 'id', 'data', and 'added_at'. Items are ordered by their ID in ascending order (i.e. oldest come first).
-                - "next_cursor": The ID of the next item to fetch, or None if there are no more items.
+                - "next_cursor": The ID of the next item in the queue (after the last item returned in "items"), or None if there are no more items.
                 - "total": The total number of items in the queue.
         """
 
@@ -58,9 +61,9 @@ class TaskQueueItemManager:
                   CAST(data AS text) AS data,
                   datetime(timestamp, 'unixepoch') AS added_at
                 FROM {_table_names[queue_type]}
-                {'WHERE _id > ?' if last_id else ''} ORDER BY id ASC LIMIT ?
+                {'WHERE _id >= ?' if cursor_id else ''} ORDER BY id ASC LIMIT ?
                 """,
-                (last_id, limit) if last_id else (limit,),
+                (cursor_id, limit) if cursor_id else (limit,),
             )
             rows = cursor.fetchall()
 
