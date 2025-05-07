@@ -13,8 +13,17 @@ from app.tasks import get_task_processor, run_in_background
 from app.tasks.progress.public_models import TaskProgress, TaskProgressDetails
 from app.tasks.progress import TaskProgressTracker
 from app.config import settings, app_logger
+from app.tasks.queue_items import QueueType, TaskQueueItemFetcher
 
 router = APIRouter(prefix="/tasks")
+
+
+def create_task_queue_item_fetcher(task_id: int) -> TaskQueueItemFetcher:
+    """
+    Create a TaskQueueItemFetcher instance with the proper database path, inferred from settings.
+    """
+    db_path = os.path.join(settings.task_progress_dbs_dir, f"{task_id}.db")
+    return TaskQueueItemFetcher(db_path)
 
 
 @router.get("/", response_model=Page[TaskModel])
@@ -140,3 +149,26 @@ async def task_logs(task_id: int, session: DBSessionDep):
         media_type="text/plain",
         filename=f"{task_id}.log",
     )
+
+
+@router.get("/{task_id}/queue_items/{queue_type}")
+async def task_queue_items(
+    task_id: int,
+    queue_type: QueueType,
+    session: DBSessionDep,
+    limit: int = 10,
+    last_id: int | None = None,
+):
+    """
+    Get the items in the queue for a given task.
+    """
+    task = await session.scalar(
+        select(DBTask)
+        .where(DBTask.id == task_id)
+        .options(joinedload(DBTask.file_uploads))
+    )
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    item_fetcher = create_task_queue_item_fetcher(task_id)
+    items = item_fetcher.get_queue_items(queue_type, last_id, limit)
+    return items
