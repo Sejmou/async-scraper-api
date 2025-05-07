@@ -3,14 +3,14 @@ from typing import Literal
 
 
 type QueueType = Literal[
-    "remaining_inputs", "successes", "failures", "inputs_without_output"
+    "remaining-inputs", "successes", "failures", "inputs-without-output"
 ]
 
 _table_names: dict[QueueType, str] = {
-    "remaining_inputs": "unique_queue_inputs",
+    "remaining-inputs": "unique_queue_inputs",
     "successes": "queue_successes",
     "failures": "queue_failures",
-    "inputs_without_output": "queue_inputs_without_output",
+    "inputs-without-output": "queue_inputs_without_output",
 }
 """
 A dictionary mapping queue types to their corresponding SQLite table names.
@@ -38,7 +38,7 @@ class TaskQueueItemManager:
         """Retrieve items from the item fetcher's SQLite database for the scraper task input queues using cursor-based pagination (i.e. the last ID of the previous page is used to fetch the next page).
 
         Args:
-            queue_type (str): The type of queue to fetch items from. Must be one of 'remaining_inputs', 'successes', 'failures', or 'inputs_without_outputs'.
+            queue_type (QueueType): The type of queue to fetch items from.
             last_id (int, optional): The ID of the last item fetched. If provided, only items with IDs greater than this will be fetched.
             limit (int, optional): The maximum number of items to fetch. Defaults to 10.
 
@@ -97,7 +97,7 @@ class TaskQueueItemManager:
 
         Args:
             id (int): The ID of the item to remove.
-            queue_type (str): The type of queue to remove the item from. Must be one of 'remaining_inputs', 'successes', 'failures', or 'inputs_without_outputs'.
+            queue_type (QueueType): The type of queue to remove the item from.
 
         Returns:
             bool: True if the item was successfully removed, False otherwise.

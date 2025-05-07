@@ -151,7 +151,7 @@ async def task_logs(task_id: int, session: DBSessionDep):
     )
 
 
-@router.get("/{task_id}/queue_items/{queue_type}")
+@router.get("/{task_id}/queue-items/{queue_type}")
 async def task_queue_items(
     task_id: int,
     queue_type: QueueType,
@@ -174,7 +174,7 @@ async def task_queue_items(
     return items
 
 
-@router.delete("/{task_id}/queue_items/{queue_type}/{item_id}")
+@router.delete("/{task_id}/queue-items/{queue_type}/{item_id}")
 async def delete_task_queue_item(
     task_id: int,
     queue_type: QueueType,
