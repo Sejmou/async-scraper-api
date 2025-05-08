@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     The path where the SQLite database for the application's core data (excluding task progress state) should be stored.
     
     Defaults to an SQLite database named `app.db` in the `data` directory (parent of the directory where this file is located at).
-    If `use_hostname_dir` is set, the file will be stored in a subdirectory of the original directory mentioned in the initial variable value. The name of the subdirectory will be derived from the HOSTNAME environment variable.
+    If `replica_id` is set, a subdirectory with the same name as the value of `replica_id` will be added to end of the directories in `database_file_path` (see docs for `replica_ id` for an explanation of the reasoning behind this).
     """
 
     @property
@@ -41,18 +41,11 @@ class Settings(BaseSettings):
 
     log_level: str = "DEBUG"
 
-    use_hostname_subdir: bool = False
+    replica_id: str | None = None
     """
-    If this flag is set, all logs and persistent data will be written to and read from subdirectories with the same name as the `HOSTNAME` environment variable.
+    If this `replica_id` is set, all logs and persistent data will be written to and read from subdirectories with a name matching `replica_id`.
 
-    Example: If `use_hostname_subdir` is set, a subdirectory matching the HOSTNAME env var will be added to the directory original DATABASE_FILE_PATH
-
-    This is useful for running multiple copies of the API server on one host machine, e.g. during testing with Docker Compose (where each service mounts the same 'root volumes').
-    """
-
-    hostname: str | None = None
-    """
-    Only relevant if use_hostname_subdir is set. See its docs for details.
+    This is useful for running multiple copies of the API server on one host machine, e.g. a Docker compose project with multiple 'replicas' (where each service mounts the same 'root volumes').
     """
 
     api_client_log_dir: str = f"{file_dir.parent.resolve()}/logs/api_clients"
@@ -60,14 +53,14 @@ class Settings(BaseSettings):
     The directory where logs from any API clients used in the application are stored.
 
     Defaults to the `logs` directory in the parent directory of the directory containing this file.
-    If `use_hostname_dir` is set, data will be stored in a subdirectory of this directory. The name of the subdirectory will be derived from the HOSTNAME environment variable.
+    If `replica_id` is set, data will be stored in a subdirectory with the same name as the value of `replica_id`.
     """
 
     app_log_dir: str = f"{file_dir.parent.resolve()}/logs"
     """
     The directory where 'global' logs from the main application are stored.
 
-    If `use_hostname_dir` is set, data will be stored in a subdirectory of this directory. The name of the subdirectory will be derived from the HOSTNAME environment variable.
+    If `replica_id` is set, data will be stored in a subdirectory with the same name as the value of `replica_id`.
     """
 
     task_log_dir: str = f"{file_dir.parent.resolve()}/logs/tasks"
@@ -75,7 +68,7 @@ class Settings(BaseSettings):
     The directory where logs for the tasks are stored. Each task will have its own log file named after the task ID.
 
     Defaults to the `logs` directory in the parent directory of the directory containing this file.
-    If `use_hostname_dir` is set, data will be stored in a subdirectory of this directory. The name of the subdirectory will be derived from the HOSTNAME environment variable.
+    If `replica_id` is set, data will be stored in a subdirectory with the same name as the value of `replica_id`.
     """
 
     task_output_dir: str = f"{file_dir.parent.resolve()}/data/task_outputs"
@@ -83,7 +76,7 @@ class Settings(BaseSettings):
     The directory where the output files for tasks are stored. During processing, each task will have its own JSONL file named after the task ID.
     The JSONL files are compressed using zstd and uploaded to S3 once they reach a certain size or when all inputs have been processed.
 
-    If `use_hostname_dir` is set, data will be stored in a subdirectory of this directory. The name of the subdirectory will be derived from the HOSTNAME environment variable.
+    If `replica_id` is set, data will be stored in a subdirectory with the same name as the value of `replica_id`.
     """
 
     task_progress_dbs_dir: str = f"{file_dir.parent.resolve()}/data/task_progress_dbs"
@@ -92,7 +85,7 @@ class Settings(BaseSettings):
     1 database file is created and maintained/accessed for each `TaskProcessor` for a particular task ID.
     Each file stores the input items that have not been processed yet as well as the inputs that either resulted in an error or produced no output at all.
 
-    If `use_hostname_dir` is set, data will be stored in a subdirectory of this directory. The name of the subdirectory will be derived from the HOSTNAME environment variable.
+    If `replica_id` is set, data will be stored in a subdirectory with the same name as the value of `replica_id`.
     """
 
     s3_endpoint_url: str
@@ -118,22 +111,22 @@ class Settings(BaseSettings):
 
 settings = Settings()  # type: ignore
 
-if settings.use_hostname_subdir:
-    if not settings.hostname:
-        raise ValueError("USE_HOSTNAME_SUBDIR was set, but no HOSTNAME was provided!")
+if settings.replica_id:
     settings.database_file_path = os.path.join(
         os.path.dirname(settings.database_file_path),
-        settings.hostname,
+        settings.replica_id,
         os.path.basename(settings.database_file_path),
     )
     settings.api_client_log_dir = os.path.join(
-        settings.api_client_log_dir, settings.hostname
+        settings.api_client_log_dir, settings.replica_id
     )
-    settings.app_log_dir = os.path.join(settings.app_log_dir, settings.hostname)
-    settings.task_log_dir = os.path.join(settings.task_log_dir, settings.hostname)
-    settings.task_output_dir = os.path.join(settings.task_output_dir, settings.hostname)
+    settings.app_log_dir = os.path.join(settings.app_log_dir, settings.replica_id)
+    settings.task_log_dir = os.path.join(settings.task_log_dir, settings.replica_id)
+    settings.task_output_dir = os.path.join(
+        settings.task_output_dir, settings.replica_id
+    )
     settings.task_progress_dbs_dir = os.path.join(
-        settings.task_progress_dbs_dir, settings.hostname
+        settings.task_progress_dbs_dir, settings.replica_id
     )
 
 DB_DIR = os.path.dirname(settings.database_file_path)
