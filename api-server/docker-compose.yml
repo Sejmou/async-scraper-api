@@ -13,9 +13,9 @@ services:
       # tells the service to store its persistent data and logs in a subdirectory named after the value of the HOSTNAME env var (set by Docker, equals container ID)
       - USE_HOSTNAME_SUBDIR=True
     ports:
-      # to run n replicas, add --scale scraper-api=n to docker compose up command
-      # modify port range to allow each container to get its own port if you need more than max_port - min_port services
-      - 4200-4209:80
+      # to run n replicas, add --scale scraper-api=n to docker compose up command and modify port range below (currently single port 4200) to allow each container to get its own port if you need more than max_port - min_port servicesi
+      # afaik there's no way to predefine ports for each replica upon startup :/
+      - 4200:80
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
