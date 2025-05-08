@@ -1,5 +1,5 @@
 ---
-- name: Execute basic-config.sh and git-pat-config.sh on target hosts
+- name: Basic scraper config on target hosts
   hosts: to_configure
   vars_prompt:
     - name: "ansible_become_password"
