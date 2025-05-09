@@ -13,6 +13,8 @@ from app.tasks.input_validation.spotify_api import (
     RegionSpecificParams,
     ArtistAlbumsParams,
 )
+from app.tasks.processing import FatalProcessingError
+from utils.spotify_api import CredentialsBlockedException
 
 type SequentialTask = Literal["artist-albums", "playlists", "isrc-track-search"]
 type BatchTask = Literal["tracks", "artists", "albums"]
@@ -46,19 +48,29 @@ class SpotifyAPISingleItemFetchFunctionFactory(
             )
 
             async def fetch_artist_albums(artist_id: str) -> Any:
-                return await spotify_api_client.artist_albums(
-                    artist_id,
-                    include_albums=params.release_types.albums,
-                    include_singles=params.release_types.singles,
-                    include_compilations=params.release_types.compilations,
-                    include_appears_on=params.release_types.appears_on,
-                    region=params.region,
-                )
+                try:
+                    return await spotify_api_client.artist_albums(
+                        artist_id,
+                        include_albums=params.release_types.albums,
+                        include_singles=params.release_types.singles,
+                        include_compilations=params.release_types.compilations,
+                        include_appears_on=params.release_types.appears_on,
+                        region=params.region,
+                    )
+                except CredentialsBlockedException as e:
+                    raise FatalProcessingError(e.message) from e
 
             return fetch_artist_albums
 
         elif task_type == "playlists":
-            return spotify_api_client.playlist
+
+            async def fetch_playlists(playlist_id: str) -> Any:
+                try:
+                    return await spotify_api_client.playlist(playlist_id)
+                except CredentialsBlockedException as e:
+                    raise FatalProcessingError(e.message) from e
+
+            return fetch_playlists
 
         elif task_type == "isrc-track-search":
             params = convert_to_basemodel_instance_of_type(
@@ -66,10 +78,13 @@ class SpotifyAPISingleItemFetchFunctionFactory(
             )
 
             async def fetch_tracks_for_isrc(isrc: str) -> Any:
-                return await spotify_api_client.search_tracks_for_isrc(
-                    isrc,
-                    region=params.region,
-                )
+                try:
+                    return await spotify_api_client.search_tracks_for_isrc(
+                        isrc,
+                        region=params.region,
+                    )
+                except CredentialsBlockedException as e:
+                    raise FatalProcessingError(e.message) from e
 
             return fetch_tracks_for_isrc
 
@@ -89,12 +104,25 @@ class SpotifyAPIBatchFetchFunctionFactory(DataSourceBatchFetchFunctionFactory):
             )
 
             async def fetch_tracks(track_ids: list[str]) -> Any:
-                return await spotify_api_client.tracks(track_ids, region=params.region)
+                try:
+                    return await spotify_api_client.tracks(
+                        track_ids,
+                        region=params.region,
+                    )
+                except CredentialsBlockedException as e:
+                    raise FatalProcessingError(e.message) from e
 
             return fetch_tracks
 
         elif task_type == "artists":
-            return spotify_api_client.artists
+
+            async def fetch_artists(artist_ids: list[str]) -> Any:
+                try:
+                    return await spotify_api_client.artists(artist_ids)
+                except CredentialsBlockedException as e:
+                    raise FatalProcessingError(e.message) from e
+
+            return fetch_artists
 
         elif task_type == "albums":
             params = convert_to_basemodel_instance_of_type(
@@ -102,9 +130,12 @@ class SpotifyAPIBatchFetchFunctionFactory(DataSourceBatchFetchFunctionFactory):
             )
 
             async def fetch_albums(album_ids: list[str]) -> Any:
-                return await spotify_api_client.albums(
-                    album_ids,
-                    region=params.region,
-                )
+                try:
+                    return await spotify_api_client.albums(
+                        album_ids,
+                        region=params.region,
+                    )
+                except CredentialsBlockedException as e:
+                    raise FatalProcessingError(e.message) from e
 
             return fetch_albums

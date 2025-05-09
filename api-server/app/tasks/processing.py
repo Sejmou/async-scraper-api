@@ -25,10 +25,14 @@ from app.utils.s3 import upload_file
 from app.utils.files import is_file_empty
 
 
-class TaskProcessingError(Exception):
-    def __init__(self, message: str, task_id: int) -> None:
+class FatalProcessingError(Exception):
+    """
+    Raised when a fatal error occurs that prevents the task from being processed further at this point in time (e.g. due to API access being blocked)
+    """
+
+    def __init__(self, message: str) -> None:
         super().__init__(message)
-        self.task_id = task_id
+        self.message = message
 
 
 class TaskProgressMeta(TypedDict):
@@ -296,7 +300,7 @@ class TaskProcessor[T: JSONValue](ABC):
                     db_task.status = "error"
                     await db_session.commit()
                     self._logger.exception(e)
-                    raise TaskProcessingError(str(e), task_id=self._task_id)
+                    raise e
 
             db_task.status = "running"
             await db_session.commit()
@@ -315,7 +319,7 @@ class TaskProcessor[T: JSONValue](ABC):
                 db_task.status = "error"
                 await db_session.commit()
                 self._logger.exception(e)
-                raise TaskProcessingError(str(e), task_id=self._task_id)
+                raise e
 
     def pause(self):
         self._pause_requested = True
@@ -390,12 +394,15 @@ class TaskProcessor[T: JSONValue](ABC):
         )
 
     async def _write_output(self, output: Any, db_session: AsyncDBSession):
-        try:
-            self._output_file.write(json.dumps(output) + "\n")
-            self._logger.debug(f"Wrote output to {self._output_fp}")
-        except Exception as e:
-            self._handle_failure(output, e)
-            raise e
+        if isinstance(output, dict):
+            output["observed_at"] = datetime.now(timezone.utc).isoformat()
+        else:
+            output = {
+                "data": output,
+                "observed_at": datetime.now(timezone.utc).isoformat(),
+            }
+        self._output_file.write(json.dumps(output) + "\n")
+        self._logger.debug(f"Wrote output to {self._output_fp}")
 
         if (
             os.path.getsize(self._output_file.name)
@@ -454,6 +461,8 @@ class SequentialTaskProcessor[T: JSONValue](TaskProcessor[T]):
                 else:
                     self._handle_input_without_output(input_item)
                     item_processed = True
+            except FatalProcessingError as e:
+                raise e
             except Exception as e:
                 self._handle_failure(input_item, e)
                 item_processed = True
@@ -510,6 +519,8 @@ class BatchTaskProcessor[T: JSONValue](TaskProcessor[T]):
                     for input_item in batch:
                         self._handle_input_without_output(input_item)
                     batch_processed = True
+            except FatalProcessingError as e:
+                raise e
             except Exception as e:
                 for input_item in batch:
                     self._handle_failure(input_item, e)
