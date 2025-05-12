@@ -1,6 +1,12 @@
 import sqlite3
 from typing import Literal
 
+from pydantic import BaseModel, TypeAdapter, ValidationError
+from sqlalchemy.ext.asyncio import AsyncSession as AsyncDBSession
+
+from app.db.models import JSONValue
+from app.tasks import get_task_processor_by_id
+
 
 type QueueType = Literal[
     "remaining-inputs", "successes", "failures", "inputs-without-output"
@@ -17,17 +23,49 @@ A dictionary mapping queue types to their corresponding SQLite table names.
 """
 
 
-class TaskQueueItemManager:
+class InvalidQueueInputsError(Exception):
     """
-    A simple class to manage items in the `persist-queue` SQLite queues for scraper task inputs (created by the TaskProcessor for a particular task, cf. processing.py)
+    Exception raised when the input items for a queue do not match the expected schema.
     """
 
-    def __init__(self, db_path):
+    def __init__(self, error_msgs: list[str]):
+        self.errors = error_msgs
+        super().__init__(
+            f"Encountered {len(error_msgs)} queue input{'s' if len(error_msgs) > 1 else ''}:\n{'\n'.join([' - ' + line for line in error_msgs])}"
+        )
+
+
+class TaskQueueItemManager:
+    """
+    A class to manage items in the `persist-queue` SQLite queues for scraper task inputs (created by the TaskProcessor for a particular task, cf. processing.py)
+    """
+
+    def __init__(
+        self,
+        task_id: int,
+        db_path: str,
+        input_item_cls: type[str] | type[int] | type[BaseModel],
+    ):
         """
         Args:
+            task_id (int): The ID of the task for which the queue items are being managed.
             db_path (str): The path to the SQLite database file which stores the `persist-queue` SQLite queues for scraper task inputs.
+            input_item_cls (type[str] | type[int] | type[BaseModel]): The Pydantic model class (or "wrapper class" for integers or strings in case of integers or strings (usually IDs) as inputs) used to validate the items in the queue. It is used for validating the items before adding them to the queue.
         """
         self.db_path = db_path
+        """
+        The path to the SQLite database file which stores the `persist-queue` SQLite queues for scraper task inputs.
+        """
+
+        self.task_id = task_id
+        """
+        The ID of the task for which the queue items are being managed.
+        """
+
+        self._validate_queue_item = TypeAdapter(input_item_cls).validate_python
+        """
+        A function that validates any input (making sure it is an instance of `input_item_cls`), derived from the validate_python function of an instance of TypeAdapter created for the given `input_item_cls`.
+        """
 
     def get_queue_items(
         self,
@@ -113,6 +151,38 @@ class TaskQueueItemManager:
             )
             conn.commit()
             return cursor.rowcount > 0
+
+    async def add_inputs(
+        self,
+        raw_items: list[JSONValue],
+        db_session: AsyncDBSession,
+    ):
+        """Add new inputs to the given task. The items are validated
+        (i.e. an error is raised if they don't match the expected schema for queue inputs for the given task).
+
+        Args:
+            items (list[JSONValue]): The items to add to the queue.
+            queue_type (QueueType): The type of queue to add the items to.
+
+        """
+
+        error_msgs: list[str] = []
+        validated_items: list[BaseModel | str | int] = []
+        for i, raw_item in enumerate(raw_items):
+            try:
+                validated = self._validate_queue_item(raw_item)
+                validated_items.append(validated)
+            except ValidationError as e:
+                error_msgs.append(f"Index {i}: {e}")
+                continue
+
+        if error_msgs:
+            raise InvalidQueueInputsError(error_msgs)
+
+        # we need to get the task processor as it has a method to add items to the queue (kinda ugly, but easier and less likely to result in unintended side-effects than recreating `persist-queue` instances used by the task processor internally)
+        # TODO: think about whether there is a cleaner solution
+        task_processor = await get_task_processor_by_id(self.task_id, db_session)
+        task_processor.add_inputs(validated_items)
 
 
 if __name__ == "__main__":

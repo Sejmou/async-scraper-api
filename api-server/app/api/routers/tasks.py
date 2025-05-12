@@ -7,7 +7,7 @@ from fastapi_pagination import Page
 from fastapi_pagination.ext.sqlalchemy import paginate
 
 from app.api.dependencies.core import DBSessionDep
-from app.db.models import DataFetchingTask as DBTask
+from app.db.models import DataFetchingTask as DBTask, JSONValue
 from app.api.models import DataFetchingTask as TaskModel
 from app.tasks import get_task_processor, run_in_background
 from app.tasks.progress.public_models import TaskProgress, TaskProgressDetails
@@ -18,9 +18,9 @@ from app.tasks.queue_items import QueueType, TaskQueueItemManager
 router = APIRouter(prefix="/tasks")
 
 
-def create_task_queue_item_fetcher(task_id: int) -> TaskQueueItemManager:
+def create_task_queue_item_manager(task_id: int) -> TaskQueueItemManager:
     """
-    Create a TaskQueueItemFetcher instance with the proper database path, inferred from settings.
+    Create a TaskQueueItemManager instance with the proper database path, inferred from settings.
     """
     db_path = os.path.join(settings.task_progress_dbs_dir, f"{task_id}.db")
     return TaskQueueItemManager(db_path)
@@ -176,8 +176,8 @@ async def task_queue_items(
     )
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    item_fetcher = create_task_queue_item_fetcher(task_id)
-    items = item_fetcher.get_queue_items(queue_type, cursor_id, limit)
+    item_manager = create_task_queue_item_manager(task_id)
+    items = item_manager.get_queue_items(queue_type, cursor_id, limit)
     return items
 
 
@@ -199,12 +199,41 @@ async def delete_task_queue_item(
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    item_fetcher = create_task_queue_item_fetcher(task_id)
+    item_manager = create_task_queue_item_manager(task_id)
 
-    removed = item_fetcher.remove_queue_item(item_id, queue_type)
+    removed = item_manager.remove_queue_item(item_id, queue_type)
     if not removed:
         raise HTTPException(status_code=404, detail="Item not found in queue")
 
     return {
         "message": f"Item {item_id} removed from {queue_type} queue for task {task_id}"
+    }
+
+
+@router.post("/{task_id}/queue-items/{queue_type}")
+async def add_task_queue_items(
+    task_id: int,
+    items: list[JSONValue],
+    queue_type: QueueType,
+    session: DBSessionDep,
+):
+    """
+    Add an item to the queue for a given task.
+    """
+    task = await session.scalar(
+        select(DBTask)
+        .where(DBTask.id == task_id)
+        .options(joinedload(DBTask.file_uploads))
+    )
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    item_manager = create_task_queue_item_manager(task_id)
+
+    added = item_manager.add_inputs(items, queue_type)
+    if not added:
+        raise HTTPException(status_code=503, detail="Items could not be added to queue")
+
+    return {
+        "message": f"{len(items)} items added to {queue_type} queue for task {task_id}"
     }

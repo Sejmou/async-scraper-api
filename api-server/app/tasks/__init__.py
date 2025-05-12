@@ -131,6 +131,29 @@ def get_task_processor(task: DataFetchingTask) -> TaskProcessor:
     return task_processors.get(task.id) or _create_and_add_processor(task)
 
 
+async def get_task_processor_by_id(
+    task_id: int, db_session: AsyncDBSession
+) -> TaskProcessor:
+    """
+    Gets the task processor for the given task ID. If the task processor does not exist, the task is fetched from the database and a new task processor is created for it.
+
+    An exception is raised if the task does not exist in the database.
+    Args:
+        task_id (int): The ID of the task for which to get the task processor.
+    """
+    processor = task_processors.get(task_id)
+    if processor:
+        return processor
+    task = (
+        await db_session.execute(
+            select(DataFetchingTask).where(DataFetchingTask.id == task_id)
+        )
+    ).scalar()
+    if not task:
+        raise ValueError(f"Task with ID {task_id} does not exist in the database")
+    return _create_and_add_processor(task)
+
+
 async def create_new_task[T: JSONValue](
     data_source: DataSource,
     task_type: str,
