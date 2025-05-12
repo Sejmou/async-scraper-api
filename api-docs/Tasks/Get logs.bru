@@ -1,0 +1,11 @@
+meta {
+  name: Get logs
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{api_url}}/tasks/{{task_id}}/logs
+  body: none
+  auth: inherit
+}

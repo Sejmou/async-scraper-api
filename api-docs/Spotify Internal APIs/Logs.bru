@@ -1,0 +1,11 @@
+meta {
+  name: Logs
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{api_url}}/spotify-internal/logs
+  body: none
+  auth: inherit
+}

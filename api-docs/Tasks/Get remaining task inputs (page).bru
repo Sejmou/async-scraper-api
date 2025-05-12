@@ -1,0 +1,11 @@
+meta {
+  name: Get remaining task inputs (page)
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{api_url}}/tasks/{{task_id}}/queue-items/remaining-inputs
+  body: none
+  auth: inherit
+}

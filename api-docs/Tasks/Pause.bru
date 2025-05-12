@@ -1,0 +1,11 @@
+meta {
+  name: Pause
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{api_url}}/tasks/{{task_id}}/pause
+  body: none
+  auth: inherit
+}

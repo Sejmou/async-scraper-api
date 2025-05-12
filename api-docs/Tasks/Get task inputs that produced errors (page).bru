@@ -1,0 +1,11 @@
+meta {
+  name: Get task inputs that produced errors (page)
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{api_url}}/tasks/{{task_id}}/queue-items/failures
+  body: none
+  auth: inherit
+}

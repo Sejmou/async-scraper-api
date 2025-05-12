@@ -1,0 +1,11 @@
+meta {
+  name: Get task inputs that did not produce output (page)
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{api_url}}/tasks/{{task_id}}/queue-items/inputs-without-output
+  body: none
+  auth: inherit
+}

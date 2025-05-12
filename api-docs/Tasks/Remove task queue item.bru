@@ -1,0 +1,11 @@
+meta {
+  name: Remove task queue item
+  type: http
+  seq: 12
+}
+
+delete {
+  url: {{api_url}}/tasks/{{task_id}}/queue-items/successes/2
+  body: none
+  auth: inherit
+}

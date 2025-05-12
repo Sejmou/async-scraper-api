@@ -1,0 +1,11 @@
+meta {
+  name: Get task inputs that returned data (page)
+  type: http
+  seq: 11
+}
+
+get {
+  url: {{api_url}}/tasks/{{task_id}}/queue-items/successes
+  body: none
+  auth: inherit
+}
