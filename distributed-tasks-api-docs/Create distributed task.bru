@@ -1,0 +1,33 @@
+meta {
+  name: Create distributed task
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{api_url}}/tasks
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "task": {
+      "dataSource": "dummy-api",
+      "taskType": "flaky",
+      "inputs": [
+        42,
+        69,
+        420,
+        360
+      ],
+      "params": {
+        "flakiness": 0.1
+      }
+    },
+    "scraperIds": [
+      1,
+      2
+    ]
+  }
+}
