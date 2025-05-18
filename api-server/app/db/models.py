@@ -13,6 +13,10 @@ type JSONValue = str | int | float | bool | None | list[JSONValue] | dict[
     str, JSONValue
 ]
 
+type NonNoneJSONValue = str | int | float | bool | list[JSONValue] | dict[
+    str, JSONValue
+]
+
 
 class Base(DeclarativeBase, MappedAsDataclass):
     type_annotation_map = {JSONValue: JSON, list[JSONValue]: JSON}

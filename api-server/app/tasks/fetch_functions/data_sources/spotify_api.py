@@ -13,7 +13,7 @@ from app.tasks.input_validation.spotify_api import (
     RegionSpecificParams,
     ArtistAlbumsParams,
 )
-from app.tasks.processing import FatalProcessingError
+from app.tasks.common import FatalProcessingError
 from utils.spotify_api import CredentialsBlockedException
 
 type SequentialTask = Literal["artist-albums", "playlists", "isrc-track-search"]

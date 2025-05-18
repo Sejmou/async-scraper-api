@@ -10,20 +10,47 @@ from app.api.dependencies.core import DBSessionDep
 from app.db.models import DataFetchingTask as DBTask, JSONValue
 from app.api.models import DataFetchingTask as TaskModel
 from app.tasks import get_task_processor, run_in_background
+from app.tasks.input_validation import ValidatedTask
 from app.tasks.progress.public_models import TaskProgress, TaskProgressDetails
 from app.tasks.progress import TaskProgressTracker
-from app.config import settings, app_logger
-from app.tasks.queue_items import QueueType, TaskQueueItemManager
+from app.config import settings, app_logger, PUBLIC_IP, TASK_OUTPUT_DIR, TASK_LOG_DIR
+from app.tasks.queue_item_management import (
+    QueueType,
+    TaskQueueInputClass,
+    TaskQueueItemManager,
+)
 
 router = APIRouter(prefix="/tasks")
 
+def get_input_cls(task: DBTask) -> TaskQueueInputClass:
+    """
+    Get the input class for the given task inputs based on its data source and task type.
+    """
+    task_inst = ValidatedTask(
+        data_source=task.data_source,
+        task=
+    )
+    if task.data_source == "spotify-api":
+        from app.tasks.input_validation.spotify_api import SpotifyApiTask
+        return SpotifyApiTask
+    elif task.data_source == "spotify-internal":
+        from app.tasks.input_validation.spotify_internal import SpotifyInternalApiTask
+        return SpotifyInternalApiTask
+    elif task.data_source == "dummy-api":
+        from app.tasks.input_validation.dummy_api import DummyApiTask
+        return DummyApiTask
+    else:
+        raise ValueError(f"Unknown data source: {task.data_source}")
 
-def create_task_queue_item_manager(task_id: int) -> TaskQueueItemManager:
+def create_task_queue_item_manager(
+    task_id: int, input_cls: TaskQueueInputClass
+) -> TaskQueueItemManager:
     """
     Create a TaskQueueItemManager instance with the proper database path, inferred from settings.
     """
-    db_path = os.path.join(settings.task_progress_dbs_dir, f"{task_id}.db")
-    return TaskQueueItemManager(db_path)
+    return TaskQueueItemManager(
+        task_id=task_id, db_dir=settings.task_progress_dbs_dir, input_item_cls=input_cls
+    )
 
 
 @router.get("/", response_model=Page[TaskModel])

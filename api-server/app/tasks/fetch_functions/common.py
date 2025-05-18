@@ -1,16 +1,18 @@
-from app.db.models import JSONValue
-from typing import Any, Awaitable, Callable, Type
+from typing import Any, Awaitable, Callable, Sequence, Type
 from abc import ABC, abstractmethod
 from pydantic import BaseModel
+from app.tasks.common import TaskInput
 
-type SingleItemFetchFunction[T: JSONValue] = Callable[[T], Awaitable[Any]]
+type SingleItemFetchFunction[T: TaskInput] = Callable[[T], Awaitable[Any]]
 """
-A function that accepts a single value of a specific JSON-serializable type as input and returns an Awaitable (usually coroutine) which, when awaited, fetches data using this value as input and returns the result.
+A function that accepts a task input as its only parameter and returns an Awaitable (usually coroutine) which, when awaited, fetches data using this value as input and returns the result.
 """
 
-type BatchFetchFunction[T: JSONValue] = Callable[[list[T]], Awaitable[list[Any]]]
+type BatchFetchFunction[T: TaskInput] = Callable[
+    [Sequence[T]], Awaitable[Sequence[Any]]
+]
 """
-A function that accepts a list of values of a specific JSON-serializable type as input and returns an Awaitable (usually coroutine) which, when awaited, fetches data using this list of values as input and returns the results in a list of values.
+A function that accepts a sequence of task inputs as its only parameter and returns an Awaitable (usually coroutine) which, when awaited, returns a sequence of results (should be one for each input).
 """
 
 type ParamsInput = dict[str, Any] | BaseModel | None
