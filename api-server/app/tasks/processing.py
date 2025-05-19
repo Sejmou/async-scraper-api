@@ -10,8 +10,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
 from app.db import sessionmanager
-from app.tasks.common import TaskInput, TaskProgressMeta
-from app.tasks.fetch_functions import SingleItemFetchFunction, BatchFetchFunction
+from app.tasks.common import (
+    TaskInput,
+    TaskProgressMeta,
+    SingleItemFetchFunction,
+    BatchFetchFunction,
+)
 from app.db.models import DataFetchingTask, S3FileUpload
 from app.tasks.queue_item_management import TaskQueueItemManager
 from app.utils.zstd import compress_file
@@ -28,7 +32,7 @@ class TaskProcessor[T: TaskInput](ABC):
 
     def __init__(
         self,
-        id: str,
+        server_ip: str,
         task_id: int,
         outputs_dir: str,
         queue_item_manager: TaskQueueItemManager,
@@ -37,9 +41,9 @@ class TaskProcessor[T: TaskInput](ABC):
             500 * 1024 * 1024
         ),  # assuming 3:1 compression ratio, this should result in 500 MB files
     ):
-        self._id = id
+        self._server_ip = server_ip
         """
-        The ID of the task processor. This is used in the output file name to identify the task processor that created the output.
+        The IP address of the server that the task processor is running on. This is used to create unique S3 keys for the uploaded output files (making it easier to understand where uploaded files came from, e.g. if there are multiple remote servers uploading to the same S3 prefix).
         """
 
         self._task_id = task_id
@@ -255,7 +259,7 @@ class TaskProcessor[T: TaskInput](ABC):
         last_modified = datetime.fromtimestamp(
             os.path.getmtime(self._output_fp_compressed), tz=timezone.utc
         )
-        s3_key = f"{db_task.s3_prefix}/{last_modified.strftime('%Y-%m-%d_%H-%M-%S')}_{self._id}.jsonl.zst"
+        s3_key = f"{db_task.s3_prefix}/{last_modified.strftime('%Y-%m-%d_%H-%M-%S')}_{self._server_ip}.jsonl.zst"
         upload_size_bytes = os.path.getsize(self._output_fp_compressed)
         upload_meta = await upload_file(
             local_path=self._output_fp_compressed,

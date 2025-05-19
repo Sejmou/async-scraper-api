@@ -1,4 +1,4 @@
-from typing import TypedDict
+from typing import Any, Awaitable, Callable, Sequence, TypedDict
 from pydantic import BaseModel
 
 type TaskInput = str | int | BaseModel
@@ -18,6 +18,18 @@ type NonNoneJSONValue = str | int | float | bool | list[JSONValue] | dict[
 ]
 """
 Any Python value that can be represented as JSON, excluding None.
+"""
+
+type SingleItemFetchFunction[T: TaskInput] = Callable[[T], Awaitable[Any]]
+"""
+A function that accepts a task input as its only parameter and returns an Awaitable (usually coroutine) which, when awaited, fetches data using this value as input and returns the result.
+"""
+
+type BatchFetchFunction[T: TaskInput] = Callable[
+    [Sequence[T]], Awaitable[Sequence[Any]]
+]
+"""
+A function that accepts a sequence of task inputs as its only parameter and returns an Awaitable (usually coroutine) which, when awaited, returns a sequence of results (should be one for each input).
 """
 
 

@@ -2,7 +2,7 @@ from pydantic import ValidationError, validate_call
 from base64 import b64encode
 from datetime import datetime, timedelta, timezone
 import re
-from typing import Any, Dict, Optional, List, TypeGuard, Union
+from typing import Any, Dict, Optional, Sequence, TypeGuard, Union
 from logging import Logger
 from app.utils.api_bans import APIBanHandler
 from app.config import SpotifyAPICredentials
@@ -24,8 +24,8 @@ def is_dict_or_none(d: Union[Dict, None]) -> TypeGuard[Optional[Dict]]:
 
 
 def is_list_of_dicts_or_none(
-    lst: List[Union[Dict, None]],
-) -> TypeGuard[List[Optional[Dict]]]:
+    lst: list[Union[Dict, None]],
+) -> TypeGuard[list[Optional[Dict]]]:
     return all(is_dict_or_none(item) for item in lst)
 
 
@@ -259,7 +259,7 @@ class SpotifyAPIClient:
         return seconds_to_wait
 
     @validate_call
-    async def tracks(self, track_ids: List[str], region: Optional[str] = None):
+    async def tracks(self, track_ids: Sequence[str], region: Optional[str] = None):
         params = {"ids": ",".join(track_ids)}
         if region:
             params["market"] = region
@@ -267,7 +267,7 @@ class SpotifyAPIClient:
         return get_list_data_from_response(raw, "tracks")
 
     @validate_call
-    async def artists(self, artist_ids: List[str]):
+    async def artists(self, artist_ids: Sequence[str]):
         raw = await self._make_request(f"artists", params={"ids": ",".join(artist_ids)})
         return get_list_data_from_response(raw, "artists")
 
@@ -283,7 +283,7 @@ class SpotifyAPIClient:
         include_compilations=True,
         include_appears_on=True,
     ):
-        include_groups: List[str] = []
+        include_groups: list[str] = []
         if include_albums:
             include_groups.append("album")
         if include_singles:
@@ -316,7 +316,7 @@ class SpotifyAPIClient:
         region: Optional[str] = None,
         max_offset: int | None = None,
     ):
-        albums: List[Optional[Dict]] = []
+        albums: list[Optional[Dict]] = []
         next_page = True
         offset = 0
         while (max_offset and max_offset < offset) or next_page:
@@ -334,7 +334,7 @@ class SpotifyAPIClient:
         return albums
 
     @validate_call
-    async def albums(self, album_ids: List[str], region: Optional[str] = None):
+    async def albums(self, album_ids: Sequence[str], region: Optional[str] = None):
         params = {"ids": ",".join(album_ids)}
         if region:
             params["market"] = region

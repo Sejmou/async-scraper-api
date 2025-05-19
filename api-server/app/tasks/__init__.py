@@ -5,10 +5,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession as AsyncDBSession
 
 from app.db.models import DataSource, DataFetchingTask, JSONValue
-from app.tasks.fetch_functions import (
-    create_single_item_fetch_function,
-    create_batch_fetch_function,
-)
+from app.tasks.data_fetching import create_fetch_fn
+from app.tasks.metadata import _TaskParamsWrapper
 from app.tasks.processing import (
     BatchTaskProcessor,
     SequentialTaskProcessor,
@@ -91,32 +89,8 @@ async def resume_pending_tasks(db_session: AsyncDBSession):
         asyncio.create_task(run_task(processor))
 
 
-def _create_processor(task: DataFetchingTask) -> TaskProcessor:
-    if task.batch_size > 1:
-        batch_fetch_fn = create_batch_fetch_function(
-            task.data_source, task.task_type, task.params
-        )
-        if not batch_fetch_fn:
-            raise ValueError(
-                f"Could not create task processor for task with ID {task.id} (data source: '{task.data_source}', task type: '{task.task_type}') as no suitable batched fetch function was found"
-            )
-        return BatchTaskProcessor(
-            task_id=task.id,
-            fetch_fn=batch_fetch_fn,
-            batch_size=task.batch_size,
-        )
-    else:
-        single_item_fetch_fn = create_single_item_fetch_function(
-            task.data_source, task.task_type, task.params
-        )
-        if not single_item_fetch_fn:
-            raise ValueError(
-                f"Could not create task processor for task with ID {task.id} (data source: '{task.data_source}', task type: '{task.task_type}') as no suitable single-item fetch function was found"
-            )
-        return SequentialTaskProcessor(
-            task_id=task.id,
-            fetch_fn=single_item_fetch_fn,
-        )
+def _create_processor(task_meta: _TaskParamsWrapper) -> TaskProcessor:
+    fetch_fn = create_fetch_fn(task_meta.params)
 
 
 def _create_and_add_processor(task: DataFetchingTask) -> TaskProcessor:
