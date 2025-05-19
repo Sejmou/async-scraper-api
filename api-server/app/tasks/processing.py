@@ -318,7 +318,7 @@ class TaskProcessor[T: TaskInput](ABC):
 class SequentialTaskProcessor[T: TaskInput](TaskProcessor[T]):
     def __init__(
         self,
-        id: str,
+        server_ip: str,
         task_id: int,
         outputs_dir: str,
         queue_item_manager: TaskQueueItemManager,
@@ -329,8 +329,8 @@ class SequentialTaskProcessor[T: TaskInput](TaskProcessor[T]):
         ),  # assuming 3:1 compression ratio, this should result in 500 MB files
     ):
         super().__init__(
-            id,
-            task_id,
+            server_ip=server_ip,
+            task_id=task_id,
             outputs_dir=outputs_dir,
             queue_item_manager=queue_item_manager,
             logger=logger,
@@ -366,7 +366,7 @@ class SequentialTaskProcessor[T: TaskInput](TaskProcessor[T]):
 class BatchTaskProcessor[T: TaskInput](TaskProcessor[T]):
     def __init__(
         self,
-        id: str,
+        server_ip: str,
         task_id: int,
         outputs_dir: str,
         queue_item_manager: TaskQueueItemManager,
@@ -378,8 +378,8 @@ class BatchTaskProcessor[T: TaskInput](TaskProcessor[T]):
         ),  # assuming 3:1 compression ratio, this should result in 500 MB files
     ):
         super().__init__(
-            id,
-            task_id,
+            server_ip=server_ip,
+            task_id=task_id,
             outputs_dir=outputs_dir,
             queue_item_manager=queue_item_manager,
             logger=logger,

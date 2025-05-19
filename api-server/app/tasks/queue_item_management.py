@@ -8,8 +8,6 @@ from pydantic import BaseModel, TypeAdapter, ValidationError
 
 from app.tasks.common import (
     TaskInput,
-    JSONValue,
-    NonNoneJSONValue,
     FatalProcessingError,
 )
 
