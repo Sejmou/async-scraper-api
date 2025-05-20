@@ -52,8 +52,6 @@ class DataFetchingTask(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    batch_size: int
-
 
 class S3FileUpload(BaseModel):
     model_config = ConfigDict(

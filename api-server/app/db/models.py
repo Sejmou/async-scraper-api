@@ -108,11 +108,6 @@ class DataFetchingTask(Base):
         default=func.current_timestamp(),
     )
 
-    batch_size: Mapped[int] = mapped_column(Integer, default=1)
-    """
-    A non-negative integer representing the number of items that can be processed in parallel (i.e. within a single HTTP request, if fetching data from an API). If 1, the items can only be fetched one by one.
-    """
-
     def __repr__(self) -> str:
         # NOTE: cannot use len(self.inputs) here as it would load all inputs from the database on every call to __repr__ - i.e., every time the object is printed, we would refetch all inputs from the database!
         return f"Task for {self.task_type!r} endpoint (ID: {self.id!r}, metadata: {self.params!r}, S3 prefix: {self.s3_prefix!r}"
