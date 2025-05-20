@@ -32,6 +32,12 @@ DataSource = Literal["spotify-api", "spotify-internal", "dummy-api"]
 The supported data sources for fetching data.
 """
 
+DATA_SOURCES: list[DataSource] = [
+    "spotify-api",
+    "spotify-internal",
+    "dummy-api",
+]
+
 DataFetchingTaskStatus = Literal[
     "pending", "running", "done", "error", "pausing", "paused"
 ]
@@ -83,11 +89,6 @@ class DataFetchingTask(Base):
     Example: `tracks` for fetching track metadata from the Spotify API (assuming `spotify-api` is the `data_source`).
     """
 
-    s3_prefix: Mapped[str] = mapped_column(String)
-    """
-    The S3 prefix in the S3 bucket under which output data of the job is stored once all pending inputs are processed or an error occurs that cannot be recovered from and requires user intervention.
-    """
-
     file_uploads: Mapped[list["S3FileUpload"]] = relationship(
         back_populates="task", cascade="all, delete-orphan", init=False, default=[]
     )
@@ -109,8 +110,7 @@ class DataFetchingTask(Base):
     )
 
     def __repr__(self) -> str:
-        # NOTE: cannot use len(self.inputs) here as it would load all inputs from the database on every call to __repr__ - i.e., every time the object is printed, we would refetch all inputs from the database!
-        return f"Task for {self.task_type!r} endpoint (ID: {self.id!r}, metadata: {self.params!r}, S3 prefix: {self.s3_prefix!r}"
+        return f"Task for {self.task_type!r} endpoint (ID: {self.id!r}, metadata: {self.params!r}"
 
 
 # NOTE: this a workaround as onupdate within mapped_column apparently does NOT work with async SQLite DB connections

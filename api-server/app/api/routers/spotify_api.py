@@ -6,14 +6,12 @@ from sqlalchemy.ext.asyncio import AsyncSession as AsyncDBSession
 
 from app.api.dependencies.core import DBSessionDep
 from app.api.utils import check_api_ban
-from app.tasks.params.spotify_api import (
+from app.tasks.models.spotify_api import (
     SpotifyAPITaskParams,
-    TracksParams,
-    ArtistsParams,
-    ArtistAlbumsParams,
-    AlbumsParams,
-    ISRCTrackSearchParams,
-    PlaylistsParams,
+    SpotifyTracksParams,
+    SpotifyArtistAlbumsParams,
+    SpotifyAlbumsParams,
+    SpotifyISRCTrackSearchParams,
 )
 from app.tasks import create_new_task
 from app.db.models import DataFetchingTask as DBTask
@@ -43,7 +41,7 @@ def check_sp_api_ban(endpoint: str) -> Callable:
 @router.post("/tracks", status_code=201, response_model=TaskModel)
 @check_sp_api_ban(endpoint="tracks")
 async def fetch_tracks(
-    params: TracksParams,
+    params: SpotifyTracksParams,
     session: DBSessionDep,
 ):
     task = await create_sp_api_task(
@@ -57,11 +55,10 @@ async def fetch_tracks(
 @router.post("/artists", status_code=201, response_model=TaskModel)
 @check_sp_api_ban(endpoint="artists")
 async def fetch_artists(
-    params: ArtistsParams,
     session: DBSessionDep,
 ):
     task = await create_sp_api_task(
-        params=params,
+        params=None,
         subprefix="artists",
         session=session,
     )
@@ -71,7 +68,7 @@ async def fetch_artists(
 @router.post("/artist-albums", status_code=202, response_model=TaskModel)
 @check_sp_api_ban(endpoint="artists")
 async def fetch_artist_albums(
-    params: ArtistAlbumsParams,
+    params: SpotifyArtistAlbumsParams,
     session: DBSessionDep,
 ):
 
@@ -86,7 +83,7 @@ async def fetch_artist_albums(
 @router.post("/albums", status_code=202, response_model=TaskModel)
 @check_sp_api_ban(endpoint="albums")
 async def fetch_albums(
-    params: AlbumsParams,
+    params: SpotifyAlbumsParams,
     session: DBSessionDep,
 ):
     task = await create_sp_api_task(
@@ -100,11 +97,10 @@ async def fetch_albums(
 @router.post("/playlists", status_code=201, response_model=TaskModel)
 @check_sp_api_ban(endpoint="playlists")
 async def fetch_playlists(
-    params: PlaylistsParams,
     session: DBSessionDep,
 ):
     task = await create_sp_api_task(
-        params=params,
+        params=None,
         subprefix="playlists",
         session=session,
     )
@@ -115,7 +111,7 @@ async def fetch_playlists(
 @router.post("/track-search-isrcs", status_code=202, response_model=TaskModel)
 @check_sp_api_ban(endpoint="search")
 async def search_tracks_by_isrc(
-    params: ISRCTrackSearchParams,
+    params: SpotifyISRCTrackSearchParams,
     session: DBSessionDep,
 ):
     task = await create_sp_api_task(

@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession as AsyncDBSession
 
 from app.db.models import DataFetchingTask
 from app.tasks.data_fetching import SingleItemFetchFunctionResult, create_fetch_fn
-from app.tasks.params import TaskParams, parse_task_params
+from app.tasks.models import PublicTaskModel
 from app.tasks.processing import (
     BatchTaskProcessor,
     SequentialTaskProcessor,
@@ -96,15 +96,8 @@ async def resume_pending_tasks(db_session: AsyncDBSession):
         asyncio.create_task(run_task(processor))
 
 
-def _create_processor(task: DataFetchingTask) -> TaskProcessor:
+def _create_processor(task: PublicTaskModel) -> TaskProcessor:
     # task DB model stores data_source and task_type in separate fields/columns, but internal logic expects them to be part of params (makes validation logic easier)
-    params = parse_task_params(
-        {
-            **(task.params or {}),
-            "data_source": task.data_source,
-            "task_type": task.task_type,
-        }
-    )
     q_mgr = TaskQueueItemManager(task_id=task.id, db_dir=TASK_PROGRESS_DB_DIR)
     logger = setup_logger(f"{task.id}", file_dir=TASK_LOG_DIR, log_to_console=False)
     fn_res = create_fetch_fn(params)
@@ -143,23 +136,27 @@ def get_task_processor(task: DataFetchingTask) -> TaskProcessor:
 
 
 async def create_new_task(
-    params: TaskParams, s3_prefix: str, session: AsyncDBSession
+    task: PublicTaskModel, s3_prefix: str, session: AsyncDBSession
 ) -> DataFetchingTask:
     """
     Creates a new task in the database and returns it.
     """
     # NOTE: task is stored differently in DB (data_source and task_type are separate columns and NOT included in params object)
-    task = DataFetchingTask(
-        data_source=params.data_source,
-        task_type=params.task_type,
-        params=params.model_dump(mode="json", exclude={"task_type", "data_source"}),
+    db_task = DataFetchingTask(
+        data_source=task.data_source,
+        task_type=task.task_type,
+        params=(
+            task.params.model_dump(mode="json", exclude={"task_type", "data_source"})
+            if task.params
+            else None
+        ),
         # make task paused initially - user still has to add inputs and start it
         # ('pending' state would cause it to be started and 'done' immediately in the case of a server restart if no inputs were added in the meantime)
         status="paused",
         s3_prefix=s3_prefix,
     )
 
-    session.add(task)
+    session.add(db_task)
     await session.commit()
 
-    return task
+    return db_task

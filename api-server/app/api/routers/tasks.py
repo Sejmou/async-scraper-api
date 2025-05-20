@@ -7,10 +7,14 @@ from fastapi_pagination import Page
 from fastapi_pagination.ext.sqlalchemy import paginate
 
 from app.api.dependencies.core import DBSessionDep
-from app.db.models import DataFetchingTask as DBTask, JSONValue
+from app.db.models import (
+    DATA_SOURCES,
+    DataFetchingTask as DBTask,
+    JSONValue,
+)
 from app.api.models import DataFetchingTask as TaskModel
 from app.tasks import get_task_processor, run_in_background
-from app.tasks.inputs import InvalidTaskInputsError, parse_task_inputs
+from app.tasks.models.inputs import InvalidTaskInputsError, parse_task_inputs
 from app.tasks.progress.public_models import TaskProgress, TaskProgressDetails
 from app.tasks.progress import TaskProgressTracker
 from app.config import TASK_LOG_DIR, TASK_PROGRESS_DB_DIR, app_logger
@@ -27,6 +31,11 @@ def create_task_queue_item_manager(task_id: int) -> TaskQueueItemManager:
     Create a TaskQueueItemManager instance with the proper database path, inferred from settings.
     """
     return TaskQueueItemManager(task_id=task_id, db_dir=TASK_PROGRESS_DB_DIR)
+
+
+@router.get("/data-sources")
+def get_data_sources():
+    return DATA_SOURCES
 
 
 @router.get("/", response_model=Page[TaskModel])

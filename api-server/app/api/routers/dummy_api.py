@@ -8,10 +8,10 @@ from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession as AsyncDBSession
 
 from app.api.dependencies.core import DBSessionDep
-from app.tasks.params.dummy_api import (
+from app.tasks.models.dummy_api import (
     DummyAPITaskParams,
-    FlakyParams,
-    ThrowAboveThresholdParams,
+    DummyAPIFlakyParams,
+    DummyAPIThrowAboveThresholdParams,
 )
 from app.tasks import create_new_task
 from app.db.models import DataFetchingTask as DBTask
@@ -34,7 +34,7 @@ async def create_dummy_api_task(
 
 
 @router.post("/flaky", status_code=201, response_model=TaskModel)
-async def fetch_flaky(params: FlakyParams, session: DBSessionDep):
+async def fetch_flaky(params: DummyAPIFlakyParams, session: DBSessionDep):
     task = await create_dummy_api_task(
         params=params,
         subprefix="flaky",
@@ -45,7 +45,7 @@ async def fetch_flaky(params: FlakyParams, session: DBSessionDep):
 
 @router.post("/throw-above-threshold", status_code=201, response_model=TaskModel)
 async def fetch_throw_above_threshold(
-    params: ThrowAboveThresholdParams,
+    params: DummyAPIThrowAboveThresholdParams,
     session: DBSessionDep,
 ):
     task = await create_dummy_api_task(

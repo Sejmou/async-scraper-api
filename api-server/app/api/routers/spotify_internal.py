@@ -4,7 +4,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession as AsyncDBSession
 
 from app.api.dependencies.core import DBSessionDep
-from app.tasks.params.spotify_internal import (
+from app.tasks.models.params.spotify_internal import (
     SpotifyInternalAPITaskParams,
     RelatedArtistsParams,
 )
