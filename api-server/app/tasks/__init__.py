@@ -1,6 +1,5 @@
 import asyncio
 from fastapi import BackgroundTasks
-from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession as AsyncDBSession
 
@@ -98,8 +97,7 @@ async def resume_pending_tasks(db_session: AsyncDBSession):
 
 
 def _create_processor(task: DataFetchingTask) -> TaskProcessor:
-    # parse the task parameters; need to do some stupid transforms to make it work
-    # TODO: refactor this mess lol
+    # task DB model stores data_source and task_type in separate fields/columns, but internal logic expects them to be part of params (makes validation logic easier)
     params = parse_task_params(
         {
             **(task.params or {}),
@@ -155,7 +153,9 @@ async def create_new_task(
         data_source=params.data_source,
         task_type=params.task_type,
         params=params.model_dump(mode="json", exclude={"task_type", "data_source"}),
-        status="pending",
+        # make task paused initially - user still has to add inputs and start it
+        # ('pending' state would cause it to be started and 'done' immediately in the case of a server restart if no inputs were added in the meantime)
+        status="paused",
         s3_prefix=s3_prefix,
     )
 

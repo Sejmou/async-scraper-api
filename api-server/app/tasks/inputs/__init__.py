@@ -1,5 +1,5 @@
-from typing import Annotated, Any
-from pydantic import BaseModel, Discriminator, Field, Tag
+from typing import Annotated, Any, Literal, TypedDict
+from pydantic import BaseModel, Discriminator, Field, Tag, ValidationError
 
 from app.tasks.inputs.dummy_api import (
     DummyAPITaskInputs,
@@ -43,6 +43,27 @@ def _get_task_inputs_discriminator_value(v: Any) -> str:
 TaskInputs = SpotifyAPITaskInputs | SpotifyInternalAPITaskInputs | DummyAPITaskInputs
 
 
+class InputErrorDetails(TypedDict):
+    index: int
+    message: str
+
+
+class InvalidTaskInputsError(Exception):
+    """
+    Exception raised when task inputs are invalid (i.e. could not be parsed into a valid TaskInputs instance).
+    """
+
+    def __init__(
+        self,
+        message: str,
+        code: Literal["invalid-items", "unknown-data-source-or-task-type", "other"],
+        invalid_inputs: list[InputErrorDetails] = [],
+    ):
+        super().__init__(message)
+        self.code = code
+        self.invalid_inputs = invalid_inputs
+
+
 class _TaskInputsWrapper(BaseModel):
     """
     Model wrapping task inputs (IIUC, there's currently no way to do the Field(discriminator=...) magic without wrapping in a model like this).
@@ -71,7 +92,7 @@ class _TaskInputsWrapper(BaseModel):
     """
 
 
-def parse_task_inputs(data: Any):
+def parse_task_inputs(inputs: list[Any], data_source: str, task_type: str):
     """
     Parse an arbitrary value into a TaskInputs instance, raising an exception if that fails.
 
@@ -84,5 +105,58 @@ def parse_task_inputs(data: Any):
     Raises:
         ValueError: If the data cannot be parsed into a valid task
     """
-    value = _TaskInputsWrapper.model_validate({"inputs": data})
-    return value.inputs.inputs
+    try:
+        value = _TaskInputsWrapper.model_validate(
+            {
+                "inputs": {
+                    "inputs": inputs,
+                    "task_type": task_type,
+                    "data_source": data_source,
+                }
+            }
+        )
+        return (
+            value.inputs.inputs
+        )  # yeah, this is kinda ugly, but I don't care right now tbh lol
+    except ValidationError as e:
+        error_details: list[InputErrorDetails] = []
+        for error in e.errors():
+            if error["type"] == "union_tag_invalid":
+                task_type = error["input"].get("task_type")
+                data_source = error["input"].get("data_source")
+                raise InvalidTaskInputsError(
+                    f'Combination of data_source "{data_source}" and task_type "{task_type}" is invalid (or not supported yet)',
+                    code="unknown-data-source-or-task-type",
+                )
+
+            loc = error["loc"]
+            if len(loc) != 4 or loc[0] != "inputs" or loc[2] != "inputs":
+                raise InvalidTaskInputsError(
+                    f"Invalid task inputs: {error['msg']}",
+                    code="other",
+                ) from e
+            invalid_input_idx = loc[3]
+            if not isinstance(invalid_input_idx, int):
+                raise InvalidTaskInputsError(
+                    f"Invalid task inputs: {error['msg']}",
+                    code="other",
+                ) from e
+
+            error_details.append(
+                {
+                    "index": invalid_input_idx,
+                    "message": error["msg"],
+                }
+            )
+
+        if len(error_details) != len(inputs):
+            raise InvalidTaskInputsError(
+                f"{len(error_details)} inputs were invalid and some other unexpected error(s) occurred, check server logs for details",
+                code="invalid-items",
+            ) from e
+
+        raise InvalidTaskInputsError(
+            f"{len(error_details)} inputs were invalid",
+            code="invalid-items",
+            invalid_inputs=error_details,
+        )

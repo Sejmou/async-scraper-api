@@ -10,7 +10,7 @@ from app.api.dependencies.core import DBSessionDep
 from app.db.models import DataFetchingTask as DBTask, JSONValue
 from app.api.models import DataFetchingTask as TaskModel
 from app.tasks import get_task_processor, run_in_background
-from app.tasks.inputs import parse_task_inputs
+from app.tasks.inputs import InvalidTaskInputsError, parse_task_inputs
 from app.tasks.progress.public_models import TaskProgress, TaskProgressDetails
 from app.tasks.progress import TaskProgressTracker
 from app.config import TASK_LOG_DIR, TASK_PROGRESS_DB_DIR, app_logger
@@ -229,20 +229,28 @@ async def add_task_inputs(
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    # use the data_source and task_type from the task in the DB to create an object that allows us to validate the inputs with Pydantic
-    # TODO: refactor this hacky mess looooooool
-    validated_inputs = parse_task_inputs(
-        {
-            "inputs": raw_inputs,
-            "data_source": task.data_source,
-            "task_type": task.task_type,
+    try:
+        validated_inputs = parse_task_inputs(
+            raw_inputs, data_source=task.data_source, task_type=task.task_type
+        )
+
+        item_manager = create_task_queue_item_manager(task_id)
+
+        await item_manager.add_inputs(validated_inputs)
+
+        if len(validated_inputs) == 0:
+            raise HTTPException(status_code=400, detail="No valid inputs provided")
+
+        return {
+            "added_count": len(validated_inputs),
+            "message": f"{len(validated_inputs)} items added to input queue for task {task_id}",
         }
-    )
-
-    item_manager = create_task_queue_item_manager(task_id)
-
-    await item_manager.add_inputs(validated_inputs)
-
-    return {
-        "message": f"{len(raw_inputs)} items added to input queue for task {task_id}"
-    }
+    except InvalidTaskInputsError as e:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": str(e),
+                "code": e.code,
+                "invalid_inputs": e.invalid_inputs,
+            },
+        )
