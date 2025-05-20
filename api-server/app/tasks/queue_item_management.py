@@ -1,13 +1,12 @@
+import json
 import sqlite3
 from typing import Any, Awaitable, Callable, Literal, Sequence, TypedDict
 import os
 import persistqueue
 from persistqueue.serializers import json as json_serializer
 
-from pydantic import BaseModel, TypeAdapter, ValidationError
-
 from app.tasks.common import (
-    TaskInput,
+    JSONValue,
     FatalProcessingError,
 )
 
@@ -32,24 +31,17 @@ class QueueItemCounts(TypedDict):
     remaining: int
 
 
-type TaskQueueInputClass = type[TaskInput]
+type QueueType = Literal["inputs", "successes", "failures", "inputs-without-output"]
 
-type QueueType = Literal[
-    "remaining-inputs", "successes", "failures", "inputs-without-output"
-]
-
-type QueueItemProcessingSuccessCallback[T: TaskInput] = Callable[
-    [T, Any], Awaitable[None] | None
-]
-type QueueItemProcessingNoDataReturnedCallback[T: TaskInput] = Callable[
-    [T], Awaitable[None] | None
-]
-type QueueItemProcessingNonFatalErrorCallback[T: TaskInput] = Callable[
-    [T, Exception], Awaitable[None] | None
+# TODO: use a more specific type for the input item (couldn't figure it out with my smooth brain yet)
+type QueueItemProcessingSuccessCallback = Callable[[Any, Any], Awaitable[None] | None]
+type QueueItemProcessingNoDataReturnedCallback = Callable[[Any], Awaitable[None] | None]
+type QueueItemProcessingNonFatalErrorCallback = Callable[
+    [Any, Exception], Awaitable[None] | None
 ]
 
 _table_names: dict[QueueType, str] = {
-    "remaining-inputs": "unique_queue_inputs",
+    "inputs": "unique_queue_inputs",
     "successes": "queue_successes",
     "failures": "queue_failures",
     "inputs-without-output": "queue_inputs_without_output",
@@ -57,18 +49,6 @@ _table_names: dict[QueueType, str] = {
 """
 A dictionary mapping queue types to their corresponding SQLite table names.
 """
-
-
-class InvalidQueueInputsError(Exception):
-    """
-    Exception raised when the input items for a queue do not match the expected schema.
-    """
-
-    def __init__(self, error_msgs: list[str]):
-        self.errors = error_msgs
-        super().__init__(
-            f"Encountered {len(error_msgs)} queue input{'s' if len(error_msgs) > 1 else ''}:\n{'\n'.join([' - ' + line for line in error_msgs])}"
-        )
 
 
 class QueueItemData(TypedDict):
@@ -80,9 +60,9 @@ class QueueItemData(TypedDict):
     """
     The ID of the queue item.
     """
-    data: str
+    data: JSONValue
     """
-    A JSON-encoded string representing the data associated with the queue item.
+    The data associated with the queue item. The exact data type depends on the underlying task's `data_source` and `task_type`.
     """
     added_at: str
     """
@@ -109,7 +89,7 @@ class QueueItemRetrievalResult(TypedDict):
     """
 
 
-class TaskQueueItemManager[T: TaskInput]:
+class TaskQueueItemManager:
     """
     A class to manage items in the `persist-queue` SQLite queues for scraper task inputs (created by the TaskProcessor for a particular task, cf. processing.py)
     """
@@ -118,13 +98,11 @@ class TaskQueueItemManager[T: TaskInput]:
         self,
         task_id: int,
         db_dir: str,
-        input_item_cls: type[T],
     ):
         """
         Args:
             task_id (int): The ID of the task for which the queue items are being managed.
             db_dir (str): The directory where the SQLite database file should be stored.
-            input_item_cls (type[str] | type[int] | type[BaseModel]): The Pydantic model class (or "wrapper class" for integers or strings in case of integers or strings (usually IDs) as inputs) used to validate the items in the queue. It is used for validating the items before adding them to the queue.
         """
 
         self._task_id = task_id
@@ -198,11 +176,6 @@ class TaskQueueItemManager[T: TaskInput]:
         The path to the SQLite database file which stores the `persist-queue` SQLite queues for scraper task inputs.
         """
 
-        self._validate_queue_item = TypeAdapter(input_item_cls).validate_python
-        """
-        A function that validates any input (making sure it is an instance of `input_item_cls`), derived from the validate_python function of an instance of TypeAdapter created for the given `input_item_cls`.
-        """
-
     @property
     def queue_item_counts(self) -> QueueItemCounts:
         """
@@ -257,7 +230,7 @@ class TaskQueueItemManager[T: TaskInput]:
             items: list[QueueItemData] = [
                 {
                     "id": row[0],
-                    "data": row[1],
+                    "data": json.loads(row[1]),
                     "added_at": row[2],
                 }
                 for row in rows
@@ -282,31 +255,32 @@ class TaskQueueItemManager[T: TaskInput]:
 
             return {"items": items, "next_cursor": next_id, "total": total}
 
-    def remove_queue_item(self, id: int, queue_type: QueueType):
-        """Remove an item from the queue.
+    def remove_queue_items(self, ids: Sequence[int], queue_type: QueueType):
+        """Remove the items associated with the given ids from the specified queue type.
 
         Args:
-            id (int): The ID of the item to remove.
-            queue_type (QueueType): The type of queue to remove the item from.
+            ids: The IDs of the items to remove.
+            queue_type: The type of queue to remove the items from.
 
         Returns:
-            bool: True if the item was successfully removed, False otherwise.
+            int: The number of items removed from the queue.
         """
         with sqlite3.connect(self._db_path) as conn:
             cursor = conn.cursor()
+            placeholders = ",".join("?" for _ in ids)
             cursor.execute(
-                f"DELETE FROM {_table_names[queue_type]} WHERE _id = ?",
-                (id,),
+                f"DELETE FROM {_table_names[queue_type]} WHERE _id IN ({placeholders})",
+                ids,
             )
             conn.commit()
-            return cursor.rowcount > 0
+            return cursor.rowcount
 
     async def process_next_input_item(
         self,
-        processing_fn: Callable[[T], Awaitable[Any]],
-        on_success: QueueItemProcessingSuccessCallback[T],
-        on_no_data_returned: QueueItemProcessingNoDataReturnedCallback[T],
-        on_non_fatal_error: QueueItemProcessingNonFatalErrorCallback[T],
+        processing_fn: Callable[[Any], Awaitable[Any]],
+        on_success: QueueItemProcessingSuccessCallback,
+        on_no_data_returned: QueueItemProcessingNoDataReturnedCallback,
+        on_non_fatal_error: QueueItemProcessingNonFatalErrorCallback,
     ) -> None:
         """
         Processes the next input item from the queue using the provided processing function.
@@ -320,10 +294,10 @@ class TaskQueueItemManager[T: TaskInput]:
         If the processing function raises any other exception, the input item is added to the failures queue and the provided `on_non_fatal_error` callback function is called.
 
         Args:
-            processing_fn (Callable[[T], Awaitable[JSONValue]]): The processing function to apply to the input item.
-            on_success (Callable[[tuple[T, NonNoneJSONValue]], Awaitable[None] | None]): Callback function to call when the processing function completes successfully.
-            on_no_data_returned (Callable[[T], Awaitable[None] | None]): Callback function to call when the processing function returns None.
-            on_non_fatal_error (Callable[[tuple[T, Exception]], Awaitable[None] | None]): Callback function to call when a non-fatal error occurs during processing.
+            processing_fn: The processing function to apply to the input item.
+            on_success: Callback function to call when the processing function completes successfully.
+            on_no_data_returned: Callback function to call when the processing function returns None.
+            on_non_fatal_error: Callback function to call when a non-fatal error occurs during processing.
 
         Raises:
             FatalProcessingError: If a fatal error occurs during processing.
@@ -356,10 +330,10 @@ class TaskQueueItemManager[T: TaskInput]:
 
     async def process_next_input_item_chunk(
         self,
-        processing_fn: Callable[[Sequence[T]], Awaitable[Sequence[Any]]],
-        on_success: QueueItemProcessingSuccessCallback[T],
-        on_no_data_returned: QueueItemProcessingNoDataReturnedCallback[T],
-        on_non_fatal_error: QueueItemProcessingNonFatalErrorCallback[T],
+        processing_fn: Callable[[Sequence[Any]], Awaitable[Sequence[Any]]],
+        on_success: QueueItemProcessingSuccessCallback,
+        on_no_data_returned: QueueItemProcessingNoDataReturnedCallback,
+        on_non_fatal_error: QueueItemProcessingNonFatalErrorCallback,
         chunk_size: int,
     ):
         """
@@ -376,11 +350,11 @@ class TaskQueueItemManager[T: TaskInput]:
         If the processing function raises any other exception, each input item is added to the failures queue and the provided `on_non_fatal_error` callback function is called.
 
         Args:
-            processing_fn (Callable[[list[T]], Awaitable[list[JSONValue]]]): The processing function to apply to the input items.
-            on_success (Callable[[tuple[T, NonNoneJSONValue]], Awaitable[None] | None]): Callback function to call when the processing function completes successfully.
-            on_no_data_returned (Callable[[T], Awaitable[None] | None]): Callback function to call when the processing function returns None.
-            on_non_fatal_error (Callable[[tuple[T, Exception]], Awaitable[None] | None]): Callback function to call when a non-fatal error occurs during processing.
-            chunk_size (int): The number of items to process in a single chunk. Must be greater than 1.
+            processing_fn: The processing function to apply to the input items.
+            on_success: Callback function to call when the processing function completes successfully.
+            on_no_data_returned: Callback function to call when the processing function returns None.
+            on_non_fatal_error: Callback function to call when a non-fatal error occurs during processing.
+            chunk_size: The number of items to process in a single chunk. Must be greater than 1.
             If the chunk size is less than 2, a ValueError is raised.
 
         Raises:
@@ -390,7 +364,7 @@ class TaskQueueItemManager[T: TaskInput]:
         """
         if chunk_size < 2:
             raise ValueError("Chunk size must be greater than 1.")
-        inputs: list[T] = []
+        inputs: list = []
         while not self._input_q.empty() and len(inputs) < chunk_size:
             item = self._input_q.get()
             inputs.append(item)
@@ -431,37 +405,13 @@ class TaskQueueItemManager[T: TaskInput]:
 
     async def add_inputs(
         self,
-        raw_items: Sequence[T],
+        inputs: Sequence,
     ):
-        """Add new inputs to the given task. The items are validated
-        (i.e. an error is raised if they don't match the expected schema for queue inputs for the given task).
-
-        Args:
-            items (list[Any]): The items to add to the queue.
-            queue_type (QueueType): The type of queue to add the items to.
         """
-
-        if not raw_items:
-            raise ValueError("No items provided to add to the queue.")
-
-        error_msgs: list[str] = []
-        validated_items: list[BaseModel | str | int] = []
-        for i, raw_item in enumerate(raw_items):
-            try:
-                validated = self._validate_queue_item(raw_item)
-                validated_items.append(validated)
-            except ValidationError as e:
-                error_msgs.append(f"Index {i}: {e}")
-                continue
-
-        if error_msgs:
-            raise InvalidQueueInputsError(error_msgs)
-
-        for item in validated_items:
+        Add new inputs to the given task.
+        """
+        for item in inputs:
             self._input_q.put(item)
-
-        # persist the changes to the input queue
-        self._input_q.task_done()
 
     @property
     def task_id(self) -> int:

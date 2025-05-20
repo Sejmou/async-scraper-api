@@ -107,9 +107,7 @@ def _create_processor(task: DataFetchingTask) -> TaskProcessor:
             "task_type": task.task_type,
         }
     )
-    q_mgr = TaskQueueItemManager(
-        task_id=task.id, db_dir=TASK_PROGRESS_DB_DIR, input_item_cls=int
-    )
+    q_mgr = TaskQueueItemManager(task_id=task.id, db_dir=TASK_PROGRESS_DB_DIR)
     logger = setup_logger(f"{task.id}", file_dir=TASK_LOG_DIR, log_to_console=False)
     fn_res = create_fetch_fn(params)
     if isinstance(fn_res, SingleItemFetchFunctionResult):
@@ -156,7 +154,7 @@ async def create_new_task(
     task = DataFetchingTask(
         data_source=params.data_source,
         task_type=params.task_type,
-        params=params.model_dump(mode="json"),
+        params=params.model_dump(mode="json", exclude={"task_type", "data_source"}),
         status="pending",
         s3_prefix=s3_prefix,
     )

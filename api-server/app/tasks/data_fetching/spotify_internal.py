@@ -1,6 +1,6 @@
 from app.api_clients import spotify_internal_api_client
 from app.tasks.params.spotify_internal import SpotifyInternalAPITaskParams
-from app.tasks.data_fetching import SingleItemFetchFunctionResult
+from app.tasks.common import SingleItemFetchFunctionResult
 
 
 def create_spotify_internal_api_fetch_fn(

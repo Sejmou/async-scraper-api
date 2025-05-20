@@ -2,13 +2,9 @@ from typing import Any, Sequence
 from app.api_clients import spotify_api_client
 from app.tasks.params.spotify_api import SpotifyAPITaskParams
 from app.tasks.common import (
-    SingleItemFetchFunction,
-    BatchFetchFunction,
-    FatalProcessingError,
-)
-from app.tasks.data_fetching import (
     SingleItemFetchFunctionResult,
     BatchFetchFunctionResult,
+    FatalProcessingError,
 )
 from app.utils.spotify_api import CredentialsBlockedException
 

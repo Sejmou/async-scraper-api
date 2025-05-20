@@ -19,16 +19,7 @@ from app.tasks.params.spotify_internal import (
     RelatedArtistsParams as SpotifyInternalRelatedArtistsParams,
 )
 
-
-class TaskMetaBaseModel(BaseModel):
-    """
-    Base model for task metadata.
-    """
-
-    task_type_identifier: str
-    """
-    The identifier for the task type, which is a string that always follows the schema `"<data-source>:<task-type>"`, e.g. `""spotify_api:tracks"`)
-    """
+TaskParams = SpotifyAPITaskParams | SpotifyInternalAPITaskParams | DummyAPITaskParams
 
 
 def _get_task_params_discriminator_value(v: Any) -> str:
@@ -49,9 +40,6 @@ def _get_task_params_discriminator_value(v: Any) -> str:
     if data_source is None:
         raise ValueError("No data_source property found")
     return f"{data_source}/{task_type}"
-
-
-TaskParams = SpotifyAPITaskParams | SpotifyInternalAPITaskParams | DummyAPITaskParams
 
 
 class _TaskParamsWrapper(BaseModel):

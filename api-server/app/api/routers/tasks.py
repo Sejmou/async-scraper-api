@@ -10,47 +10,23 @@ from app.api.dependencies.core import DBSessionDep
 from app.db.models import DataFetchingTask as DBTask, JSONValue
 from app.api.models import DataFetchingTask as TaskModel
 from app.tasks import get_task_processor, run_in_background
-from app.tasks.input_validation import ValidatedTask
+from app.tasks.inputs import parse_task_inputs
 from app.tasks.progress.public_models import TaskProgress, TaskProgressDetails
 from app.tasks.progress import TaskProgressTracker
-from app.config import settings, app_logger, PUBLIC_IP, TASK_OUTPUT_DIR, TASK_LOG_DIR
+from app.config import TASK_LOG_DIR, TASK_PROGRESS_DB_DIR, app_logger
 from app.tasks.queue_item_management import (
     QueueType,
-    TaskQueueInputClass,
     TaskQueueItemManager,
 )
 
 router = APIRouter(prefix="/tasks")
 
-def get_input_cls(task: DBTask) -> TaskQueueInputClass:
-    """
-    Get the input class for the given task inputs based on its data source and task type.
-    """
-    task_inst = ValidatedTask(
-        data_source=task.data_source,
-        task=
-    )
-    if task.data_source == "spotify-api":
-        from app.tasks.input_validation.spotify_api import SpotifyApiTask
-        return SpotifyApiTask
-    elif task.data_source == "spotify-internal":
-        from app.tasks.input_validation.spotify_internal import SpotifyInternalApiTask
-        return SpotifyInternalApiTask
-    elif task.data_source == "dummy-api":
-        from app.tasks.input_validation.dummy_api import DummyApiTask
-        return DummyApiTask
-    else:
-        raise ValueError(f"Unknown data source: {task.data_source}")
 
-def create_task_queue_item_manager(
-    task_id: int, input_cls: TaskQueueInputClass
-) -> TaskQueueItemManager:
+def create_task_queue_item_manager(task_id: int) -> TaskQueueItemManager:
     """
     Create a TaskQueueItemManager instance with the proper database path, inferred from settings.
     """
-    return TaskQueueItemManager(
-        task_id=task_id, db_dir=settings.task_progress_dbs_dir, input_item_cls=input_cls
-    )
+    return TaskQueueItemManager(task_id=task_id, db_dir=TASK_PROGRESS_DB_DIR)
 
 
 @router.get("/", response_model=Page[TaskModel])
@@ -168,7 +144,7 @@ async def task_logs(task_id: int, session: DBSessionDep):
     )
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    task_path = os.path.join(settings.task_log_dir, f"{task_id}.log")
+    task_path = os.path.join(TASK_LOG_DIR, f"{task_id}.log")
     if not os.path.exists(task_path):
         raise HTTPException(status_code=404, detail="Log file not found")
     return FileResponse(
@@ -208,15 +184,15 @@ async def task_queue_items(
     return items
 
 
-@router.delete("/{task_id}/queue-items/{queue_type}/{item_id}")
-async def delete_task_queue_item(
+@router.delete("/{task_id}/queue-items/{queue_type}")
+async def delete_task_queue_items(
     task_id: int,
     queue_type: QueueType,
-    item_id: int,
+    item_ids: list[int],
     session: DBSessionDep,
 ):
     """
-    Delete an item from the queue for a given task.
+    Delete items from the given type of queue for a given task.
     """
     task = await session.scalar(
         select(DBTask)
@@ -228,24 +204,22 @@ async def delete_task_queue_item(
 
     item_manager = create_task_queue_item_manager(task_id)
 
-    removed = item_manager.remove_queue_item(item_id, queue_type)
-    if not removed:
-        raise HTTPException(status_code=404, detail="Item not found in queue")
+    removed_count = item_manager.remove_queue_items(item_ids, queue_type)
 
     return {
-        "message": f"Item {item_id} removed from {queue_type} queue for task {task_id}"
+        "removed_count": removed_count,
+        "message": f"{removed_count} items removed from {queue_type} queue for task {task_id}",
     }
 
 
-@router.post("/{task_id}/queue-items/{queue_type}")
-async def add_task_queue_items(
+@router.post("/{task_id}/queue-items/inputs")
+async def add_task_inputs(
     task_id: int,
-    items: list[JSONValue],
-    queue_type: QueueType,
+    raw_inputs: list[JSONValue],
     session: DBSessionDep,
 ):
     """
-    Add an item to the queue for a given task.
+    Add items to the input queue for a given task.
     """
     task = await session.scalar(
         select(DBTask)
@@ -255,12 +229,20 @@ async def add_task_queue_items(
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
+    # use the data_source and task_type from the task in the DB to create an object that allows us to validate the inputs with Pydantic
+    # TODO: refactor this hacky mess looooooool
+    validated_inputs = parse_task_inputs(
+        {
+            "inputs": raw_inputs,
+            "data_source": task.data_source,
+            "task_type": task.task_type,
+        }
+    )
+
     item_manager = create_task_queue_item_manager(task_id)
 
-    added = item_manager.add_inputs(items, queue_type)
-    if not added:
-        raise HTTPException(status_code=503, detail="Items could not be added to queue")
+    await item_manager.add_inputs(validated_inputs)
 
     return {
-        "message": f"{len(items)} items added to {queue_type} queue for task {task_id}"
+        "message": f"{len(raw_inputs)} items added to input queue for task {task_id}"
     }

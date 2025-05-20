@@ -1,5 +1,5 @@
 from app.api_clients import dummy_api_client
-from app.tasks.data_fetching import (
+from app.tasks.common import (
     SingleItemFetchFunctionResult,
 )
 from app.tasks.params.dummy_api import DummyAPITaskParams

@@ -1,7 +1,7 @@
 from typing import Sequence
 from sqlalchemy import func, select
 import json
-from app.config import TASK_PROGRESS_DB_DIR
+from app.config import TASK_PROGRESS_DB_DIR, app_logger
 from app.db import DatabaseSessionManager
 from app.db.models import JSONValue
 from app.tasks.progress.db_models import (

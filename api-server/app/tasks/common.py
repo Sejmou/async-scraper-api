@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import Any, Awaitable, Callable, Sequence, TypedDict
 from pydantic import BaseModel
 
@@ -31,6 +32,25 @@ type BatchFetchFunction[T: TaskInput] = Callable[
 """
 A function that accepts a sequence of task inputs as its only parameter and returns an Awaitable (usually coroutine) which, when awaited, returns a sequence of results (should be one for each input).
 """
+
+
+@dataclass
+class SingleItemFetchFunctionResult[T: TaskInput]:
+    """
+    A wrapper for a single item fetch function. Required because in Python, we cannot determine the exact type of a function (most importantly, the type of it's arguments) at runtime.
+    """
+
+    fn: SingleItemFetchFunction[T]
+
+
+@dataclass
+class BatchFetchFunctionResult[T: TaskInput]:
+    """
+    A wrapper for a batch item fetch function. Required because in Python, we cannot determine the exact type of a function (most importantly, the type of it's arguments) at runtime.
+    """
+
+    fn: BatchFetchFunction[T]
+    batch_size: int
 
 
 class FatalProcessingError(Exception):
