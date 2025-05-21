@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession as AsyncDBSession
 
 from app.db.models import DataFetchingTask
 from app.tasks.data_fetching import SingleItemFetchFunctionResult, create_fetch_fn
-from app.tasks.models import Task, TaskModel
+from app.tasks.models import TaskExecutionMeta, TaskExecutionMetaModel
 from app.tasks.processing import (
     BatchTaskProcessor,
     SequentialTaskProcessor,
@@ -98,7 +98,7 @@ async def resume_pending_tasks(db_session: AsyncDBSession):
 
 def _create_processor(db_task: DataFetchingTask) -> TaskProcessor:
     # task DB model stores data_source and task_type in separate fields/columns, but internal logic expects them to be part of params (makes validation logic easier)
-    runtime_task = TaskModel.model_validate(db_task).root
+    runtime_task = TaskExecutionMetaModel.model_validate(db_task).root
     q_mgr = TaskQueueItemManager(task_id=db_task.id, db_dir=TASK_PROGRESS_DB_DIR)
     logger = setup_logger(f"{db_task.id}", file_dir=TASK_LOG_DIR, log_to_console=False)
     fn_res = create_fetch_fn(runtime_task)
@@ -136,7 +136,9 @@ def get_task_processor(task: DataFetchingTask) -> TaskProcessor:
     return task_processors.get(task.id) or _create_and_add_processor(task)
 
 
-async def create_new_task(task: Task, session: AsyncDBSession) -> DataFetchingTask:
+async def create_new_task(
+    task: TaskExecutionMeta, session: AsyncDBSession
+) -> DataFetchingTask:
     """
     Creates a new task in the database and returns it.
     """

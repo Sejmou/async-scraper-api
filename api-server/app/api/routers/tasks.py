@@ -13,8 +13,9 @@ from app.db.models import (
     JSONValue,
 )
 from app.api.models import DataFetchingTask as TaskModel
-from app.tasks import get_task_processor, run_in_background
+from app.tasks import create_new_task, get_task_processor, run_in_background
 from app.tasks.input_validation import InvalidTaskInputsError, parse_task_inputs
+from app.tasks.models import TaskExecutionMetaModel
 from app.tasks.progress.public_models import TaskProgress, TaskProgressDetails
 from app.tasks.progress import TaskProgressTracker
 from app.config import TASK_LOG_DIR, TASK_PROGRESS_DB_DIR, app_logger
@@ -38,8 +39,18 @@ def get_data_sources():
     return DATA_SOURCES
 
 
+NewTaskPayload = TaskExecutionMetaModel
+
+
+@router.post("/create", status_code=201, response_model=TaskModel)
+async def create_task(payload: NewTaskPayload, session: DBSessionDep):
+    new_task = payload.root
+    db_task = await create_new_task(new_task, session)
+    return TaskModel.model_validate(db_task)
+
+
 @router.get("/", response_model=Page[TaskModel])
-async def tasks(session: DBSessionDep):
+async def get_tasks(session: DBSessionDep):
     query = (
         select(DBTask)
         .options(joinedload(DBTask.file_uploads))
@@ -49,7 +60,7 @@ async def tasks(session: DBSessionDep):
 
 
 @router.get("/{task_id}", response_model=TaskModel)
-async def task(task_id: int, session: DBSessionDep):
+async def get_task(task_id: int, session: DBSessionDep):
     task = await session.scalar(
         select(DBTask)
         .where(DBTask.id == task_id)
@@ -87,12 +98,12 @@ async def pause_task(task_id: int, session: DBSessionDep):
         raise HTTPException(status_code=404, detail="Task not found")
 
 
-@router.post("/{task_id}/resume", response_model=TaskModel)
-async def resume_task(
+@router.post("/{task_id}/execute", response_model=TaskModel)
+async def execute_task(
     task_id: int, background_tasks: BackgroundTasks, session: DBSessionDep
 ):
     """
-    Resume a task processor with the given ID.
+    Execute the task with the given ID.
     """
     task = await session.scalar(
         select(DBTask)
@@ -119,7 +130,7 @@ async def resume_task(
 
 
 @router.get("/{task_id}/progress", response_model=TaskProgress)
-async def task_progress(task_id: int, session: DBSessionDep):
+async def get_task_progress(task_id: int, session: DBSessionDep):
     task = await session.scalar(
         select(DBTask)
         .where(DBTask.id == task_id)
@@ -132,7 +143,7 @@ async def task_progress(task_id: int, session: DBSessionDep):
 
 
 @router.get("/{task_id}/progress/details", response_model=TaskProgressDetails)
-async def task_progress_details(task_id: int, session: DBSessionDep):
+async def get_task_progress_details(task_id: int, session: DBSessionDep):
     task = await session.scalar(
         select(DBTask)
         .where(DBTask.id == task_id)
@@ -145,7 +156,7 @@ async def task_progress_details(task_id: int, session: DBSessionDep):
 
 
 @router.get("/{task_id}/logs")
-async def task_logs(task_id: int, session: DBSessionDep):
+async def download_task_logs(task_id: int, session: DBSessionDep):
     task = await session.scalar(
         select(DBTask)
         .where(DBTask.id == task_id)
@@ -164,7 +175,7 @@ async def task_logs(task_id: int, session: DBSessionDep):
 
 
 @router.get("/{task_id}/queue-items/{queue_type}")
-async def task_queue_items(
+async def get_task_queue_items(
     task_id: int,
     queue_type: QueueType,
     session: DBSessionDep,

@@ -1,4 +1,4 @@
-from app.tasks.models import TaskModel, get_task_json_schema
+from app.tasks.models import TaskExecutionMetaModel, get_task_json_schema
 
 
 def test_spotify_api_tracks_task_json_schema():
@@ -6,7 +6,7 @@ def test_spotify_api_tracks_task_json_schema():
 
 
 def test_spotify_api_tracks_task_validation():
-    task = TaskModel.model_validate(
+    task = TaskExecutionMetaModel.model_validate(
         {
             "data_source": "spotify-api",
             "task_type": "tracks",

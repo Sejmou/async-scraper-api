@@ -34,11 +34,6 @@ class DataFetchingTask(BaseModel):
     Example: `tracks` for fetching track metadata from the Spotify API (assuming `spotify-api` is the `data_source`).
     """
 
-    s3_prefix: str
-    """
-    The S3 prefix in the S3 bucket under which output data of the job is stored once all pending inputs are processed or an error occurs that cannot be recovered from and requires user intervention.
-    """
-
     file_uploads: list["S3FileUpload"]
     """
     The files that have been uploaded to S3 as part of this task.

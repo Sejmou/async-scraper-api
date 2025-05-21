@@ -20,7 +20,7 @@ from app.tasks.models.spotify_internal import (
     SpotifyInternalRelatedArtistsTask,
 )
 
-Task = SpotifyAPITask | SpotifyInternalAPITask | DummyAPITask
+TaskExecutionMeta = SpotifyAPITask | SpotifyInternalAPITask | DummyAPITask
 
 
 def _get_task_discriminator_value(v: Any) -> str:
@@ -43,9 +43,10 @@ def _get_task_discriminator_value(v: Any) -> str:
     return f"{data_source}/{task_type}"
 
 
-class TaskModel(RootModel):
+class TaskExecutionMetaModel(RootModel):
     """
-    A model for any kind of supported task. The exact type of task it stores is determined by the `task_type` and `data_source` fields of the input.
+    A model storing the important data for execution of any kind of supported task.
+    Depending on the `task_type` and `data_source` fields, other specific `inputs` and `params` are defined, as well as a `get_s3_prefix` function.
 
     The use of `RootModel` allows us to create a model that accepts the task dictionary as input to model_validate, without needing to wrap in another property (e.g. `task`).
 
@@ -105,7 +106,7 @@ class UnsupportedTaskTypeError(Exception):
 
 def get_task_json_schema(data_source: DataSource, task_type: str):
     try:
-        return TaskModel.model_validate(
+        return TaskExecutionMetaModel.model_validate(
             {"data_source": data_source, "task_type": task_type}
         ).root.model_json_schema()
     except Exception:

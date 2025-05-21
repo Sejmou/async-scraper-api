@@ -2,7 +2,7 @@ from typing import Any, Literal, TypedDict
 from pydantic import ValidationError
 
 from app.db.models import DataSource
-from app.tasks.models import TaskModel
+from app.tasks.models import TaskExecutionMetaModel
 
 
 class InputErrorDetails(TypedDict):
@@ -40,7 +40,7 @@ def parse_task_inputs(inputs: list[Any], data_source: DataSource, task_type: str
         ValueError: If the data cannot be parsed into a valid task
     """
     try:
-        value = TaskModel.model_validate(
+        value = TaskExecutionMetaModel.model_validate(
             {
                 "inputs": inputs,
                 "task_type": task_type,
