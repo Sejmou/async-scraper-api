@@ -1,15 +1,16 @@
 import os
 from fastapi import APIRouter, BackgroundTasks, HTTPException
-from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 from fastapi_pagination import Page
 from fastapi_pagination.ext.sqlalchemy import paginate
 
+from app.config import settings
 from app.api.dependencies.core import DBSessionDep
 from app.db.models import (
     DATA_SOURCES,
     DataFetchingTask as DBTask,
+    DataSource,
     JSONValue,
 )
 from app.api.models import DataFetchingTask as TaskModel
@@ -23,6 +24,7 @@ from app.tasks.queue_item_management import (
     QueueType,
     TaskQueueItemManager,
 )
+from app.api.utils.logs import download_logs
 
 router = APIRouter(prefix="/tasks")
 
@@ -164,14 +166,8 @@ async def download_task_logs(task_id: int, session: DBSessionDep):
     )
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    task_path = os.path.join(TASK_LOG_DIR, f"{task_id}.log")
-    if not os.path.exists(task_path):
-        raise HTTPException(status_code=404, detail="Log file not found")
-    return FileResponse(
-        task_path,
-        media_type="text/plain",
-        filename=f"{task_id}.log",
-    )
+    task_log_path = os.path.join(TASK_LOG_DIR, f"{task_id}.log")
+    return download_logs(task_log_path)
 
 
 @router.get("/{task_id}/queue-items/{queue_type}")
