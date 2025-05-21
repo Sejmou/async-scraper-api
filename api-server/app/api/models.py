@@ -1,10 +1,11 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, RootModel
 from datetime import datetime
 
 from app.db.models import JSONValue, DataSource, DataFetchingTaskStatus
+from app.tasks.progress.public_models import TaskProgressModel
 
 
-class DataFetchingTask(BaseModel):
+class DataFetchingTaskModel(BaseModel):
     model_config = ConfigDict(
         # from_attributes allows creation of instances of this class from the ORM model (which shares the same properties/types as attributes)
         from_attributes=True
@@ -20,6 +21,12 @@ class DataFetchingTask(BaseModel):
 
     status: DataFetchingTaskStatus
 
+    # TODO: figure out how to add this without too much hassle
+    # progress: TaskProgressModel
+    # """
+    # The progress of the task in terms of how many items have been processed, how many are left to process, how many have failed, and how many produced no output.
+    # """
+
     data_source: DataSource
     """
     The source the data is fetched from.
@@ -34,10 +41,16 @@ class DataFetchingTask(BaseModel):
     Example: `tracks` for fetching track metadata from the Spotify API (assuming `spotify-api` is the `data_source`).
     """
 
-    file_uploads: list["S3FileUpload"]
+    file_uploads: "S3UploadListModel"
     """
     The files that have been uploaded to S3 as part of this task.
     """
+
+    # TODO: figure out how to add this without too much hassle
+    # s3_prefix: str
+    # """
+    # The S3 prefix under which files will be uploaded once the task is done or the current local file reaches the maximum file size.
+    # """
 
     params: dict[str, JSONValue] | None
     """
@@ -48,7 +61,7 @@ class DataFetchingTask(BaseModel):
     updated_at: datetime
 
 
-class S3FileUpload(BaseModel):
+class S3FileUploadModel(BaseModel):
     model_config = ConfigDict(
         # from_attributes allows creation of instances of this class from the ORM model (which shares the same properties/types as attributes)
         from_attributes=True
@@ -66,3 +79,7 @@ class S3FileUpload(BaseModel):
     size_bytes: int
 
     uploaded_at: datetime
+
+
+class S3UploadListModel(RootModel):
+    root: list[S3FileUploadModel]

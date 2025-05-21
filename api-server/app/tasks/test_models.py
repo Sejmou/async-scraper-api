@@ -16,6 +16,7 @@ def test_spotify_api_tracks_task_validation():
             "inputs": ["06HL4z0CvFAxyc27GXpf02", "1uNFoZAHBGtllmzznpCI3s"],
         }
     ).root
+    print(task)
     assert task.data_source == "spotify-api"
     assert task.task_type == "tracks"
     assert task.params.region == "us"

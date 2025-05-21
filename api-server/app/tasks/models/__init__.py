@@ -1,5 +1,5 @@
 from typing import Annotated, Any
-from pydantic import RootModel, Discriminator, Field, Tag
+from pydantic import RootModel, Discriminator, Field, Tag, ValidationError
 
 from app.db.models import DataSource
 from app.tasks.models.dummy_api import (
@@ -23,12 +23,12 @@ from app.tasks.models.spotify_internal import (
 TaskExecutionMeta = SpotifyAPITask | SpotifyInternalAPITask | DummyAPITask
 
 
-def _get_task_discriminator_value(v: Any) -> str:
+def _get_task_discriminator_value(v: Any) -> str | None:
     if isinstance(v, dict):
         if not "task_type" in v:
-            raise ValueError("No task_type provided")
+            return "task_type_missing"
         if not "data_source" in v:
-            raise ValueError("No data_source provided")
+            return None
         task_type = v["task_type"]
         data_source = v["data_source"]
 
@@ -36,10 +36,10 @@ def _get_task_discriminator_value(v: Any) -> str:
 
     task_type = getattr(v, "task_type", None)
     if task_type is None:
-        raise ValueError("No task_type property found")
+        return None
     data_source = getattr(v, "data_source", None)
     if data_source is None:
-        raise ValueError("No data_source property found")
+        return None
     return f"{data_source}/{task_type}"
 
 
@@ -53,23 +53,23 @@ class TaskExecutionMetaModel(RootModel):
     ## Example
     Instead of
     ```python
-    Task.model_validate({"task": {"task_type": "tracks", "data_source": "spotify-api"}})
+    TaskExecutionMetaModel.model_validate({"task": {"task_type": "tracks", "data_source": "spotify-api"}})
     ```
     we can do
     ```python
-    Task.model_validate({"task_type": "tracks", "data_source": "spotify-api"})
+    TaskExecutionMetaModel.model_validate({"task_type": "tracks", "data_source": "spotify-api"})
     ```
 
     To access the _model_, we still need to use the `root` property.
     ```python
-    task = Task.model_validate({"task_type": "tracks", "data_source": "spotify-api"})
+    task = TaskExecutionMetaModel.model_validate({"task_type": "tracks", "data_source": "spotify-api"})
     task.root
     #
     ```
 
     However, `model_dump_json` will _not_ include the `root` property, but rather only the task dictionary.
     ```python
-    task = Task.model_validate({"task_type": "tracks", "data_source": "spotify-api"})
+    task = TaskExecutionMetaModel.model_validate({"task_type": "tracks", "data_source": "spotify-api"})
     task.model_dump_json()
     # {"task_type": "tracks", "data_source": "spotify-api"}
     ```
@@ -88,7 +88,13 @@ class TaskExecutionMetaModel(RootModel):
         | Annotated[
             DummyAPIThrowAboveThresholdTask, Tag("dummy-api/throw-above-threshold")
         ]
-    ) = Field(discriminator=Discriminator(_get_task_discriminator_value))
+    ) = Field(
+        discriminator=Discriminator(
+            _get_task_discriminator_value,
+            custom_error_type="invalid_task_type",
+            custom_error_message=f'Could not extract task type. Please provide a valid data source in the "data_source" field and a valid task type for that data source in the "task_type" field.',
+        )
+    )
     """
     An object representing the task. Most importantly, this contains `inputs` and `params` fields, as well as the `task_type` and `data_source` fields.
     
@@ -96,20 +102,7 @@ class TaskExecutionMetaModel(RootModel):
     """
 
 
-class UnsupportedTaskTypeError(Exception):
-    """
-    Exception raised when the task type is not supported.
-    """
-
-    pass
-
-
 def get_task_json_schema(data_source: DataSource, task_type: str):
-    try:
-        return TaskExecutionMetaModel.model_validate(
-            {"data_source": data_source, "task_type": task_type}
-        ).root.model_json_schema()
-    except Exception:
-        raise UnsupportedTaskTypeError(
-            f'Task type "{task_type}" for data source "{data_source}" is not supported'
-        )
+    return TaskExecutionMetaModel.model_validate(
+        {"data_source": data_source, "task_type": task_type}
+    ).root.model_json_schema()

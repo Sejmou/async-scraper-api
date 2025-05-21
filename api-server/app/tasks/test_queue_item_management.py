@@ -5,6 +5,7 @@ from dateutil import parser
 from datetime import datetime, timezone
 
 from app.tasks.queue_item_management import (
+    QueueItemData,
     TaskQueueItemManager,
     FatalProcessingError,
 )
@@ -16,28 +17,20 @@ def get_seconds_since(dt: datetime) -> int:
     return int(delta.total_seconds())
 
 
-def assert_is_valid_queue_item(output_item, input_item):
-    assert isinstance(output_item, dict)
-    assert "id" in output_item
-    assert isinstance(output_item["id"], int)
-    assert "data" in output_item
-    data = output_item["data"]
-    assert data == input_item
-    assert "added_at" in output_item
-    dt = parser.parse(output_item["added_at"])
+def parse_date_string_assume_utc(string: str) -> datetime:
+    dt = parser.parse(string)
     dt = dt.replace(tzinfo=timezone.utc)  # force UTC
-    assert get_seconds_since(dt) < 5
+    return dt
 
 
-def assert_queue_items_output_plausible(output, expected_items_data: list):
-    assert isinstance(output, dict)
-    assert "items" in output
-    assert "total" in output
-    assert "next_cursor" in output
-    output_items = output["items"]
-    assert isinstance(output_items, list)
-    for input_item, output_item in zip(expected_items_data, output_items):
-        assert_is_valid_queue_item(output_item=output_item, input_item=input_item)
+def assert_queue_items_query_items_plausible(
+    items: list[QueueItemData],
+    expected_values: Sequence,
+):
+    assert len(items) == len(expected_values)
+    for output, expected_value in zip(items, expected_values):
+        assert output.data == expected_value
+        assert get_seconds_since(parse_date_string_assume_utc(output.added_at)) < 5
 
 
 @pytest.fixture
@@ -78,10 +71,10 @@ async def test_task_queue_processing_one_by_one(temp_db_dir):
     counts = item_man.queue_item_counts
     print(counts)
 
-    assert counts["successes"] == 1
-    assert counts["failures"] == 1
-    assert counts["inputs_without_output"] == 1
-    assert counts["remaining"] == 1
+    assert counts.successes == 1
+    assert counts.failures == 1
+    assert counts.inputs_without_output == 1
+    assert counts.remaining == 1
 
 
 @pytest.mark.asyncio
@@ -121,14 +114,19 @@ async def test_task_queue_processing_batched(temp_db_dir):
     print(counts)
 
     assert completed_calls == 2
-    assert counts["successes"] == 2
-    assert counts["failures"] == 3
-    assert counts["inputs_without_output"] == 1
-    assert counts["remaining"] == 1
+    assert counts.successes == 2
+    assert counts.failures == 3
+    assert counts.inputs_without_output == 1
+    assert counts.remaining == 1
 
-    assert_queue_items_output_plausible(item_man.get_queue_items("successes"), [1, 3])
-    assert_queue_items_output_plausible(
-        item_man.get_queue_items("inputs-without-output"), [2]
-    )
-    assert_queue_items_output_plausible(item_man.get_queue_items("failures"), [4, 5, 6])
-    assert_queue_items_output_plausible(item_man.get_queue_items("inputs"), [7])
+    successes_res = item_man.get_queue_items("successes")
+    assert_queue_items_query_items_plausible(successes_res.items, [1, 3])
+
+    no_data_res = item_man.get_queue_items("inputs-without-output")
+    assert_queue_items_query_items_plausible(no_data_res.items, [2])
+
+    failures_res = item_man.get_queue_items("failures")
+    assert_queue_items_query_items_plausible(failures_res.items, [4, 5, 6])
+
+    remaining_res = item_man.get_queue_items("inputs")
+    assert_queue_items_query_items_plausible(remaining_res.items, [7])

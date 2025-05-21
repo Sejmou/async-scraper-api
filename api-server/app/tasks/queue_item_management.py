@@ -1,9 +1,10 @@
 import json
 import sqlite3
-from typing import Any, Awaitable, Callable, Literal, Sequence, TypedDict
+from typing import Any, Awaitable, Callable, Literal, Sequence
 import os
 import persistqueue
 from persistqueue.serializers import json as json_serializer
+from pydantic import BaseModel
 
 from app.tasks.common import (
     JSONValue,
@@ -20,15 +21,19 @@ class EmptyQueueError(Exception):
     pass
 
 
-class QueueItemCounts(TypedDict):
+class QueueItemCounts(BaseModel):
     """
-    A simple dictionary, storing the current counts of items in the different queues.
+    The current counts of items in the different queues. This includes:
+    - `remaining`: the number of items that are yet to be processed
+    - `successes`: the number of items that have been processed successfully (i.e. number of items for which output has been written to the output file)
+    - `failures`: the number of items for which an error occurred during processing
+    - `inputs_without_output`: the number of items that have been processed but have not produced any output
     """
 
+    remaining: int
     successes: int
     failures: int
     inputs_without_output: int
-    remaining: int
 
 
 type QueueType = Literal["inputs", "successes", "failures", "inputs-without-output"]
@@ -51,7 +56,7 @@ A dictionary mapping queue types to their corresponding SQLite table names.
 """
 
 
-class QueueItemData(TypedDict):
+class QueueItemData(BaseModel):
     """
     A simple dictionary for data + metadata about a queue item.
     """
@@ -70,7 +75,7 @@ class QueueItemData(TypedDict):
     """
 
 
-class QueueItemRetrievalResult(TypedDict):
+class QueueItemRetrievalResult(BaseModel):
     """
     A simple dictionary for the result of a queue item retrieval operation.
     """
@@ -182,12 +187,12 @@ class TaskQueueItemManager:
         Returns the current counts of items in the different queues.
         """
 
-        return {
-            "successes": self._successes_q.size,
-            "failures": self._failure_q.size,
-            "inputs_without_output": self._in_without_out_q.size,
-            "remaining": self._input_q.size,
-        }
+        return QueueItemCounts(
+            successes=self._successes_q.size,
+            failures=self._failure_q.size,
+            inputs_without_output=self._in_without_out_q.size,
+            remaining=self._input_q.size,
+        )
 
     def get_queue_items(
         self,
@@ -228,15 +233,15 @@ class TaskQueueItemManager:
             rows = cursor.fetchall()
 
             items: list[QueueItemData] = [
-                {
-                    "id": row[0],
-                    "data": json.loads(row[1]),
-                    "added_at": row[2],
-                }
+                QueueItemData(
+                    id=row[0],
+                    data=json.loads(row[1]),
+                    added_at=row[2],
+                )
                 for row in rows
             ]
 
-            last_id = items[-1]["id"] if items else None
+            last_id = items[-1].id if items else None
             if last_id:
                 next_id_tuple = cursor.execute(
                     f"SELECT _id AS id FROM {_table_names[queue_type]} WHERE _id > ? ORDER BY id ASC LIMIT 1",
@@ -253,7 +258,11 @@ class TaskQueueItemManager:
                 f"SELECT COUNT(*) FROM {_table_names[queue_type]}",
             ).fetchone()[0]
 
-            return {"items": items, "next_cursor": next_id, "total": total}
+            return QueueItemRetrievalResult(
+                items=items,
+                next_cursor=next_id,
+                total=total,
+            )
 
     def remove_queue_items(self, ids: Sequence[int], queue_type: QueueType):
         """Remove the items associated with the given ids from the specified queue type.
