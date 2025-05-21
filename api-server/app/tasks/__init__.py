@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession as AsyncDBSession
 
 from app.db.models import DataFetchingTask
 from app.tasks.data_fetching import SingleItemFetchFunctionResult, create_fetch_fn
-from app.tasks.models import PublicTaskModel
+from app.tasks.models import Task, TaskModel
 from app.tasks.processing import (
     BatchTaskProcessor,
     SequentialTaskProcessor,
@@ -96,15 +96,16 @@ async def resume_pending_tasks(db_session: AsyncDBSession):
         asyncio.create_task(run_task(processor))
 
 
-def _create_processor(task: PublicTaskModel) -> TaskProcessor:
+def _create_processor(db_task: DataFetchingTask) -> TaskProcessor:
     # task DB model stores data_source and task_type in separate fields/columns, but internal logic expects them to be part of params (makes validation logic easier)
-    q_mgr = TaskQueueItemManager(task_id=task.id, db_dir=TASK_PROGRESS_DB_DIR)
-    logger = setup_logger(f"{task.id}", file_dir=TASK_LOG_DIR, log_to_console=False)
-    fn_res = create_fetch_fn(params)
+    runtime_task = TaskModel.model_validate(db_task).root
+    q_mgr = TaskQueueItemManager(task_id=db_task.id, db_dir=TASK_PROGRESS_DB_DIR)
+    logger = setup_logger(f"{db_task.id}", file_dir=TASK_LOG_DIR, log_to_console=False)
+    fn_res = create_fetch_fn(runtime_task)
     if isinstance(fn_res, SingleItemFetchFunctionResult):
         return SequentialTaskProcessor(
             server_ip=PUBLIC_IP,
-            task_id=task.id,
+            task_id=db_task.id,
             outputs_dir=TASK_OUTPUT_DIR,
             fetch_fn=fn_res.fn,
             queue_item_manager=q_mgr,
@@ -114,7 +115,7 @@ def _create_processor(task: PublicTaskModel) -> TaskProcessor:
         # fn_res.fn is a function that supports batch processing, fn_res.batch_size stores maximum supported batch size
         return BatchTaskProcessor(
             server_ip=PUBLIC_IP,
-            task_id=task.id,
+            task_id=db_task.id,
             outputs_dir=TASK_OUTPUT_DIR,
             fetch_fn=fn_res.fn,
             queue_item_manager=q_mgr,
@@ -135,9 +136,7 @@ def get_task_processor(task: DataFetchingTask) -> TaskProcessor:
     return task_processors.get(task.id) or _create_and_add_processor(task)
 
 
-async def create_new_task(
-    task: PublicTaskModel, s3_prefix: str, session: AsyncDBSession
-) -> DataFetchingTask:
+async def create_new_task(task: Task, session: AsyncDBSession) -> DataFetchingTask:
     """
     Creates a new task in the database and returns it.
     """
@@ -150,10 +149,9 @@ async def create_new_task(
             if task.params
             else None
         ),
-        # make task paused initially - user still has to add inputs and start it
+        # make task paused initially - user still has to start it
         # ('pending' state would cause it to be started and 'done' immediately in the case of a server restart if no inputs were added in the meantime)
         status="paused",
-        s3_prefix=s3_prefix,
     )
 
     session.add(db_task)

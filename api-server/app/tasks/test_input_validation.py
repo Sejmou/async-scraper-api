@@ -1,5 +1,4 @@
 import pytest
-from app.tasks.models.dummy_api import DummyAPIFlakyTask
 from app.tasks.input_validation import InvalidTaskInputsError, parse_task_inputs
 
 

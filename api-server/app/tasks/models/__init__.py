@@ -1,5 +1,5 @@
 from typing import Annotated, Any
-from pydantic import BaseModel, Discriminator, Field, Tag
+from pydantic import RootModel, Discriminator, Field, Tag
 
 from app.db.models import DataSource
 from app.tasks.models.dummy_api import (
@@ -20,10 +20,7 @@ from app.tasks.models.spotify_internal import (
     SpotifyInternalRelatedArtistsTask,
 )
 
-PublicTaskModel = SpotifyAPITask | DummyAPITask | SpotifyInternalAPITask
-"""
-A model storing all relevant inform
-"""
+Task = SpotifyAPITask | SpotifyInternalAPITask | DummyAPITask
 
 
 def _get_task_discriminator_value(v: Any) -> str:
@@ -46,14 +43,38 @@ def _get_task_discriminator_value(v: Any) -> str:
     return f"{data_source}/{task_type}"
 
 
-class TaskWrapper(BaseModel):
+class TaskModel(RootModel):
     """
-    Model wrapping any supported task. This can be used to validate any raw incoming task and its parameters.
+    A model for any kind of supported task. The exact type of task it stores is determined by the `task_type` and `data_source` fields of the input.
+
+    The use of `RootModel` allows us to create a model that accepts the task dictionary as input to model_validate, without needing to wrap in another property (e.g. `task`).
+
+    ## Example
+    Instead of
+    ```python
+    Task.model_validate({"task": {"task_type": "tracks", "data_source": "spotify-api"}})
+    ```
+    we can do
+    ```python
+    Task.model_validate({"task_type": "tracks", "data_source": "spotify-api"})
+    ```
+
+    To access the _model_, we still need to use the `root` property.
+    ```python
+    task = Task.model_validate({"task_type": "tracks", "data_source": "spotify-api"})
+    task.root
+    #
+    ```
+
+    However, `model_dump_json` will _not_ include the `root` property, but rather only the task dictionary.
+    ```python
+    task = Task.model_validate({"task_type": "tracks", "data_source": "spotify-api"})
+    task.model_dump_json()
+    # {"task_type": "tracks", "data_source": "spotify-api"}
+    ```
     """
 
-    # kinda annoying, but apparently there's no way to achieve what I want without listing every possible task type explicitly
-    # TODO: find a more elegant/robust way to do this
-    task: (
+    root: (
         Annotated[SpotifyTracksTask, Tag("spotify-api/tracks")]
         | Annotated[SpotifyAlbumsTask, Tag("spotify-api/albums")]
         | Annotated[SpotifyArtistsTask, Tag("spotify-api/artists")]
@@ -84,9 +105,9 @@ class UnsupportedTaskTypeError(Exception):
 
 def get_task_json_schema(data_source: DataSource, task_type: str):
     try:
-        return TaskWrapper.model_validate(
-            {"task": {"data_source": data_source, "task_type": task_type}}
-        ).task.model_json_schema()
+        return TaskModel.model_validate(
+            {"data_source": data_source, "task_type": task_type}
+        ).root.model_json_schema()
     except Exception:
         raise UnsupportedTaskTypeError(
             f'Task type "{task_type}" for data source "{data_source}" is not supported'

@@ -14,7 +14,7 @@ from app.db.models import (
 )
 from app.api.models import DataFetchingTask as TaskModel
 from app.tasks import get_task_processor, run_in_background
-from app.tasks.models.inputs import InvalidTaskInputsError, parse_task_inputs
+from app.tasks.input_validation import InvalidTaskInputsError, parse_task_inputs
 from app.tasks.progress.public_models import TaskProgress, TaskProgressDetails
 from app.tasks.progress import TaskProgressTracker
 from app.config import TASK_LOG_DIR, TASK_PROGRESS_DB_DIR, app_logger

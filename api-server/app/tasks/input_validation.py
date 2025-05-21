@@ -2,7 +2,7 @@ from typing import Any, Literal, TypedDict
 from pydantic import ValidationError
 
 from app.db.models import DataSource
-from app.tasks.models import TaskWrapper
+from app.tasks.models import TaskModel
 
 
 class InputErrorDetails(TypedDict):
@@ -28,28 +28,26 @@ class InvalidTaskInputsError(Exception):
 
 def parse_task_inputs(inputs: list[Any], data_source: DataSource, task_type: str):
     """
-    Parse an arbitrary value into a TaskInputs instance, raising an exception if that fails.
+    Parse an arbitrary value into validated task inputs, raising an exception if that fails.
 
     Args:
         data: The data to be parsed.
 
     Returns:
-        A TaskInputs instance.
+        TaskInputs: The parsed task inputs.
 
     Raises:
         ValueError: If the data cannot be parsed into a valid task
     """
     try:
-        value = TaskWrapper.model_validate(
+        value = TaskModel.model_validate(
             {
-                "task": {
-                    "inputs": inputs,
-                    "task_type": task_type,
-                    "data_source": data_source,
-                }
+                "inputs": inputs,
+                "task_type": task_type,
+                "data_source": data_source,
             }
         )
-        return value.task.inputs
+        return value.root.inputs
     except ValidationError as e:
         error_details: list[InputErrorDetails] = []
         for error in e.errors():

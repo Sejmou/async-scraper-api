@@ -32,8 +32,6 @@ class DummyAPIFlakyTask(DummyAPITaskBase):
 
     task_type: DummyFlakyTaskType = "flaky"
 
-    s3_prefix: Literal["dummy-api/flaky"] = "dummy-api/flaky"
-
     inputs: list[DummyID] = []
     """
     List of dummy IDs.
@@ -46,8 +44,6 @@ class DummyAPIFlakyTask(DummyAPITaskBase):
 
 
 class DummyAPIThrowAboveThresholdParams(BaseModel):
-    task_type: DummyThrowAboveThresholdTaskType = "throw-above-threshold"
-
     threshold: int = Field(ge=0, default=10)
     """
     The ID threshold above which the dummy API will return an error for a given input.
@@ -60,10 +56,6 @@ class DummyAPIThrowAboveThresholdTask(DummyAPITaskBase):
     """
 
     task_type: DummyThrowAboveThresholdTaskType = "throw-above-threshold"
-
-    s3_prefix: Literal["dummy-api/throw-above-threshold"] = (
-        "dummy-api/throw-above-threshold"
-    )
 
     inputs: list[DummyID] = []
     """

@@ -1,5 +1,5 @@
 from app.tasks.common import BatchFetchFunctionResult, SingleItemFetchFunctionResult
-from app.tasks.models import PublicTaskModel
+from app.tasks.models import Task
 from app.tasks.data_fetching.dummy_api import create_dummy_api_fetch_fn
 from app.tasks.data_fetching.spotify_api import create_spotify_api_fetch_fn
 from app.tasks.data_fetching.spotify_internal import (
@@ -8,7 +8,7 @@ from app.tasks.data_fetching.spotify_internal import (
 
 
 def create_fetch_fn(
-    task: PublicTaskModel,
+    task: Task,
 ) -> SingleItemFetchFunctionResult | BatchFetchFunctionResult:
     if task.data_source == "spotify-api":
         return create_spotify_api_fetch_fn(task)
