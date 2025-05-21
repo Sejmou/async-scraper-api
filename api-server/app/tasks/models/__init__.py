@@ -14,6 +14,7 @@ from app.tasks.models.spotify_api import (
     SpotifyArtistsTask,
     SpotifyPlaylistsTask,
     SpotifyArtistAlbumsTask,
+    SpotifyISRCTrackSearchTask,
 )
 from app.tasks.models.spotify_internal import (
     SpotifyInternalAPITask,
@@ -81,6 +82,7 @@ class TaskExecutionMetaModel(RootModel):
         | Annotated[SpotifyArtistsTask, Tag("spotify-api/artists")]
         | Annotated[SpotifyArtistAlbumsTask, Tag("spotify-api/artist-albums")]
         | Annotated[SpotifyPlaylistsTask, Tag("spotify-api/playlists")]
+        | Annotated[SpotifyISRCTrackSearchTask, Tag("spotify-api/isrc-track-search")]
         | Annotated[
             SpotifyInternalRelatedArtistsTask, Tag("spotify-internal/related-artists")
         ]
