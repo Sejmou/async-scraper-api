@@ -7,7 +7,7 @@ from app.api.utils.logs import download_logs
 from app.db.models import DataSource
 
 # TODO: update whenever something major changes in the API
-API_VERSION = "1.0"
+API_VERSION = "1.1"
 ONLINE_SINCE = datetime.now().isoformat()
 
 router = APIRouter(prefix="/about")

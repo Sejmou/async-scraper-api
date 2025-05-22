@@ -206,6 +206,10 @@ class TaskProcessor[T](ABC):
                 await self._compress_upload_and_delete_data_written_to_current_output_file(
                     db_session
                 )
+                if self._pause_requested:
+                    return
+
+                # otherwise, task completed regularly and we can mark it as done!
                 db_task.status = "done"
                 await db_session.commit()
                 self._logger.info("Task completed successfully :)")
