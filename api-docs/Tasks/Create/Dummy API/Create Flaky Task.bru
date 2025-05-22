@@ -1,0 +1,17 @@
+meta {
+  name: Create Flaky Task
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{api_url}}/dummy-api/flaky
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "flakiness": 0.1
+  }
+}

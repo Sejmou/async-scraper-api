@@ -1,0 +1,17 @@
+meta {
+  name: Create invalid flaky task
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{api_url}}/dummy-api/flaky
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "asdfasdf": "hihihi"
+  }
+}

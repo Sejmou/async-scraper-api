@@ -1,0 +1,27 @@
+meta {
+  name: Add inputs
+  type: http
+  seq: 13
+}
+
+post {
+  url: {{api_url}}/tasks/{{task_id}}/queue-items/inputs
+  body: json
+  auth: inherit
+}
+
+body:json {
+  [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+  ]
+}
+
+docs {
+  Expected shape of inputs is inferred from `data_source` and `task_type` of task associated with the provided `task_id` from the URL - 400 error with descriptive errors is returned in case any given item failed to validate.
+}

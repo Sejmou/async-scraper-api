@@ -5,13 +5,15 @@ meta {
 }
 
 post {
-  url: {{api_url}}/spotify-api/tracks
+  url: {{api_url}}/tasks/create
   body: json
   auth: none
 }
 
 body:json {
   {
+    "data_source": "spotify-api",
+    "task_type": "isrc-track-search",
     "inputs": [
       "4PTG3Z6ehGkBFwjybzWkR8"
     ],
