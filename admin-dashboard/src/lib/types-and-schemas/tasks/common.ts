@@ -45,7 +45,6 @@ export const dataFetchingTaskSchema = z.object({
 	status: dataFetchingTaskStatusSchema,
 	data_source: dataSourceSchema,
 	task_type: z.string(),
-	s3_prefix: z.string(),
 	file_uploads: z.array(s3FileUploadSchema),
 	params: z.record(jsonValueSchema).nullable(),
 	created_at: z.string().refine((val) => !isNaN(Date.parse(val)), {
@@ -53,8 +52,7 @@ export const dataFetchingTaskSchema = z.object({
 	}),
 	updated_at: z.string().refine((val) => !isNaN(Date.parse(val)), {
 		message: 'Invalid date format for updated_at'
-	}),
-	batch_size: z.number()
+	})
 });
 
 export const tasksPageSchema = z.object({
@@ -94,9 +92,14 @@ export const taskQueueItemsPageSchema = z.object({
 });
 
 export const taskQueueTypeSchema = z.union([
-	z.literal('remaining-inputs'),
+	z.literal('inputs'),
 	z.literal('successes'),
 	z.literal('failures'),
 	z.literal('inputs-without-output')
 ]);
 export type TaskQueueType = z.infer<typeof taskQueueTypeSchema>;
+
+export const taskAddResponseSchema = z.object({
+	added_count: z.number(),
+	message: z.string()
+});

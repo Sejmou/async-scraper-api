@@ -1,5 +1,5 @@
 import { db } from '$lib/server/db';
-import { resumeTask } from '$lib/server/scraper-api/tasks/state-management';
+import { executeTask } from '$lib/server/scraper-api/tasks/state-management';
 import { json, error } from '@sveltejs/kit';
 
 export async function POST({ params }) {
@@ -20,7 +20,7 @@ export async function POST({ params }) {
 		error(400, 'Invalid taskId');
 	}
 
-	const res = await resumeTask(scraper, taskId);
+	const res = await executeTask(scraper, taskId);
 	if (res.status === 'success') {
 		return json(res.data);
 	} else {

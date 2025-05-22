@@ -11,10 +11,10 @@ export async function pauseTask(scraperId: number, taskId: number): TaskStateRes
 	});
 }
 
-export async function resumeTask(scraperId: number, taskId: number): TaskStateResponse {
+export async function executeTask(scraperId: number, taskId: number): TaskStateResponse {
 	return await makeRequestToServerApi({
 		method: 'POST',
-		path: `scrapers/${scraperId}/tasks/${taskId}/resume`,
+		path: `scrapers/${scraperId}/tasks/${taskId}/execute`,
 		responseSchema: dataFetchingTaskSchema
 	});
 }

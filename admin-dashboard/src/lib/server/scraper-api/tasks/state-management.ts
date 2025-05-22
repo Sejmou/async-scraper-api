@@ -11,11 +11,11 @@ export async function pauseTask(scraper: Scraper, taskId: number) {
 	});
 }
 
-export async function resumeTask(scraper: Scraper, taskId: number) {
+export async function executeTask(scraper: Scraper, taskId: number) {
 	return await makeRequestToScraper({
 		method: 'POST',
 		scraper,
-		path: `tasks/${taskId}/resume`,
+		path: `tasks/${taskId}/execute`,
 		responseSchema: dataFetchingTaskSchema
 	});
 }

@@ -6,21 +6,21 @@
 	let { scraperId, scraperTaskId }: { scraperId: number; scraperTaskId: number } = $props();
 
 	const queueTypes: readonly TaskQueueType[] = [
-		'remaining-inputs',
+		'inputs',
 		'successes',
 		'failures',
 		'inputs-without-output'
 	];
 
 	const tabLabels: Record<TaskQueueType, string> = {
-		'remaining-inputs': 'Remaining Inputs',
+		inputs: 'Remaining Inputs',
 		successes: 'Successes',
 		failures: 'Failures',
 		'inputs-without-output': 'Inputs without Output'
 	};
 
 	let totals: Record<TaskQueueType, number | null> = $state({
-		'remaining-inputs': null,
+		inputs: null,
 		successes: null,
 		failures: null,
 		'inputs-without-output': null
