@@ -11,7 +11,6 @@ from sqlalchemy.orm import joinedload
 
 from app.db import sessionmanager
 from app.tasks.common import (
-    TaskInput,
     TaskProgressMeta,
     SingleItemFetchFunction,
     BatchFetchFunction,
@@ -23,7 +22,7 @@ from app.utils.s3 import upload_file
 from app.utils.files import is_file_empty
 
 
-class TaskProcessor[T: TaskInput](ABC):
+class TaskProcessor[T](ABC):
     """
     A utility class for processing data fetching tasks in a queue-based manner.
 
@@ -34,7 +33,8 @@ class TaskProcessor[T: TaskInput](ABC):
         self,
         server_ip: str,
         task_id: int,
-        outputs_dir: str,
+        outputs_s3_prefix: str,
+        outputs_local_storage_dir: str,
         queue_item_manager: TaskQueueItemManager,
         logger: Logger,
         compression_file_size_limit_bytes: int = (
@@ -49,6 +49,11 @@ class TaskProcessor[T: TaskInput](ABC):
         self._task_id = task_id
         """
         The ID of the task that is being processed by this task processor.
+        """
+
+        self._output_s3_prefix = outputs_s3_prefix
+        """
+        The S3 prefix under which the output files for the task will be uploaded to.
         """
 
         self._queue_item_manager = queue_item_manager
@@ -66,12 +71,12 @@ class TaskProcessor[T: TaskInput](ABC):
         The interval (in seconds) at which the task processor logs its progress.
         """
 
-        self._output_fp = f"{outputs_dir}/{task_id}.jsonl"
+        self._output_fp = f"{outputs_local_storage_dir}/{task_id}.jsonl"
         """
         The path to the JSONL file where the outputs of the task will be written to.
         """
 
-        self._output_fp_compressed = f"{outputs_dir}/{task_id}.jsonl.zst"
+        self._output_fp_compressed = f"{outputs_local_storage_dir}/{task_id}.jsonl.zst"
         """
         The path to the compressed JSONL file that will be uploaded to S3 once the task finishes or the current output file reaches a certain size.
         """
@@ -259,7 +264,7 @@ class TaskProcessor[T: TaskInput](ABC):
         last_modified = datetime.fromtimestamp(
             os.path.getmtime(self._output_fp_compressed), tz=timezone.utc
         )
-        s3_key = f"{db_task.s3_prefix}/{last_modified.strftime('%Y-%m-%d_%H-%M-%S')}_{self._server_ip}.jsonl.zst"
+        s3_key = f"{self._output_s3_prefix}/{last_modified.strftime('%Y-%m-%d_%H-%M-%S')}_{self._server_ip}.jsonl.zst"
         upload_size_bytes = os.path.getsize(self._output_fp_compressed)
         upload_meta = await upload_file(
             local_path=self._output_fp_compressed,
@@ -291,6 +296,7 @@ class TaskProcessor[T: TaskInput](ABC):
                 "observed_at": datetime.now(timezone.utc).isoformat(),
             }
         self._output_file.write(json.dumps(output) + "\n")
+        self._output_file.flush()
         self._logger.debug(f"Wrote output to {self._output_fp}")
 
         if (
@@ -315,12 +321,13 @@ class TaskProcessor[T: TaskInput](ABC):
         self._logger.warning(f"Not output for input {input_without_output}")
 
 
-class SequentialTaskProcessor[T: TaskInput](TaskProcessor[T]):
+class SequentialTaskProcessor[T](TaskProcessor[T]):
     def __init__(
         self,
         server_ip: str,
         task_id: int,
-        outputs_dir: str,
+        outputs_s3_prefix: str,
+        outputs_local_storage_dir: str,
         queue_item_manager: TaskQueueItemManager,
         logger: Logger,
         fetch_fn: SingleItemFetchFunction[T],
@@ -331,7 +338,8 @@ class SequentialTaskProcessor[T: TaskInput](TaskProcessor[T]):
         super().__init__(
             server_ip=server_ip,
             task_id=task_id,
-            outputs_dir=outputs_dir,
+            outputs_s3_prefix=outputs_s3_prefix,
+            outputs_local_storage_dir=outputs_local_storage_dir,
             queue_item_manager=queue_item_manager,
             logger=logger,
             compression_file_size_limit_bytes=compression_file_size_limit_bytes,
@@ -363,12 +371,13 @@ class SequentialTaskProcessor[T: TaskInput](TaskProcessor[T]):
             )
 
 
-class BatchTaskProcessor[T: TaskInput](TaskProcessor[T]):
+class BatchTaskProcessor[T](TaskProcessor[T]):
     def __init__(
         self,
         server_ip: str,
         task_id: int,
-        outputs_dir: str,
+        outputs_s3_prefix: str,
+        outputs_local_storage_dir: str,
         queue_item_manager: TaskQueueItemManager,
         logger: Logger,
         fetch_fn: BatchFetchFunction[T],
@@ -380,7 +389,8 @@ class BatchTaskProcessor[T: TaskInput](TaskProcessor[T]):
         super().__init__(
             server_ip=server_ip,
             task_id=task_id,
-            outputs_dir=outputs_dir,
+            outputs_s3_prefix=outputs_s3_prefix,
+            outputs_local_storage_dir=outputs_local_storage_dir,
             queue_item_manager=queue_item_manager,
             logger=logger,
             compression_file_size_limit_bytes=compression_file_size_limit_bytes,

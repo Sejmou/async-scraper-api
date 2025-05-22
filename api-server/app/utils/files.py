@@ -1,7 +1,7 @@
 import os
 
 
-def is_file_empty(file_path):
+def is_file_empty(file_path: str):
     """Checks if a given file is empty. Performs naive file size check and potentially additional checks depending on the file extension."""
     if os.path.getsize(file_path) == 0:
         return True

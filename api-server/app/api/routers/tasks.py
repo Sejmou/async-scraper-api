@@ -1,3 +1,4 @@
+import asyncio
 import os
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from sqlalchemy import select
@@ -11,10 +12,10 @@ from app.db.models import (
     DataFetchingTask as DBTask,
     JSONValue,
 )
-from app.api.models import DataFetchingTaskModel, S3UploadListModel
+from app.api.models import DataFetchingTaskModel, S3FileUploadModel
 from app.tasks import create_new_task, get_task_processor, run_in_background
 from app.tasks.input_validation import InvalidTaskInputsError, parse_task_inputs
-from app.tasks.models import TaskExecutionMetaModel
+from app.tasks.models import TaskExecutionMetaModel, TaskInputs
 from app.config import TASK_LOG_DIR, TASK_PROGRESS_DB_DIR, app_logger
 from app.tasks.progress import TaskProgressTracker
 from app.tasks.progress.public_models import TaskProgressModel
@@ -44,23 +45,29 @@ def create_task_progress_tracker(task_id: int) -> TaskProgressTracker:
     )
 
 
-def convert_to_public_model(db_task: DBTask) -> DataFetchingTaskModel:
+def add_task_inputs_in_background(task_id: int, inputs: TaskInputs):
+    q_mgr = create_task_queue_item_manager(task_id)
+    loop = asyncio.get_running_loop()
+    loop.run_in_executor(None, q_mgr.add_inputs, inputs)
+
+
+async def convert_to_public_model(db_task: DBTask) -> DataFetchingTaskModel:
     """
     Convert a database task to a public model.
     """
-    return DataFetchingTaskModel(
+    model = DataFetchingTaskModel(
         id=db_task.id,
         status=db_task.status,
         data_source=db_task.data_source,
-        file_uploads=S3UploadListModel.model_validate(db_task.file_uploads),
+        file_uploads=[
+            S3FileUploadModel.model_validate(upload) for upload in db_task.file_uploads
+        ],
         task_type=db_task.task_type,
         params=db_task.params,
         created_at=db_task.created_at,
         updated_at=db_task.updated_at,
-        # TODO: add as well
-        # s3_prefix=db_task.s3_prefix,
-        # progress=
     )
+    return model
 
 
 @router.get("/data-sources")
@@ -76,8 +83,10 @@ async def create_task(
     payload: NewTaskPayload, session: DBSessionDep
 ) -> DataFetchingTaskModel:
     new_task = payload.root
-    db_task = await create_new_task(new_task, session)
-    return DataFetchingTaskModel.model_validate(db_task)
+    db_task, inputs = await create_new_task(new_task, session)
+    if inputs:
+        add_task_inputs_in_background(db_task.id, inputs)
+    return await convert_to_public_model(db_task)
 
 
 @router.get("/", response_model=Page[DataFetchingTaskModel])
@@ -99,7 +108,7 @@ async def get_task(task_id: int, session: DBSessionDep) -> DataFetchingTaskModel
     )
     if not db_task:
         raise HTTPException(status_code=404, detail="Task not found")
-    return convert_to_public_model(db_task)
+    return await convert_to_public_model(db_task)
 
 
 @router.post("/{task_id}/pause", response_model=DataFetchingTaskModel)
@@ -124,7 +133,7 @@ async def pause_task(task_id: int, session: DBSessionDep) -> DataFetchingTaskMod
         processor = get_task_processor(db_task)
         app_logger.info(f"Pausing processor for task ID {task_id}...")
         processor.pause()
-        return convert_to_public_model(db_task)
+        return await convert_to_public_model(db_task)
     else:
         raise HTTPException(status_code=404, detail="Task not found")
 
@@ -155,7 +164,7 @@ async def execute_task(
         processor = get_task_processor(db_task)
         app_logger.info(f"Resuming processor for task ID {task_id}...")
         run_in_background(processor, background_tasks)
-        return convert_to_public_model(db_task)
+        return await convert_to_public_model(db_task)
     else:
         raise HTTPException(status_code=404, detail="Task not found")
 
@@ -269,16 +278,14 @@ async def add_task_inputs(
             raw_inputs, data_source=task.data_source, task_type=task.task_type
         )
 
-        item_manager = create_task_queue_item_manager(task_id)
-
-        await item_manager.add_inputs(validated_inputs)
-
         if len(validated_inputs) == 0:
             raise HTTPException(status_code=400, detail="No valid inputs provided")
 
+        add_task_inputs_in_background(task_id, validated_inputs)
+
         return {
-            "added_count": len(validated_inputs),
-            "message": f"{len(validated_inputs)} items added to input queue for task {task_id}",
+            "received_count": len(validated_inputs),
+            "message": f"{len(validated_inputs)} items will be added to input queue (assuming they are not already in the queue)",
         }
     except InvalidTaskInputsError as e:
         raise HTTPException(

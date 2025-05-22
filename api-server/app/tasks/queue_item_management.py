@@ -39,10 +39,10 @@ class QueueItemCounts(BaseModel):
 type QueueType = Literal["inputs", "successes", "failures", "inputs-without-output"]
 
 # TODO: use a more specific type for the input item (couldn't figure it out with my smooth brain yet)
-type QueueItemProcessingSuccessCallback = Callable[[Any, Any], Awaitable[None] | None]
-type QueueItemProcessingNoDataReturnedCallback = Callable[[Any], Awaitable[None] | None]
+type QueueItemProcessingSuccessCallback = Callable[[Any, Any], Awaitable[None]]
+type QueueItemProcessingNoDataReturnedCallback = Callable[[Any], Awaitable[None]]
 type QueueItemProcessingNonFatalErrorCallback = Callable[
-    [Any, Exception], Awaitable[None] | None
+    [Any, Exception], Awaitable[None]
 ]
 
 _table_names: dict[QueueType, str] = {
@@ -122,6 +122,7 @@ class TaskQueueItemManager:
             # if auto_commit is False, task_done() must be called to persist changes made via put() or get() calls
             auto_commit=False,
             name="successes",
+            multithreading=True,
         )
         """
         The items that have been processed successfully.
@@ -134,6 +135,7 @@ class TaskQueueItemManager:
             # if auto_commit is False, task_done() must be called to persist changes made via put() or get() calls
             auto_commit=False,
             name="inputs",
+            multithreading=True,
         )
         """
         The persistent queue for input items that have not been processed yet.
@@ -147,6 +149,7 @@ class TaskQueueItemManager:
                 # if auto_commit is False, task_done() must be called to persist changes made via put() or get() calls
                 auto_commit=False,
                 name="inputs",
+                multithreading=True,
             )
 
         self._undo_input_removals = undo_input_queue_removals
@@ -160,6 +163,7 @@ class TaskQueueItemManager:
             serializer=json_serializer,
             auto_commit=True,
             name="failures",
+            multithreading=True,
         )
         """
         The queue for items that could not be processed due to an error.
@@ -171,6 +175,7 @@ class TaskQueueItemManager:
             serializer=json_serializer,
             auto_commit=True,
             name="inputs_without_output",
+            multithreading=True,
         )
         """
         The queue for input items that haven't produced any output.
@@ -321,17 +326,17 @@ class TaskQueueItemManager:
         try:
             res = await processing_fn(item)
             if res is None:
-                on_no_data_returned(item)
+                await on_no_data_returned(item)
                 self._in_without_out_q.put(item)
             else:
-                on_success(item, res)
+                await on_success(item, res)
                 self._successes_q.put(item)
         except FatalProcessingError:
             self._undo_input_removals()
             raise
         except Exception as e:
             # every exception that is not a FatalProcessingError is considered a non-fatal error
-            on_non_fatal_error(item, e)
+            await on_non_fatal_error(item, e)
             self._failure_q.put(item)
         finally:
             # persist the removal from the input queue
@@ -386,7 +391,7 @@ class TaskQueueItemManager:
             outputs = await processing_fn(inputs)
             if outputs is None:
                 for item in inputs:
-                    on_no_data_returned(item)
+                    await on_no_data_returned(item)
                     self._in_without_out_q.put(item)
             else:
                 if len(outputs) != len(inputs):
@@ -395,10 +400,10 @@ class TaskQueueItemManager:
                     )
                 for input_item, output in zip(inputs, outputs):
                     if output is None:
-                        on_no_data_returned(input_item)
+                        await on_no_data_returned(input_item)
                         self._in_without_out_q.put(input_item)
                     else:
-                        on_success(input_item, output)
+                        await on_success(input_item, output)
                         self._successes_q.put(input_item)
         except FatalProcessingError:
             self._undo_input_removals()
@@ -406,13 +411,13 @@ class TaskQueueItemManager:
         except Exception as e:
             # every exception that is not a FatalProcessingError is considered a non-fatal error
             for input_item in inputs:
-                on_non_fatal_error(input_item, e)
+                await on_non_fatal_error(input_item, e)
                 self._failure_q.put(input_item)
         finally:
             # persist the removals from the input queue
             self._input_q.task_done()
 
-    async def add_inputs(
+    def add_inputs(
         self,
         inputs: Sequence,
     ):

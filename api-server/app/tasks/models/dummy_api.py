@@ -15,7 +15,7 @@ class DummyAPITaskBase(BaseModel):
     data_source: Literal["dummy-api"] = "dummy-api"
 
 
-DummyID = Annotated[int, Field(ge=1)]
+DummyId = Annotated[int, Field(ge=1)]
 
 
 class DummyAPIFlakyParams(BaseModel):
@@ -32,7 +32,7 @@ class DummyAPIFlakyTask(DummyAPITaskBase):
 
     task_type: DummyFlakyTaskType = "flaky"
 
-    inputs: list[DummyID] = []
+    inputs: list[DummyId] = []
     """
     List of dummy IDs.
     """
@@ -57,7 +57,7 @@ class DummyAPIThrowAboveThresholdTask(DummyAPITaskBase):
 
     task_type: DummyThrowAboveThresholdTaskType = "throw-above-threshold"
 
-    inputs: list[DummyID] = []
+    inputs: list[DummyId] = []
     """
     List of dummy IDs.
     """

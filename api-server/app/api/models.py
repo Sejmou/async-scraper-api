@@ -21,12 +21,6 @@ class DataFetchingTaskModel(BaseModel):
 
     status: DataFetchingTaskStatus
 
-    # TODO: figure out how to add this without too much hassle
-    # progress: TaskProgressModel
-    # """
-    # The progress of the task in terms of how many items have been processed, how many are left to process, how many have failed, and how many produced no output.
-    # """
-
     data_source: DataSource
     """
     The source the data is fetched from.
@@ -41,16 +35,10 @@ class DataFetchingTaskModel(BaseModel):
     Example: `tracks` for fetching track metadata from the Spotify API (assuming `spotify-api` is the `data_source`).
     """
 
-    file_uploads: "S3UploadListModel"
+    file_uploads: list["S3FileUploadModel"]
     """
     The files that have been uploaded to S3 as part of this task.
     """
-
-    # TODO: figure out how to add this without too much hassle
-    # s3_prefix: str
-    # """
-    # The S3 prefix under which files will be uploaded once the task is done or the current local file reaches the maximum file size.
-    # """
 
     params: dict[str, JSONValue] | None
     """
@@ -79,7 +67,3 @@ class S3FileUploadModel(BaseModel):
     size_bytes: int
 
     uploaded_at: datetime
-
-
-class S3UploadListModel(RootModel):
-    root: list[S3FileUploadModel]

@@ -6,9 +6,11 @@ from app.tasks.models.dummy_api import (
     DummyAPITask,
     DummyAPIFlakyTask,
     DummyAPIThrowAboveThresholdTask,
+    DummyId,
 )
 from app.tasks.models.spotify_api import (
     SpotifyAPITask,
+    SpotifyId,
     SpotifyTracksTask,
     SpotifyAlbumsTask,
     SpotifyArtistsTask,
@@ -22,6 +24,10 @@ from app.tasks.models.spotify_internal import (
 )
 
 TaskExecutionMeta = SpotifyAPITask | SpotifyInternalAPITask | DummyAPITask
+
+# TODO: update this as new kinds of inputs are addeds
+# Unfortunately, it looks like atm Python's type system is unable to automatically infer the possible types of the inputs property for TaskExecutionMeta
+TaskInputs = list[SpotifyId] | list[DummyId] | list[str]
 
 
 def _get_task_discriminator_value(v: Any) -> str | None:

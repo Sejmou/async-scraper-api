@@ -11,6 +11,18 @@ from app.tasks.queue_item_management import (
 )
 
 
+async def handle_success(input_item: int, output: str | None):
+    print(f"Success: {input_item} -> {output}")
+
+
+async def handle_no_data(input_item: int):
+    print(f"No data returned for {input_item}")
+
+
+async def handle_error(input_item: int, exc: Exception):
+    print(f"Error processing {input_item}: {exc}")
+
+
 def get_seconds_since(dt: datetime) -> int:
     now = datetime.now(timezone.utc)
     delta = now - dt
@@ -55,15 +67,15 @@ async def test_task_queue_processing_one_by_one(temp_db_dir):
             raise FatalProcessingError("Dummy fatal error")
         return f"Processed {x}"
 
-    await item_man.add_inputs([1, 2, 3, 4])
+    item_man.add_inputs([1, 2, 3, 4])
 
     try:
         while item_man.remaining_input_count > 0:
             await item_man.process_next_input_item(
                 dummy_single_int_processing_fn,
-                lambda input_item, output: print(f"Success: {input_item} -> {output}"),
-                lambda x: print(f"No data returned for {x}"),
-                lambda x, exc: print(f"Error processing {x}: {exc}"),
+                on_success=handle_success,
+                on_no_data_returned=handle_no_data,
+                on_non_fatal_error=handle_error,
             )
     except FatalProcessingError:
         print("Fatal error occurred, stopping processing.")
@@ -84,7 +96,7 @@ async def test_task_queue_processing_batched(temp_db_dir):
         task_id=1,
     )
 
-    await item_man.add_inputs([i + 1 for i in range(7)])
+    item_man.add_inputs([i + 1 for i in range(7)])
 
     async def dummy_batch_processing_fn(x: Sequence[int]) -> Sequence[str | None]:
         if 4 in x:
@@ -100,11 +112,9 @@ async def test_task_queue_processing_batched(temp_db_dir):
             await item_man.process_next_input_item_chunk(
                 dummy_batch_processing_fn,
                 chunk_size=3,
-                on_success=lambda input_item, output: print(
-                    f"Success: {input_item} -> {output}"
-                ),
-                on_no_data_returned=lambda x: print(f"No data returned for {x}"),
-                on_non_fatal_error=lambda x, exc: print(f"Error processing {x}: {exc}"),
+                on_success=handle_success,
+                on_no_data_returned=handle_no_data,
+                on_non_fatal_error=handle_error,
             )
             completed_calls += 1
     except FatalProcessingError:

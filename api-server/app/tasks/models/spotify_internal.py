@@ -1,5 +1,5 @@
-from typing import Literal
-from pydantic import BaseModel
+from typing import Annotated, Literal
+from pydantic import BaseModel, Field
 
 SpotifyInternalRelatedArtistsTaskType = Literal["related-artists"]
 
@@ -8,6 +8,8 @@ SpotifyInternalTaskType = SpotifyInternalRelatedArtistsTaskType
 SPOTIFY_INTERNAL_TASK_TYPES: list[SpotifyInternalTaskType] = [
     "related-artists",
 ]
+
+SpotifyId = Annotated[str, Field(min_length=22, max_length=22)]
 
 
 class SpotifyInternalTaskBase(BaseModel):
@@ -28,7 +30,7 @@ class SpotifyInternalRelatedArtistsTask(SpotifyInternalTaskBase):
 
     task_type: Literal["related-artists"] = "related-artists"
 
-    inputs: list[str] = []
+    inputs: list[SpotifyId] = []
     """
     List of Spotify artist IDs to fetch related artists for.
     """

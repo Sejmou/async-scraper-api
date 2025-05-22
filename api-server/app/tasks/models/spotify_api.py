@@ -37,7 +37,7 @@ class SpotifyTaskBase(BaseModel):
 
 DataFetchingRegion = Literal["de", "us"]
 
-SpotifyTaskId = Annotated[str, Field(min_length=22, max_length=22)]
+SpotifyId = Annotated[str, Field(min_length=22, max_length=22)]
 
 
 class SpotifyTracksParams(BaseModel):
@@ -46,7 +46,7 @@ class SpotifyTracksParams(BaseModel):
 
 class SpotifyTracksTask(SpotifyTaskBase):
     task_type: SpotifyTracksTaskType = "tracks"
-    inputs: list[SpotifyTaskId] = []
+    inputs: list[SpotifyId] = []
     params: SpotifyTracksParams = SpotifyTracksParams(region="de")
 
     def get_s3_prefix(self) -> str:
@@ -55,7 +55,7 @@ class SpotifyTracksTask(SpotifyTaskBase):
 
 class SpotifyArtistsTask(SpotifyTaskBase):
     task_type: SpotifyArtistsTaskType = "artists"
-    inputs: list[SpotifyTaskId] = []
+    inputs: list[SpotifyId] = []
     params: None = None
 
     def get_s3_prefix(self) -> str:
@@ -68,7 +68,7 @@ class SpotifyAlbumsParams(BaseModel):
 
 class SpotifyAlbumsTask(SpotifyTaskBase):
     task_type: SpotifyAlbumsTaskType = "albums"
-    inputs: list[SpotifyTaskId] = []
+    inputs: list[SpotifyId] = []
     params: SpotifyAlbumsParams = SpotifyAlbumsParams(region="de")
 
     def get_s3_prefix(self) -> str:
@@ -97,7 +97,7 @@ class SpotifyArtistAlbumsParams(BaseModel):
 
 class SpotifyArtistAlbumsTask(SpotifyTaskBase):
     task_type: SpotifyArtistAlbumsTaskType = "artist-albums"
-    inputs: list[SpotifyTaskId] = []
+    inputs: list[SpotifyId] = []
     params: SpotifyArtistAlbumsParams = SpotifyArtistAlbumsParams(
         region="de",
         release_types=SpotifyArtistAlbumsReleaseTypes(
@@ -124,7 +124,7 @@ class SpotifyISRCTrackSearchTask(SpotifyTaskBase):
 
 class SpotifyPlaylistsTask(SpotifyTaskBase):
     task_type: SpotifyPlaylistsTaskType = "playlists"
-    inputs: list[SpotifyTaskId] = []
+    inputs: list[SpotifyId] = []
     params: None = None
 
     def get_s3_prefix(self) -> str:
