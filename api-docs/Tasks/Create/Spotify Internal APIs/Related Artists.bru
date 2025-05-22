@@ -1,0 +1,23 @@
+meta {
+  name: Related Artists
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{api_url}}/tasks/create
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "data-source": "spotify-internal",
+    "task-type": "related-artists",
+    "inputs": [
+      "4qrHkx5cgWIslciLXUMrYw",
+      "3Ri4H12KFyu98LMjSoij5V",
+      "37394IP6uhnjIpsawpMu4l"
+    ]
+  }
+}

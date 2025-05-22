@@ -1,0 +1,53 @@
+{
+  "$defs": {
+    "SpotifyTracksParams": {
+      "properties": {
+        "region": {
+          "enum": [
+            "de",
+            "us"
+          ],
+          "title": "Region",
+          "type": "string"
+        }
+      },
+      "required": [
+        "region"
+      ],
+      "title": "SpotifyTracksParams",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "data_source": {
+      "const": "spotify-api",
+      "default": "spotify-api",
+      "title": "Data Source",
+      "type": "string"
+    },
+    "task_type": {
+      "const": "tracks",
+      "default": "tracks",
+      "title": "Task Type",
+      "type": "string"
+    },
+    "inputs": {
+      "default": [],
+      "items": {
+        "maxLength": 22,
+        "minLength": 22,
+        "type": "string"
+      },
+      "title": "Inputs",
+      "type": "array"
+    },
+    "params": {
+      "$ref": "#/$defs/SpotifyTracksParams",
+      "default": {
+        "region": "de"
+      }
+    }
+  },
+  "title": "SpotifyTracksTask",
+  "type": "object"
+}

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { fetchTaskMetadata } from '$lib/client-api/scrapers/tasks';
-	import { pauseTask, resumeTask } from '$lib/client-api/scrapers/tasks/state-management';
+	import { pauseTask, executeTask } from '$lib/client-api/scrapers/tasks/state-management';
 	import TaskStatus from './task-status.svelte';
 	import { createQuery, createMutation, useQueryClient } from '@tanstack/svelte-query';
 
@@ -39,7 +39,7 @@
 
 	let resumeMutation = $derived(
 		createMutation({
-			mutationFn: () => resumeTask(scraperId, scraperTaskId),
+			mutationFn: () => executeTask(scraperId, scraperTaskId),
 			onSuccess: (data) => {
 				console.log('Updating task status after resume', data);
 				queryClient.setQueryData(queryKey, data);

@@ -20,10 +20,10 @@ script:post-response {
     throw Error('"items" is not an array')
   }
   if (items.length > 0) {
-    const lastItem = items.at(-1);
-    if (!('id' in lastItem)) {
-      throw Error('Last item in "items" does not have "id" prop')
+    const latestItem = items[0];
+    if (!('id' in latestItem)) {
+      throw Error('Latest item in "items" does not have "id" prop')
     }
-    bru.setEnvVar("task_id", lastItem.id);
+    bru.setEnvVar("task_id", latestItem.id);
   }
 }

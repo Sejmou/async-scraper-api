@@ -1,0 +1,17 @@
+meta {
+  name: Create Throw Above ID Threshold
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{api_url}}/dummy-api/throw-above-threshold
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "threshold": 1000
+  }
+}

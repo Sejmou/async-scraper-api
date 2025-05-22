@@ -1,0 +1,21 @@
+meta {
+  name: Related Artists (legacy API)
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{api_url}}/spotify-internal/related-artists
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "inputs": [
+      "4qrHkx5cgWIslciLXUMrYw",
+      "3Ri4H12KFyu98LMjSoij5V",
+      "37394IP6uhnjIpsawpMu4l"
+    ]
+  }
+}

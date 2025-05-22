@@ -1,0 +1,22 @@
+meta {
+  name: Tracks DE (legacy API)
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{api_url}}/spotify-api/tracks
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "inputs": [
+      "4PTG3Z6ehGkBFwjybzWkR8"
+    ],
+    "params": {
+      "region": "de"
+    }
+  }
+}

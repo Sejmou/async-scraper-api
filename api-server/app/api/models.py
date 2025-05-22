@@ -1,10 +1,11 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, RootModel
 from datetime import datetime
 
 from app.db.models import JSONValue, DataSource, DataFetchingTaskStatus
+from app.tasks.progress.public_models import TaskProgressModel
 
 
-class DataFetchingTask(BaseModel):
+class DataFetchingTaskModel(BaseModel):
     model_config = ConfigDict(
         # from_attributes allows creation of instances of this class from the ORM model (which shares the same properties/types as attributes)
         from_attributes=True
@@ -34,12 +35,7 @@ class DataFetchingTask(BaseModel):
     Example: `tracks` for fetching track metadata from the Spotify API (assuming `spotify-api` is the `data_source`).
     """
 
-    s3_prefix: str
-    """
-    The S3 prefix in the S3 bucket under which output data of the job is stored once all pending inputs are processed or an error occurs that cannot be recovered from and requires user intervention.
-    """
-
-    file_uploads: list["S3FileUpload"]
+    file_uploads: list["S3FileUploadModel"]
     """
     The files that have been uploaded to S3 as part of this task.
     """
@@ -52,10 +48,8 @@ class DataFetchingTask(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    batch_size: int
 
-
-class S3FileUpload(BaseModel):
+class S3FileUploadModel(BaseModel):
     model_config = ConfigDict(
         # from_attributes allows creation of instances of this class from the ORM model (which shares the same properties/types as attributes)
         from_attributes=True

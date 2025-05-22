@@ -14,7 +14,7 @@ type ScraperGetRequestData<S extends ZodTypeAny> = ScraperRequestDataBase<S> & {
 
 type ScraperPostRequestData<S extends ZodTypeAny> = ScraperRequestDataBase<S> & {
 	method: 'POST';
-	body?: Record<string, unknown>;
+	body?: Record<string, unknown> | unknown[];
 };
 
 type ScraperDeleteRequestData<S extends ZodTypeAny> = ScraperRequestDataBase<S> & {

@@ -6,7 +6,7 @@
 	import TaskStatus from '$lib/components/tasks/task-status.svelte';
 	import TaskActions from './scraper-task-actions.svelte';
 	import TaskFileUploads from './task-file-uploads.svelte';
-	import { pauseTask, resumeTask } from '$lib/client-api/scrapers/tasks/state-management';
+	import { pauseTask, executeTask } from '$lib/client-api/scrapers/tasks/state-management';
 	import { timeAgoFromDateString } from '$lib/utils';
 	import ScraperTaskProgressTracker from '$lib/components/tasks/scraper-task-progress-tracker.svelte';
 
@@ -59,7 +59,7 @@
 						);
 					},
 					onResume: () => {
-						resumeTask(scraper.id, row.original.id).then(() =>
+						executeTask(scraper.id, row.original.id).then(() =>
 							invalidate(`/scrapers/${scraper.id}`)
 						);
 					}

@@ -1,20 +1,25 @@
 import asyncio
 from fastapi import BackgroundTasks
-from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession as AsyncDBSession
 
-from app.db.models import DataSource, DataFetchingTask, JSONValue
-from app.tasks.fetch_functions import (
-    create_single_item_fetch_function,
-    create_batch_fetch_function,
-)
+from app.db.models import DataFetchingTask
+from app.tasks.data_fetching import SingleItemFetchFunctionResult, create_fetch_fn
+from app.tasks.models import TaskExecutionMeta, TaskExecutionMetaModel, TaskInputs
 from app.tasks.processing import (
     BatchTaskProcessor,
     SequentialTaskProcessor,
     TaskProcessor,
 )
-from app.config import app_logger
+from app.config import (
+    PUBLIC_IP,
+    TASK_LOG_DIR,
+    TASK_OUTPUT_DIR,
+    TASK_PROGRESS_DB_DIR,
+    app_logger,
+    setup_logger,
+)
+from app.tasks.queue_item_management import TaskQueueItemManager
 
 
 task_processors: dict[int, TaskProcessor] = {}
@@ -91,31 +96,33 @@ async def resume_pending_tasks(db_session: AsyncDBSession):
         asyncio.create_task(run_task(processor))
 
 
-def _create_processor(task: DataFetchingTask) -> TaskProcessor:
-    if task.batch_size > 1:
-        batch_fetch_fn = create_batch_fetch_function(
-            task.data_source, task.task_type, task.params
-        )
-        if not batch_fetch_fn:
-            raise ValueError(
-                f"Could not create task processor for task with ID {task.id} (data source: '{task.data_source}', task type: '{task.task_type}') as no suitable batched fetch function was found"
-            )
-        return BatchTaskProcessor(
-            task_id=task.id,
-            fetch_fn=batch_fetch_fn,
-            batch_size=task.batch_size,
+def _create_processor(db_task: DataFetchingTask) -> TaskProcessor:
+    # task DB model stores data_source and task_type in separate fields/columns, but internal logic expects them to be part of params (makes validation logic easier)
+    runtime_task = TaskExecutionMetaModel.model_validate(db_task.__dict__).root
+    q_mgr = TaskQueueItemManager(task_id=db_task.id, db_dir=TASK_PROGRESS_DB_DIR)
+    logger = setup_logger(f"{db_task.id}", file_dir=TASK_LOG_DIR, log_to_console=False)
+    fn_res = create_fetch_fn(runtime_task)
+    if isinstance(fn_res, SingleItemFetchFunctionResult):
+        return SequentialTaskProcessor(
+            server_ip=PUBLIC_IP,
+            task_id=db_task.id,
+            outputs_s3_prefix=runtime_task.get_s3_prefix(),
+            outputs_local_storage_dir=TASK_OUTPUT_DIR,
+            fetch_fn=fn_res.fn,
+            queue_item_manager=q_mgr,
+            logger=logger,
         )
     else:
-        single_item_fetch_fn = create_single_item_fetch_function(
-            task.data_source, task.task_type, task.params
-        )
-        if not single_item_fetch_fn:
-            raise ValueError(
-                f"Could not create task processor for task with ID {task.id} (data source: '{task.data_source}', task type: '{task.task_type}') as no suitable single-item fetch function was found"
-            )
-        return SequentialTaskProcessor(
-            task_id=task.id,
-            fetch_fn=single_item_fetch_fn,
+        # fn_res.fn is a function that supports batch processing, fn_res.batch_size stores maximum supported batch size
+        return BatchTaskProcessor(
+            server_ip=PUBLIC_IP,
+            task_id=db_task.id,
+            outputs_s3_prefix=runtime_task.get_s3_prefix(),
+            outputs_local_storage_dir=TASK_OUTPUT_DIR,
+            fetch_fn=fn_res.fn,
+            queue_item_manager=q_mgr,
+            logger=logger,
+            batch_size=fn_res.batch_size,
         )
 
 
@@ -131,57 +138,27 @@ def get_task_processor(task: DataFetchingTask) -> TaskProcessor:
     return task_processors.get(task.id) or _create_and_add_processor(task)
 
 
-async def create_new_task[T: JSONValue](
-    data_source: DataSource,
-    task_type: str,
-    inputs: list[T],
-    params: BaseModel | None,
-    s3_prefix: str,
-    session: AsyncDBSession,
-    batch_size: int | None = None,
-) -> tuple[DataFetchingTask, TaskProcessor[T]]:
+async def create_new_task(
+    task: TaskExecutionMeta, session: AsyncDBSession
+) -> tuple[DataFetchingTask, TaskInputs]:
     """
-    A utility function for doing all the setup required to create a new data fetching task.
-
-    NOTE: the task is NOT started automatically, you need to call the `run` method on the returned task processor to start processing the inputs.
+    Creates a new task in the database and returns it.
     """
-
-    if len(inputs) == 0:
-        raise ValueError("Cannot create task without inputs!")
-    if batch_size is not None and batch_size <= 1:
-        raise ValueError("Batch size must be greater than 1!")
-
-    if batch_size:
-        batch_fetch_fn = create_batch_fetch_function(data_source, task_type, params)
-        if not batch_fetch_fn:
-            raise ValueError(
-                f"Could not create task: No batched fetch function found for data source {data_source} and task type {task_type}"
-            )
-    else:
-        single_item_fetch_fn = create_single_item_fetch_function(
-            data_source, task_type, params
-        )
-        if not single_item_fetch_fn:
-            raise ValueError(
-                f"Could not create task: No single-item fetch function found for data source {data_source} and task type {task_type}"
-            )
-
-    task = DataFetchingTask(
-        data_source=data_source,
-        task_type=task_type,
-        params=params.model_dump(mode="json") if params else None,
-        status="pending",
-        s3_prefix=s3_prefix,
-        batch_size=batch_size or 1,
+    # NOTE: task is stored differently in DB (data_source and task_type are separate columns and NOT included in params object)
+    db_task = DataFetchingTask(
+        data_source=task.data_source,
+        task_type=task.task_type,
+        params=(
+            task.params.model_dump(mode="json", exclude={"task_type", "data_source"})
+            if task.params
+            else None
+        ),
+        # make task paused initially - user still has to start it
+        # ('pending' state would cause it to be started and 'done' immediately in the case of a server restart if no inputs were added in the meantime)
+        status="paused",
     )
 
-    session.add(task)
+    session.add(db_task)
     await session.commit()
 
-    processor = _create_and_add_processor(task)
-
-    # the task processor maintains its own input queue for the task (data is not stored in the main task DB for performance reasons)
-    # so, we need to add the inputs to it separately
-    processor.add_inputs(inputs)
-
-    return task, processor
+    return db_task, task.inputs
