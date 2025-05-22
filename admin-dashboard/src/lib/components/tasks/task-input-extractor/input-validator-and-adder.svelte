@@ -37,8 +37,30 @@
 		}
 
 		const nonValidatedData = out.data[out.columns[0]];
+
+		// DuckDB often automatically parses columns from files as BIGINT, which translates to bigint in JS.
+		// As bigint is not JSON-serializable, we need to handle it.
+		const hasBigIntsOutsideNumberValueRange = nonValidatedData.some(
+			(v) => typeof v === 'bigint' && (v > Number.MAX_SAFE_INTEGER || v < Number.MIN_SAFE_INTEGER)
+		);
+		if (hasBigIntsOutsideNumberValueRange) {
+			validating = false;
+			message = {
+				type: 'error',
+				title: 'Error validating inputs',
+				text: `Some numbers you provided are outside the JSON-serialzable range. Please use strings instead.`
+			};
+			return;
+		}
+		const saferNonValidatedData = nonValidatedData.map((v) => {
+			if (typeof v === 'bigint') {
+				return Number(v);
+			}
+			return v;
+		});
+
 		try {
-			const data = z.array(ieState.inputSchema).parse(nonValidatedData);
+			const data = z.array(ieState.inputSchema).parse(saferNonValidatedData);
 			ieState.inputs = data;
 			message = {
 				type: 'success',
