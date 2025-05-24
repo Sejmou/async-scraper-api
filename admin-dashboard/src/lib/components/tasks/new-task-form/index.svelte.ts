@@ -1,7 +1,7 @@
 import { superForm, defaults, type SuperForm, type ValidationErrors } from 'sveltekit-superforms';
 import { z } from 'zod';
 import { zod } from 'sveltekit-superforms/adapters';
-import { createDistributedTask } from '$lib/client-api/distributed-tasks';
+import { createDistributedTask } from '$lib/client-api/distributed-tasks/create';
 import { goto } from '$app/navigation';
 import type { SupportedTask, TaskInputMeta } from '$lib/types-and-schemas/tasks/data-sources';
 import { get } from 'svelte/store';

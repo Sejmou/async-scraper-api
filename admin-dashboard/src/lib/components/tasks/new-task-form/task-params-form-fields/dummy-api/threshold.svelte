@@ -12,14 +12,7 @@
 	<Form.Control>
 		{#snippet children({ props })}
 			<Form.Label>ID Threshold</Form.Label>
-			<Input
-				{...props}
-				type="number"
-				min="0"
-				max="1000"
-				step="1"
-				bind:value={$formData.threshold}
-			/>
+			<Input {...props} type="number" min="0" step="1" bind:value={$formData.threshold} />
 		{/snippet}
 	</Form.Control>
 	<Form.Description>The biggest ID (integer) for which no error is thrown (lol)</Form.Description>

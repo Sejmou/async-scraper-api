@@ -6,6 +6,7 @@
 	import DataTable from '$lib/components/ui/data-table.svelte';
 	import PageHeading from '$lib/components/ui/page-heading.svelte';
 	import ButtonWithTextProp from '$lib/components/ui/button-with-text-prop.svelte';
+	import SubtaskActions from './subtask-actions.svelte';
 
 	let { data } = $props();
 	let task = $derived(data.task);
@@ -63,5 +64,6 @@
 </pre>
 
 <h3 class="mt-4 text-xl font-semibold">Subtasks</h3>
+<SubtaskActions taskId={task.id} />
 
 <DataTable {columns} data={task.subtasks} rowDescPlural={'subtasks'} rowDescSingular={'subtask'} />
