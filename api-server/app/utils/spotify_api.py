@@ -1,8 +1,9 @@
+from dataclasses import dataclass
 from pydantic import ValidationError, validate_call
 from base64 import b64encode
 from datetime import datetime, timedelta, timezone
 import re
-from typing import Any, Dict, Optional, Sequence, TypeGuard, Union
+from typing import Any, Dict, Literal, Optional, Sequence, TypeGuard, Union
 from logging import Logger
 from app.utils.api_bans import APIBanHandler
 from app.config import SpotifyAPICredentials
@@ -117,6 +118,46 @@ class SpotifyAPIAccessTokenManager:
                 return token
 
 
+@dataclass
+class SuccessResult:
+    data: Any
+    status: Literal["success"] = "success"
+
+
+@dataclass
+class CredentialsExpiredResult:
+    status: Literal["credentials_expired"] = "credentials_expired"
+
+
+@dataclass
+class CredentialsBlockedResult:
+    error_msg: str
+    retry_after: int | None = None
+    status: Literal["credentials_blocked"] = "credentials_blocked"
+    blocked_until: datetime | None = None
+
+
+@dataclass
+class UnexpectedErrorCodeResult:
+    msg: str
+    status_code: int
+    status: Literal["error"] = "error"
+
+
+class UnexpectedResponseCodeError(Exception):
+    status_code: int
+    message: str
+
+    def __init__(self, message: str, status_code: int):
+        super().__init__(message)
+        self.message = message
+        self.status_code = status_code
+
+
+class UnexpectedResponseDataError(Exception):
+    pass
+
+
 class SpotifyAPIClient:
     """
     A custom Spotify API client that fetches data from the Spotify API using provided credentials.
@@ -159,7 +200,9 @@ class SpotifyAPIClient:
         # and the "/" would create problems when accessing the credentials endpoint to get the credentials
         return remove_spotify_id(endpoint_path.replace("/", ".")).replace("..", ".")
 
-    async def _make_request(self, endpoint_path: str, params: Optional[dict] = None):
+    async def _make_request(
+        self, endpoint_path: str, params: Optional[dict] = None
+    ) -> dict:
         """
         Make a request to the Spotify API using the credentials the client was initialized with.
         """
@@ -187,25 +230,75 @@ class SpotifyAPIClient:
                 headers=headers,
                 params=params,
             ) as response:
-                data = await response.json()
                 received_at = datetime.now(timezone.utc)
+                req_meta = APIRequestMetaSchema(
+                    url=str(response.url),
+                    ip=PUBLIC_IP,
+                    status_code=response.status,
+                    sent_at=sent_at,
+                    received_at=received_at,
+                )
+                res = await self._handle_response(response, req_meta, endpoint_name)
+                await persist_request_meta_in_db(req_meta)
+                if res.status == "success":
+                    data = res.data
+                    if not isinstance(data, dict):
+                        raise UnexpectedResponseDataError(
+                            f"Expected response data from endpoint {endpoint_name} to be a dictionary, but got: {data}"
+                        )
+                    return data
+                elif res.status == "credentials_expired":
+                    self.logger.info(
+                        f"Access token for endpoint {endpoint_name} expired. Invalidating currently stored access token and retrying..."
+                    )
+                    self._token_manager.invalidate_access_token()
+                    return await self._make_request(endpoint_path, params)
+                elif res.status == "credentials_blocked":
+                    self.logger.info(
+                        f"Access token for endpoint {endpoint_name} expired. Invalidating currently stored access token and retrying..."
+                    )
+                    await self._ban_handler.block(
+                        data_source="spotify-api",
+                        endpoint=endpoint_name,
+                        # block for a little more than 24 hours if the API did not return a specific block time
+                        block_until=res.blocked_until
+                        or datetime.now(timezone.utc) + timedelta(hours=24, seconds=10),
+                    )
+                    raise CredentialsBlockedException(
+                        message=res.error_msg,
+                        blocked_until=res.blocked_until,
+                    )
+                elif res.status == "error":
+                    self.logger.error(res.msg)
+                    raise UnexpectedResponseCodeError(
+                        message=f"Unexpected response from Spotify API: {res.msg}",
+                        status_code=res.status_code,
+                    )
+                else:
+                    # static type checkers aren't smart enough to understand that the above conditions cover all possible cases, so we need this as well
+                    raise Exception("Got impossible result")
 
-        req_meta = APIRequestMetaSchema(
-            url=str(response.url),
-            ip=PUBLIC_IP,
-            status_code=response.status,
-            sent_at=sent_at,
-            received_at=received_at,
-        )
+    async def _handle_response(
+        self,
+        response: aiohttp.ClientResponse,
+        req_meta: APIRequestMetaSchema,
+        endpoint_name: str,
+    ) -> (
+        SuccessResult
+        | CredentialsBlockedResult
+        | CredentialsExpiredResult
+        | UnexpectedErrorCodeResult
+    ):
         if response.status == 429:
+            blocked_until: datetime | None = None
             retry_after = response.headers.get("Retry-After")
-            exc: CredentialsBlockedException = CredentialsBlockedException(
-                f"Spotify API endpoint '{endpoint_name}' is blocked (received 429 error), but got no RETRY-AFTER header value for some reason."
-            )
+            error_msg = f"Response: {await response.text()}"
             if retry_after:
                 try:
                     retry_after = int(retry_after)
-                    blocked_until = received_at + timedelta(seconds=retry_after)
+                    blocked_until = req_meta.received_at + timedelta(
+                        seconds=retry_after
+                    )
                     details = {"retry_after": retry_after}
                     await self._ban_handler.block(
                         data_source="spotify-api",
@@ -213,31 +306,25 @@ class SpotifyAPIClient:
                         block_until=blocked_until,
                         details=details,
                     )
-                    error_msg = f"Spotify API endpoint '{endpoint_name}' is blocked (received 429 error) until {blocked_until.isoformat()}. Got RETRY-AFTER header value: {retry_after}"
-                    exc = CredentialsBlockedException(
-                        error_msg,
-                        blocked_until,
-                    )
+                    error_msg = f"Got RETRY-AFTER header value: {retry_after}"
                 except ValueError:
-                    exc = CredentialsBlockedException(
-                        f"Spotify API endpoint '{endpoint_name}' is blocked (received 429 error). Got unexpected/invalid RETRY-AFTER header value: {retry_after}"
-                    )
+                    error_msg = f"Got unexpected/invalid RETRY-AFTER header value: {retry_after}"
                 req_meta.details = {
                     "retry_after": retry_after,
                 }
-                raise exc
-        elif response.status == 401:
-            self.logger.info(
-                f"Access token for endpoint {endpoint_name} expired. Invalidating currently stored access token and retrying..."
+            return CredentialsBlockedResult(
+                error_msg=error_msg, blocked_until=blocked_until
             )
-            self._token_manager.invalidate_access_token()
-            await persist_request_meta_in_db(req_meta)
-            return await self._make_request(endpoint_path, params)
+        elif response.status == 401:
+            return CredentialsExpiredResult()
+        elif not response.ok:
+            return UnexpectedErrorCodeResult(
+                msg=f"Request to '{endpoint_name}' endpoint failed with HTTP error {response.status} and body: {await response.text()}",
+                status_code=response.status,
+            )
 
-        await persist_request_meta_in_db(req_meta)
-
-        response.raise_for_status()
-        return data
+        data = await response.json()
+        return SuccessResult(data=data)
 
     def _get_request_timeout(self, endpoint: str) -> float | None:
         last_relevant_request_at = (
