@@ -1,16 +1,21 @@
 from dataclasses import dataclass
-from pydantic import ValidationError, validate_call
-from base64 import b64encode
+import random
+from pydantic import validate_call
 from datetime import datetime, timedelta, timezone
-import re
-from typing import Any, Dict, Literal, Optional, Sequence, TypeGuard, Union
+from typing import Any, Dict, Literal, Optional, Sequence, Union
 from logging import Logger
-from app.utils.api_bans import APIBanHandler
-from app.config import SpotifyAPICredentials
 import aiohttp
 from asyncio import sleep
-from app.utils.request_meta import APIRequestMetaSchema, persist_request_meta_in_db
+
 from app.config import PUBLIC_IP
+from app.utils.api_bans import APIBanHandler
+from app.utils.spotify_api.models import SpotifyAPICredentials
+from app.utils.spotify_api.request_meta import (
+    SpotifyAPIRequestMeta,
+    report_request_meta,
+)
+from app.utils.spotify_api.helpers import get_list_data_from_response, remove_spotify_id
+from app.utils.spotify_api.token_manager import SpotifyAPIAccessTokenManager
 
 
 class CredentialsBlockedException(Exception):
@@ -18,104 +23,6 @@ class CredentialsBlockedException(Exception):
         super().__init__(message)
         self.message = message
         self.blocked_until = blocked_until
-
-
-def is_dict_or_none(d: Union[Dict, None]) -> TypeGuard[Optional[Dict]]:
-    return isinstance(d, (dict, type(None)))
-
-
-def is_list_of_dicts_or_none(
-    lst: list[Union[Dict, None]],
-) -> TypeGuard[list[Optional[Dict]]]:
-    return all(is_dict_or_none(item) for item in lst)
-
-
-def get_list_data_from_response(response: dict[str, Any], key: str):
-    """
-    Several endpoints in the Spotify API return a list of dictionaries (or None) in the response
-    (which contains the data we are interested int), under a specific key.
-
-    This function performs basic validation on such responses and returns the data if it is valid.
-    """
-    try:
-        data = response[key]
-    except KeyError:
-        raise ValidationError(f"Expected '{key}' key not found in response.")
-    if not is_list_of_dicts_or_none(data):
-        raise ValidationError(
-            f"Expected '{key}' in response to be a list of dictionaries."
-        )
-    return data
-
-
-def remove_spotify_id(input_string: str) -> str:
-    # Regular expression to match a Spotify 22-character ID
-    id_pattern = r"[A-Za-z0-9]{22}"
-
-    # Search for the ID in the input string
-    match = re.search(id_pattern, input_string)
-
-    if match:
-        # Remove the ID from the string
-        cleaned_string = input_string.replace(match.group(), "")
-        return cleaned_string
-    else:
-        return input_string
-
-
-class SpotifyAPIAccessTokenManager:
-    """
-    Makes sure that the access token for the Spotify API is always up-to-date and valid.
-    """
-
-    _client_id: str
-    _client_secret: str
-    _token: str | None = None
-    _token_expires_at: datetime = datetime.now(timezone.utc)
-
-    def __init__(self, client_id: str, client_secret: str):
-        self._client_id = client_id
-        self._client_secret = client_secret
-
-    def invalidate_access_token(self):
-        """
-        Call this whenever the access token returned by the `access_token` property is no longer valid.
-        This will force a new access token to be fetched on the next access.
-        """
-        self._token = None
-        self._token_expires_at = datetime.now(timezone.utc)
-
-    @property
-    async def access_token(self) -> str:
-        """
-        Get an access token from the Spotify API using the specified client ID and secret
-        (i.e. with the ['client credentials' flow](https://developer.spotify.com/documentation/web-api/tutorials/client-credentials-flow)).
-        """
-        if self._token and self._token_expires_at > (
-            datetime.now(timezone.utc) + timedelta(seconds=60)
-        ):
-            return self._token
-
-        url: str = "https://accounts.spotify.com/api/token"
-        headers: dict = {
-            "Content-Type": "application/x-www-form-urlencoded",
-            "Authorization": f"Basic {b64encode(f'{self._client_id}:{self._client_secret}'.encode()).decode()}",
-        }
-        data: dict = {"grant_type": "client_credentials"}
-        async with aiohttp.ClientSession() as session:
-            async with session.post(url, headers=headers, data=data) as response:
-                response.raise_for_status()
-                resp_json = await response.json()
-                token = resp_json["access_token"]
-                expires_in = resp_json["expires_in"]
-                assert isinstance(
-                    token, str
-                ), f"Expected access token to be a string, but got: {token}"
-                self._token = token
-                self._token_expires_at = datetime.now(timezone.utc) + timedelta(
-                    seconds=expires_in
-                )
-                return token
 
 
 @dataclass
@@ -138,10 +45,16 @@ class CredentialsBlockedResult:
 
 
 @dataclass
+class NotFoundResult:
+    msg: str
+    status: Literal["not_found"] = "not_found"
+
+
+@dataclass
 class UnexpectedErrorCodeResult:
     msg: str
     status_code: int
-    status: Literal["error"] = "error"
+    status: Literal["unexpected-error"] = "unexpected-error"
 
 
 class UnexpectedResponseCodeError(Exception):
@@ -155,6 +68,14 @@ class UnexpectedResponseCodeError(Exception):
 
 
 class UnexpectedResponseDataError(Exception):
+    pass
+
+
+class CredentialFetchingError(Exception):
+    pass
+
+
+class NotFoundError(Exception):
     pass
 
 
@@ -180,17 +101,25 @@ class SpotifyAPIClient:
     The default timeout between requests for endpoints not listed in `_timeouts_per_endpoint`, in seconds.
     """
 
+    _credentials: SpotifyAPICredentials | None = None
+    _requests_made_with_current_credentials: int = 0
+    _max_requests_with_current_credentials: int = random.randint(2500, 5000)
+    """
+    A non-negative integer specifying the maximum number of requests that can be made with the current credentials before they are swapped out for new ones.
+
+    This should preferrably be a not too big, random number, so that it shouldn't be as likely to get blocked by Spotify (assumption: the more regular things look, the more likely we are to get blocked).
+    """
+
     def __init__(
         self,
-        credentials: SpotifyAPICredentials,
+        credentials_api_url: str,
         logger: Logger,
         ban_handler: APIBanHandler,
         global_request_timeout_override: Optional[float] = None,
     ):
         self.logger = logger
-        self._token_manager = SpotifyAPIAccessTokenManager(
-            credentials.client_id, credentials.client_secret
-        )
+        self._credentials_api_url = credentials_api_url
+        self._token_manager = SpotifyAPIAccessTokenManager(self.get_credentials)
         self.global_request_timeout_override = global_request_timeout_override
         self._ban_handler = ban_handler
 
@@ -199,6 +128,43 @@ class SpotifyAPIClient:
         # because it contains the artist ID, which is unique for each artist
         # and the "/" would create problems when accessing the credentials endpoint to get the credentials
         return remove_spotify_id(endpoint_path.replace("/", ".")).replace("..", ".")
+
+    async def get_credentials(self) -> SpotifyAPICredentials:
+        if (
+            self._credentials
+            and not self._requests_made_with_current_credentials
+            >= self._max_requests_with_current_credentials
+        ):
+            return self._credentials
+
+        url = f"{self._credentials_api_url}/spotify/accounts"
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url) as response:
+                    response.raise_for_status()
+                    data = await response.json()
+                    if not isinstance(data, dict):
+                        raise CredentialFetchingError(
+                            f"Could not fetch Spotify API credentials: expected response to be a dictionary, but got: {data}"
+                        )
+                    self._credentials = SpotifyAPICredentials(**data)
+                    self._token_manager.invalidate_access_token()
+                    self._requests_made_with_current_credentials = 0
+                    self._max_requests_with_current_credentials = random.randint(
+                        2500, 5000
+                    )
+                    self.logger.info(
+                        f"Got new Spotify API credentials (client ID: {self._credentials.client_id}). Will swap after {self._max_requests_with_current_credentials} requests."
+                    )
+                    return self._credentials
+        except aiohttp.ClientResponseError as e:
+            raise CredentialFetchingError(
+                f"Could not fetch Spotify API credentials: {e.status} - {e.message}"
+            ) from e
+        except Exception as e:
+            raise CredentialFetchingError(
+                f"Unexpected error while fetching Spotify API credentials: {e}"
+            ) from e
 
     async def _make_request(
         self, endpoint_path: str, params: Optional[dict] = None
@@ -220,6 +186,7 @@ class SpotifyAPIClient:
                 f"Waiting {timeout} seconds before making request to {endpoint_name} endpoint..."
             )
             await sleep(timeout)
+
         sent_at = datetime.now(timezone.utc)
         self._last_request_per_endpoint[endpoint_name] = sent_at
         self._last_request_overall = sent_at
@@ -231,15 +198,18 @@ class SpotifyAPIClient:
                 params=params,
             ) as response:
                 received_at = datetime.now(timezone.utc)
-                req_meta = APIRequestMetaSchema(
+                req_meta = SpotifyAPIRequestMeta(
                     url=str(response.url),
                     ip=PUBLIC_IP,
                     status_code=response.status,
                     sent_at=sent_at,
                     received_at=received_at,
+                    credentials=await self.get_credentials(),
                 )
-                res = await self._handle_response(response, req_meta, endpoint_name)
-                await persist_request_meta_in_db(req_meta)
+
+                res = await self._parse_response(response, req_meta, endpoint_name)
+                await report_request_meta(req_meta)
+
                 if res.status == "success":
                     data = res.data
                     if not isinstance(data, dict):
@@ -247,12 +217,14 @@ class SpotifyAPIClient:
                             f"Expected response data from endpoint {endpoint_name} to be a dictionary, but got: {data}"
                         )
                     return data
+
                 elif res.status == "credentials_expired":
                     self.logger.info(
                         f"Access token for endpoint {endpoint_name} expired. Invalidating currently stored access token and retrying..."
                     )
                     self._token_manager.invalidate_access_token()
                     return await self._make_request(endpoint_path, params)
+
                 elif res.status == "credentials_blocked":
                     self.logger.info(
                         f"Access token for endpoint {endpoint_name} expired. Invalidating currently stored access token and retrying..."
@@ -264,35 +236,50 @@ class SpotifyAPIClient:
                         block_until=res.blocked_until
                         or datetime.now(timezone.utc) + timedelta(hours=24, seconds=10),
                     )
+
+                    # make sure credentials and associated access token are not used anymore
+                    self._credentials = None
+                    self._token_manager.invalidate_access_token()
+
                     raise CredentialsBlockedException(
                         message=res.error_msg,
                         blocked_until=res.blocked_until,
                     )
-                elif res.status == "error":
+
+                elif res.status == "not_found":
+                    self.logger.warning(res.msg)
+                    raise NotFoundError(res.msg)
+
+                elif res.status == "unexpected-error":
                     self.logger.error(res.msg)
                     raise UnexpectedResponseCodeError(
                         message=f"Unexpected response from Spotify API: {res.msg}",
                         status_code=res.status_code,
                     )
+
                 else:
                     # static type checkers aren't smart enough to understand that the above conditions cover all possible cases, so we need this as well
                     raise Exception("Got impossible result")
 
-    async def _handle_response(
+    async def _parse_response(
         self,
         response: aiohttp.ClientResponse,
-        req_meta: APIRequestMetaSchema,
+        req_meta: SpotifyAPIRequestMeta,
         endpoint_name: str,
     ) -> (
         SuccessResult
         | CredentialsBlockedResult
         | CredentialsExpiredResult
+        | NotFoundResult
         | UnexpectedErrorCodeResult
     ):
+        """
+        Parse the response from the Spotify API and return a specific kind of result object, depending on the response status code.
+        """
         if response.status == 429:
             blocked_until: datetime | None = None
             retry_after = response.headers.get("Retry-After")
-            error_msg = f"Response: {await response.text()}"
+            error_msg = f"Got HTTP error response with code 429 (Too Many Requests) and response body: {await response.text()}"
             if retry_after:
                 try:
                     retry_after = int(retry_after)
@@ -306,17 +293,18 @@ class SpotifyAPIClient:
                         block_until=blocked_until,
                         details=details,
                     )
-                    error_msg = f"Got RETRY-AFTER header value: {retry_after}"
+                    error_msg = f"Got HTTP error response with code 429 (Too Many Requests) and RETRY-AFTER header value: {retry_after} -> '{endpoint_name}' endpoint is blocked until (at least) {blocked_until.isoformat()}."
                 except ValueError:
-                    error_msg = f"Got unexpected/invalid RETRY-AFTER header value: {retry_after}"
-                req_meta.details = {
-                    "retry_after": retry_after,
-                }
+                    error_msg = f"Got HTTP error response with code 429 (Too Many Requests) and RETRY-AFTER header value: {retry_after} -> '{endpoint_name}' is blocked."
             return CredentialsBlockedResult(
                 error_msg=error_msg, blocked_until=blocked_until
             )
         elif response.status == 401:
             return CredentialsExpiredResult()
+        elif response.status == 404:
+            return NotFoundResult(
+                msg=f"Request to '{endpoint_name}' endpoint (URL: {req_meta.url}) returned 404."
+            )
         elif not response.ok:
             return UnexpectedErrorCodeResult(
                 msg=f"Request to '{endpoint_name}' endpoint failed with HTTP error {response.status} and body: {await response.text()}",

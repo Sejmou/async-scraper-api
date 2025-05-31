@@ -1,16 +1,15 @@
-from app.config import settings, api_client_config, setup_logger
-from app.utils.spotify_api import SpotifyAPIClient, SpotifyAPICredentials
+from app.config import settings, setup_logger
+from app.utils.spotify_api import (
+    SpotifyAPIClient,
+)
 from app.utils.dummy_api import DummyAPIClient
 from app.utils.api_bans import ban_handler
 from app.utils.spotify_internal import SpotifyInternalAPIClient
 
 sp_api_logger = setup_logger("spotify-api", file_dir=settings.api_client_log_dir)
-sp_api_creds = api_client_config.spotify_api
 
 spotify_api_client = SpotifyAPIClient(
-    credentials=SpotifyAPICredentials(
-        client_id=sp_api_creds.client_id, client_secret=sp_api_creds.client_secret
-    ),
+    credentials_api_url=settings.credentials_api_url,
     logger=sp_api_logger,
     ban_handler=ban_handler,
 )

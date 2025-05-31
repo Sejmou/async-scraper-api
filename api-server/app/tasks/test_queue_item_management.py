@@ -7,8 +7,19 @@ from datetime import datetime, timezone
 from app.tasks.queue_item_management import (
     QueueItemData,
     TaskQueueItemManager,
-    FatalProcessingError,
+    NonFatalProcessingError,
 )
+
+
+class TestFatalError(Exception):
+    """
+    A custom exception to indicate a critical test error.
+
+    This should NOT be caught by the task queue item manager if it is thrown during data processing,
+    as it should be considered a fatal error (due to the fact that it's NOT a NonFatalProcessingError).
+    """
+
+    pass
 
 
 async def handle_success(input_item: int, output: str | None):
@@ -62,9 +73,9 @@ async def test_task_queue_processing_one_by_one(temp_db_dir):
         if x == 2:
             return None
         if x == 3:
-            raise Exception("Dummy error")
+            raise NonFatalProcessingError("Non-fatal dummy error")
         if x == 4:
-            raise FatalProcessingError("Dummy fatal error")
+            raise TestFatalError("Dummy fatal error")
         return f"Processed {x}"
 
     item_man.add_inputs([1, 2, 3, 4])
@@ -77,8 +88,8 @@ async def test_task_queue_processing_one_by_one(temp_db_dir):
                 on_no_data_returned=handle_no_data,
                 on_non_fatal_error=handle_error,
             )
-    except FatalProcessingError:
-        print("Fatal error occurred, stopping processing.")
+    except Exception:
+        print("Fatal error occurred (as expected)")
 
     counts = item_man.queue_item_counts
     print(counts)
@@ -100,9 +111,9 @@ async def test_task_queue_processing_batched(temp_db_dir):
 
     async def dummy_batch_processing_fn(x: Sequence[int]) -> Sequence[str | None]:
         if 4 in x:
-            raise Exception("Non-fatal dummy error")
+            raise NonFatalProcessingError("Non-fatal dummy error")
         if 7 in x:
-            raise FatalProcessingError("Fatal dummy error")
+            raise TestFatalError("Fatal dummy error")
         return [f"Processed {i}" if i % 2 != 0 else None for i in x]
 
     completed_calls = 0
@@ -117,8 +128,8 @@ async def test_task_queue_processing_batched(temp_db_dir):
                 on_non_fatal_error=handle_error,
             )
             completed_calls += 1
-    except FatalProcessingError:
-        print("Fatal error occurred, stopping processing.")
+    except TestFatalError:
+        print("Fatal error occurred (as expected)")
 
     counts = item_man.queue_item_counts
     print(counts)

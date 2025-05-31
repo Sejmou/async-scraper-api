@@ -8,8 +8,17 @@ from pydantic import BaseModel
 
 from app.tasks.common import (
     JSONValue,
-    FatalProcessingError,
+    NonFatalProcessingError,
 )
+
+
+class InvalidInputsError(Exception):
+    """
+    Exception raised when the inputs to a processing function are invalid.
+    This is used to indicate that the processing function returned an unexpected number of outputs or that the inputs do not match the expected format.
+    """
+
+    pass
 
 
 class EmptyQueueError(Exception):
@@ -304,8 +313,8 @@ class TaskQueueItemManager:
         - If the output is not None, the input item is added to the "successes" queue and the `on_success` callback function is called with the input item and its corresponding output.
         - If the output is None, the input item is added to the "inputs-without-output" queue and the `on_no_data_returned` callback function is called.
 
-        If the processing function raises a FatalProcessingError, it is re-raised so that it can be handled appropriately by the caller and any related ongoing processes can exit cleanly.
-        If the processing function raises any other exception, the input item is added to the failures queue and the provided `on_non_fatal_error` callback function is called.
+        If the processing function raises a NonFatalProcessingError, the input item is added to the failures queue and the provided `on_non_fatal_error` callback function is called.
+        If the processing function raises any other exception, it is re-raised so that it can be handled appropriately by the caller and any related ongoing processes can exit cleanly.
 
         Args:
             processing_fn: The processing function to apply to the input item.
@@ -314,7 +323,7 @@ class TaskQueueItemManager:
             on_non_fatal_error: Callback function to call when a non-fatal error occurs during processing.
 
         Raises:
-            FatalProcessingError: If a fatal error occurs during processing.
+            Exception: If an unexpected (i.e. fatal, and therefore NOT NonFatalProcessingError) error occurs during processing.
             EmptyQueueError: If the input queue is empty and no items are available for processing.
         """
         if self._input_q.empty():
@@ -331,13 +340,12 @@ class TaskQueueItemManager:
             else:
                 await on_success(item, res)
                 self._successes_q.put(item)
-        except FatalProcessingError:
-            self._undo_input_removals()
-            raise
-        except Exception as e:
-            # every exception that is not a FatalProcessingError is considered a non-fatal error
+        except NonFatalProcessingError as e:
             await on_non_fatal_error(item, e)
             self._failure_q.put(item)
+        except Exception as e:
+            self._undo_input_removals()
+            raise
         finally:
             # persist the removal from the input queue
             self._input_q.task_done()
@@ -355,13 +363,13 @@ class TaskQueueItemManager:
 
         The (async!) processing function should return outputs for the given input items (exactly one output for each input item).
 
-        If the processing function completes successfully, the length of the outputs is first checked against the length of the inputs (if they do not match, a FatalProcessingError is raised).
+        If the processing function completes successfully, the length of the outputs is first checked against the length of the inputs (if they do not match, an exception is raised).
         Then, each output is checked:
         - If the output is not None, the input item is added to the "successes" queue and the `on_success` callback function is called with the input item and its corresponding output.
         - If the output is None, the input item is added to the "inputs-without-output" queue and the `on_no_data_returned` callback function is called.
 
-        If the processing function raises a FatalProcessingError, it is re-raised so that it can be handled appropriately by the caller and any related ongoing processes can exit cleanly.
-        If the processing function raises any other exception, each input item is added to the failures queue and the provided `on_non_fatal_error` callback function is called.
+        If the processing function raises a NonFatalProcessingError, each input item is added to the failures queue and the provided `on_non_fatal_error` callback function is called.
+        If the processing function raises any other kind of exception that is not handled appropriately to be converted to a NonFatalProcessingError, it is re-raised so that it can be handled appropriately by the caller and any related ongoing processes can exit cleanly.
 
         Args:
             processing_fn: The processing function to apply to the input items.
@@ -372,7 +380,7 @@ class TaskQueueItemManager:
             If the chunk size is less than 2, a ValueError is raised.
 
         Raises:
-            FatalProcessingError: If a fatal error occurs during processing.
+            Exception: If an unexpected (i.e. fatal, and therefore NOT NonFatalProcessingError) error occurs during processing.
             EmptyQueueError: If the input queue is empty and no items are available for processing.
             ValueError: If the chunk size is less than 2.
         """
@@ -395,7 +403,7 @@ class TaskQueueItemManager:
                     self._in_without_out_q.put(item)
             else:
                 if len(outputs) != len(inputs):
-                    raise FatalProcessingError(
+                    raise InvalidInputsError(
                         f"Processing function returned {len(outputs)} items (expected {len(inputs)})."
                     )
                 for input_item, output in zip(inputs, outputs):
@@ -405,14 +413,13 @@ class TaskQueueItemManager:
                     else:
                         await on_success(input_item, output)
                         self._successes_q.put(input_item)
-        except FatalProcessingError:
-            self._undo_input_removals()
-            raise
-        except Exception as e:
-            # every exception that is not a FatalProcessingError is considered a non-fatal error
+        except NonFatalProcessingError as e:
             for input_item in inputs:
                 await on_non_fatal_error(input_item, e)
                 self._failure_q.put(input_item)
+        except Exception:
+            self._undo_input_removals()
+            raise
         finally:
             # persist the removals from the input queue
             self._input_q.task_done()

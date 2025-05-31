@@ -6,9 +6,9 @@ from app.tasks.models.spotify_api import (
 from app.tasks.common import (
     SingleItemFetchFunctionResult,
     BatchFetchFunctionResult,
-    FatalProcessingError,
+    NonFatalProcessingError,
 )
-from app.utils.spotify_api import CredentialsBlockedException
+from app.utils.spotify_api.client import NotFoundError
 
 
 def create_spotify_api_fetch_fn(
@@ -17,22 +17,16 @@ def create_spotify_api_fetch_fn(
     if task.task_type == "tracks":
 
         async def fetch_tracks(track_ids: Sequence[str]) -> Any:
-            try:
-                return await spotify_api_client.tracks(
-                    track_ids,
-                    region=task.params.region,
-                )
-            except CredentialsBlockedException as e:
-                raise FatalProcessingError(e.message) from e
+            return await spotify_api_client.tracks(
+                track_ids,
+                region=task.params.region,
+            )
 
         return BatchFetchFunctionResult(fn=fetch_tracks, batch_size=50)
     elif task.task_type == "artists":
 
         async def fetch_artists(artist_ids: Sequence[str]) -> Any:
-            try:
-                return await spotify_api_client.artists(artist_ids)
-            except CredentialsBlockedException as e:
-                raise FatalProcessingError(e.message) from e
+            return await spotify_api_client.artists(artist_ids)
 
         return BatchFetchFunctionResult(fn=fetch_artists, batch_size=50)
     elif task.task_type == "albums":
@@ -43,8 +37,10 @@ def create_spotify_api_fetch_fn(
                     album_ids,
                     region=task.params.region,
                 )
-            except CredentialsBlockedException as e:
-                raise FatalProcessingError(e.message) from e
+            except NotFoundError as e:
+                raise NonFatalProcessingError(
+                    f"Album IDs {album_ids} not found in region {task.params.region}"
+                ) from e
 
         return BatchFetchFunctionResult(fn=fetch_albums, batch_size=20)
     elif task.task_type == "artist-albums":
@@ -59,8 +55,10 @@ def create_spotify_api_fetch_fn(
                     include_appears_on=task.params.release_types.appears_on,
                     region=task.params.region,
                 )
-            except CredentialsBlockedException as e:
-                raise FatalProcessingError(e.message) from e
+            except NotFoundError as e:
+                raise NonFatalProcessingError(
+                    f"No matching releases found for artist ID {artist_id} (region: {task.params.region}, release types: {task.params.release_types})"
+                ) from e
 
         return SingleItemFetchFunctionResult(fn=fetch_artist_albums)
 
@@ -69,8 +67,10 @@ def create_spotify_api_fetch_fn(
         async def fetch_playlist(playlist_id: str) -> Any:
             try:
                 return await spotify_api_client.playlist(playlist_id)
-            except CredentialsBlockedException as e:
-                raise FatalProcessingError(e.message) from e
+            except NotFoundError as e:
+                raise NonFatalProcessingError(
+                    f"No playlist found for ID {playlist_id}"
+                ) from e
 
         return SingleItemFetchFunctionResult(fn=fetch_playlist)
     elif task.task_type == "isrc-track-search":
@@ -81,7 +81,9 @@ def create_spotify_api_fetch_fn(
                     isrc,
                     region=task.params.region,
                 )
-            except CredentialsBlockedException as e:
-                raise FatalProcessingError(e.message) from e
+            except NotFoundError as e:
+                raise NonFatalProcessingError(
+                    f"No tracks found for ISRC {isrc} in region {task.params.region}"
+                ) from e
 
         return SingleItemFetchFunctionResult(fn=fetch_tracks_for_isrc)

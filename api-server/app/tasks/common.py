@@ -46,9 +46,16 @@ class BatchFetchFunctionResult[T]:
     batch_size: int
 
 
-class FatalProcessingError(Exception):
+class NonFatalProcessingError(Exception):
     """
-    Raised when a fatal error occurs that prevents the task from being processed further at this point in time (e.g. due to API access being blocked)
+    Raised when an error occurs that prevents the current task inputs from being processed further, but doesn't mean that it will be impossible to process the remaining inputs.
+
+    Any such 'non-fatal exceptions' raised by the task's respective data fetch function should be caught and wrapped in this exception type, so that the task processor
+    is able to catch it and continue processing the remaining inputs without failing the entire task.
+
+    Classic examples for clients using HTTP APIs that return HTTP error codes would be:
+    - 404 Not Found for invalid inputs or possibly also
+    - 503 Service Unavailable (e.g. if we know that the call should work later but we don't want to wait until it does and prefer to continue with the other ones).
     """
 
     def __init__(self, message: str) -> None:

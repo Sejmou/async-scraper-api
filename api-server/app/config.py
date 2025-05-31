@@ -1,12 +1,9 @@
 import os
 from pathlib import Path
-from typing import Tuple, Type
 import logging
 from pydantic_settings import (
     BaseSettings,
-    PydanticBaseSettingsSource,
     SettingsConfigDict,
-    YamlConfigSettingsSource,
 )
 
 from app.utils.misc import get_public_ip
@@ -108,6 +105,13 @@ class Settings(BaseSettings):
     The secret access key for the S3 bucket where the output data of the tasks is stored.
     """
 
+    credentials_api_url: str
+    """
+    The URL of the API that provides credentials for API clients used throughout the application.
+
+    At the time of this writing, this only includes client ID + secret for the Spotify API client.
+    """
+
 
 settings = Settings()  # type: ignore
 
@@ -153,38 +157,6 @@ PUBLIC_IP = get_public_ip()
 
 if not os.path.exists(settings.api_client_log_dir):
     os.makedirs(settings.api_client_log_dir)
-
-
-class SpotifyAPICredentials(BaseSettings):
-    client_id: str
-    client_secret: str
-
-
-class APIClientConfig(BaseSettings):
-    """
-    Stores configuration for the API clients used for the scraper tasks in the application.
-    """
-
-    # code adapted from TOML example at https://docs.pydantic.dev/latest/concepts/pydantic_settings/#other-settings-source
-
-    spotify_api: SpotifyAPICredentials
-
-    model_config = SettingsConfigDict(yaml_file="api-client-config.yml", extra="ignore")
-
-    @classmethod
-    def settings_customise_sources(
-        cls,
-        settings_cls: Type[BaseSettings],
-        init_settings: PydanticBaseSettingsSource,
-        env_settings: PydanticBaseSettingsSource,
-        dotenv_settings: PydanticBaseSettingsSource,
-        file_secret_settings: PydanticBaseSettingsSource,
-    ) -> Tuple[PydanticBaseSettingsSource, ...]:
-        # the way we have set this up, config is ONLY loaded from the YAML file
-        return (YamlConfigSettingsSource(settings_cls),)
-
-
-api_client_config = APIClientConfig()  # type: ignore
 
 
 def get_log_level(log_level: str) -> int:
