@@ -37,4 +37,4 @@ EXPOSE 80
 # if the container doesn't exit cleanly, temporary files created by xvfb-run might remain -> we make sure they are always deleted (if they exist)
 # furthermore, we run alembic to apply any database migrations before starting the FastAPI application
 # the ${DEV:+--reload} syntax is a way to conditionally include the --reload flag if the DEV environment variable is set
-CMD ["sh", "-c", "rm -f /tmp/.X${DISPLAY#:}-lock /tmp/.X11-unix/X${DISPLAY#:} && xvfb-run uvicorn app.main:app --host 0.0.0.0 --port 80 ${DEV:+--reload}"]
+CMD ["sh", "-c", "rm -f /tmp/.X${DISPLAY#:}-lock /tmp/.X11-unix/X${DISPLAY#:} && alembic upgrade head && xvfb-run uvicorn app.main:app --host 0.0.0.0 --port 80 ${DEV:+--reload}"]
