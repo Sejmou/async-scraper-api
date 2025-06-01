@@ -30,7 +30,7 @@ async def report_request_meta(
     url = f"{settings.credentials_api_url}/spotify/request-meta"
     async with aiohttp.ClientSession() as session:
         try:
-            async with session.post(url, json=meta.model_dump_json()) as response:
+            async with session.post(url, json=meta.model_dump(mode="json")) as response:
                 response.raise_for_status()
         except aiohttp.ClientResponseError as e:
             raise RuntimeError(
