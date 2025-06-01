@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 import logging
+from typing import Literal
 from pydantic_settings import (
     BaseSettings,
     SettingsConfigDict,
@@ -9,6 +10,8 @@ from pydantic_settings import (
 from app.utils.misc import get_public_ip
 
 file_dir = Path(__file__).parent
+
+LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 
 
 class Settings(BaseSettings):
@@ -36,7 +39,7 @@ class Settings(BaseSettings):
 
     project_name: str = "Scraper API"
 
-    log_level: str = "DEBUG"
+    log_level: LogLevel = "INFO"
 
     replica_id: str | None = None
     """
@@ -159,43 +162,33 @@ if not os.path.exists(settings.api_client_log_dir):
     os.makedirs(settings.api_client_log_dir)
 
 
-def get_log_level(log_level: str) -> int:
-    if log_level == "DEBUG":
+def log_level_str_to_int(level: LogLevel) -> int:
+    if level == "DEBUG":
         return logging.DEBUG
-    if log_level == "INFO":
+    elif level == "INFO":
         return logging.INFO
-    if log_level == "WARNING":
+    elif level == "WARNING":
         return logging.WARNING
-    if log_level == "ERROR":
+    elif level == "ERROR":
         return logging.ERROR
-    if log_level == "CRITICAL":
+    elif level == "CRITICAL":
         return logging.CRITICAL
-    raise ValueError(f"Invalid log level: {log_level}")
 
 
 def setup_logger(
     name: str,
     file_dir: str | None = None,
-    level: int = get_log_level(settings.log_level),
+    level: LogLevel = "INFO",
     log_to_console: bool = True,
 ) -> logging.Logger:
-    if level not in [
-        logging.DEBUG,
-        logging.INFO,
-        logging.WARNING,
-        logging.ERROR,
-        logging.CRITICAL,
-    ]:
-        raise ValueError(
-            "Invalid log level provided. Make sure to use one of the constants from the logging module!"
-        )
+    log_level_int = log_level_str_to_int(level)
 
     logger = logging.getLogger(name)
     if logger.handlers:
         raise ValueError(
             f"Logger '{name}' already has handlers attached! This is probably an error as every logger should only be configured once."
         )
-    logger.setLevel(level)
+    logger.setLevel(log_level_int)
 
     if log_to_console:
         formatter = logging.Formatter(
@@ -203,7 +196,7 @@ def setup_logger(
         )
         ch = logging.StreamHandler()
         ch.setFormatter(formatter)
-        ch.setLevel(level)
+        ch.setLevel(log_level_int)
         logger.addHandler(ch)
 
     if file_dir:
@@ -220,7 +213,7 @@ def setup_logger(
         fh = logging.FileHandler(file_path)
         formatter = logging.Formatter("[%(levelname)s] %(asctime)s: %(message)s")
         fh.setFormatter(formatter)
-        fh.setLevel(level)
+        fh.setLevel(log_level_int)
         logger.addHandler(fh)
 
     return logger
