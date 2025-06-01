@@ -137,7 +137,7 @@ class SpotifyAPIClient:
         ):
             return self._credentials
 
-        url = f"{self._credentials_api_url}/spotify/accounts"
+        url = f"{self._credentials_api_url}/spotify/account"
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(url) as response:
