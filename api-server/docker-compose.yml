@@ -8,6 +8,8 @@ services:
       - S3_SECRET
       - S3_ENDPOINT_URL
       - S3_BUCKET
+      - CREDENTIALS_API_URL
+      - LOG_LEVEL
       # needed for virtual X server (used by programs requiring an X server for automated GUI interactions, e.g. browser scrapers in non-headless mode)
       - DISPLAY=:99
     ports:
