@@ -51,6 +51,22 @@ class NotFoundResult:
 
 
 @dataclass
+class BadGatewayResult:
+    """
+    For 502 Bad Gateway errors which happen occasionally (Spotify API is not perfectly reliable)
+    """
+
+    msg: str
+    status: Literal["bad_gateway"] = "bad_gateway"
+
+
+MAX_502_ATTEMPTS = 3
+"""
+Maximum number of attempts to retry a request that returned a 502 Bad Gateway error.
+"""
+
+
+@dataclass
 class UnexpectedErrorCodeResult:
     msg: str
     status_code: int
@@ -79,12 +95,19 @@ class NotFoundError(Exception):
     pass
 
 
+class ServiceUnavailableError(Exception):
+    """
+    Exception raised when the Spotify API returns a 502 Bad Gateway error after multiple attempts to retry the request.
+    """
+
+    pass
+
+
 class SpotifyAPIClient:
     """
     A custom Spotify API client that fetches data from the Spotify API using provided credentials.
     """
 
-    _last_request_overall: datetime | None = None
     _last_request_per_endpoint: Dict[str, datetime] = {}
     _timeouts_per_endpoint: Dict[str, float] = {
         "search": 15,
@@ -115,12 +138,10 @@ class SpotifyAPIClient:
         credentials_api_url: str,
         logger: Logger,
         ban_handler: APIBanHandler,
-        global_request_timeout_override: Optional[float] = None,
     ):
         self.logger = logger
         self._credentials_api_url = credentials_api_url
         self._token_manager = SpotifyAPIAccessTokenManager(self.get_credentials)
-        self.global_request_timeout_override = global_request_timeout_override
         self._ban_handler = ban_handler
 
     def _get_endpoint_name(self, endpoint_path: str) -> str:
@@ -167,7 +188,11 @@ class SpotifyAPIClient:
             ) from e
 
     async def _make_request(
-        self, endpoint_path: str, params: Optional[dict] = None
+        self,
+        endpoint_path: str,
+        params: Optional[dict] = None,
+        # only relevant in case of Bad Gateway responses. For each failed attempt, this function will be called again with same params, but increased attempt_number; once max_attempts is reached, an exception will be raised
+        attempt_number=1,
     ) -> dict:
         """
         Make a request to the Spotify API using the credentials the client was initialized with.
@@ -189,7 +214,6 @@ class SpotifyAPIClient:
 
         sent_at = datetime.now(timezone.utc)
         self._last_request_per_endpoint[endpoint_name] = sent_at
-        self._last_request_overall = sent_at
 
         async with aiohttp.ClientSession() as session:
             async with session.get(
@@ -250,6 +274,28 @@ class SpotifyAPIClient:
                     self.logger.warning(res.msg)
                     raise NotFoundError(res.msg)
 
+                elif res.status == "bad_gateway":
+                    self.logger.warning(res.msg)
+
+                    if attempt_number >= MAX_502_ATTEMPTS:
+                        raise ServiceUnavailableError(
+                            f"Request to {endpoint_name} endpoint failed with 502 Bad Gateway error after {MAX_502_ATTEMPTS} attempts."
+                        )
+
+                    timeout = (
+                        self._get_request_timeout(endpoint_name)
+                        or self._default_timeout
+                    )
+                    sleep_time = timeout * attempt_number
+                    self.logger.info(
+                        f"Retrying request to {endpoint_name} endpoint in {sleep_time:.2f} seconds (attempt {attempt_number + 1} of {MAX_502_ATTEMPTS})..."
+                    )
+                    await sleep(timeout**attempt_number)
+
+                    return await self._make_request(
+                        endpoint_path, params=params, attempt_number=attempt_number + 1
+                    )
+
                 elif res.status == "unexpected-error":
                     self.logger.error(res.msg)
                     raise UnexpectedResponseCodeError(
@@ -271,6 +317,7 @@ class SpotifyAPIClient:
         | CredentialsBlockedResult
         | CredentialsExpiredResult
         | NotFoundResult
+        | BadGatewayResult
         | UnexpectedErrorCodeResult
     ):
         """
@@ -305,6 +352,10 @@ class SpotifyAPIClient:
             return NotFoundResult(
                 msg=f"Request to '{endpoint_name}' endpoint (URL: {req_meta.url}) returned 404."
             )
+        elif response.status == 502:
+            return BadGatewayResult(
+                msg=f"Request to '{endpoint_name}' endpoint (URL: {req_meta.url}) returned 502 Bad Gateway error."
+            )
         elif not response.ok:
             return UnexpectedErrorCodeResult(
                 msg=f"Request to '{endpoint_name}' endpoint failed with HTTP error {response.status} and body: {await response.text()}",
@@ -315,16 +366,11 @@ class SpotifyAPIClient:
         return SuccessResult(data=data)
 
     def _get_request_timeout(self, endpoint: str) -> float | None:
-        last_relevant_request_at = (
-            self._last_request_overall
-            if self.global_request_timeout_override
-            else self._last_request_per_endpoint.get(endpoint)
-        )
+        last_relevant_request_at = self._last_request_per_endpoint.get(endpoint)
         if not last_relevant_request_at:
             return None
         earliest_time_for_next_request = last_relevant_request_at + timedelta(
-            seconds=self.global_request_timeout_override
-            or self._timeouts_per_endpoint.get(endpoint, self._default_timeout)
+            seconds=self._timeouts_per_endpoint.get(endpoint, self._default_timeout)
         )
         seconds_to_wait = (
             earliest_time_for_next_request - datetime.now(timezone.utc)
