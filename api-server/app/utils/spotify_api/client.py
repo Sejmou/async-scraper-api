@@ -8,7 +8,6 @@ import aiohttp
 from asyncio import sleep
 
 from app.config import PUBLIC_IP
-from app.utils.api_bans import APIBanHandler
 from app.utils.spotify_api.models import SpotifyAPICredentials
 from app.utils.spotify_api.request_meta import (
     SpotifyAPIRequestMeta,
@@ -137,12 +136,10 @@ class SpotifyAPIClient:
         self,
         credentials_api_url: str,
         logger: Logger,
-        ban_handler: APIBanHandler,
     ):
         self.logger = logger
         self._credentials_api_url = credentials_api_url
         self._token_manager = SpotifyAPIAccessTokenManager(self.get_credentials)
-        self._ban_handler = ban_handler
 
     def _get_endpoint_name(self, endpoint_path: str) -> str:
         # for endpoints like /artists/{id}/albums, we cannot use the endpoint name as is
@@ -198,7 +195,6 @@ class SpotifyAPIClient:
         Make a request to the Spotify API using the credentials the client was initialized with.
         """
         endpoint_name = self._get_endpoint_name(endpoint_path)
-        await self._ban_handler.raise_if_blocked("spotify_api", endpoint_name)
 
         self.logger.debug(f"Making request to {endpoint_name} endpoint...")
 
@@ -250,15 +246,8 @@ class SpotifyAPIClient:
                     return await self._make_request(endpoint_path, params)
 
                 elif res.status == "credentials_blocked":
-                    self.logger.info(
-                        f"Access token for endpoint {endpoint_name} expired. Invalidating currently stored access token and retrying..."
-                    )
-                    await self._ban_handler.block(
-                        data_source="spotify-api",
-                        endpoint=endpoint_name,
-                        # block for a little more than 24 hours if the API did not return a specific block time
-                        block_until=res.blocked_until
-                        or datetime.now(timezone.utc) + timedelta(hours=24, seconds=10),
+                    self.logger.error(
+                        f"API credentials for endpoint {endpoint_name} are blocked: {res.error_msg}"
                     )
 
                     # make sure credentials and associated access token are not used anymore
@@ -332,13 +321,6 @@ class SpotifyAPIClient:
                     retry_after = int(retry_after)
                     blocked_until = req_meta.received_at + timedelta(
                         seconds=retry_after
-                    )
-                    details = {"retry_after": retry_after}
-                    await self._ban_handler.block(
-                        data_source="spotify-api",
-                        endpoint=endpoint_name,
-                        block_until=blocked_until,
-                        details=details,
                     )
                     error_msg = f"Got HTTP error response with code 429 (Too Many Requests) and RETRY-AFTER header value: {retry_after} -> '{endpoint_name}' endpoint is blocked until (at least) {blocked_until.isoformat()}."
                 except ValueError:

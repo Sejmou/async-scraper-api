@@ -322,7 +322,7 @@ class TaskProcessor[T](ABC):
         self._logger.error(f"Failed to process input {input_item}", exc_info=True)
 
     def _handle_input_without_output(self, input_without_output: T):
-        self._logger.warning(f"Not output for input {input_without_output}")
+        self._logger.warning(f"No output for input {input_without_output}")
 
 
 class SequentialTaskProcessor[T](TaskProcessor[T]):
