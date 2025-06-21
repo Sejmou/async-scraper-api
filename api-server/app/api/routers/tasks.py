@@ -128,6 +128,8 @@ async def pause_task(task_id: int, session: DBSessionDep) -> DataFetchingTaskMod
             raise HTTPException(status_code=400, detail="Task is already done")
         if db_task.status == "pausing":
             raise HTTPException(status_code=400, detail="Task is already pausing")
+        if db_task.status == "paused":
+            raise HTTPException(status_code=400, detail="Task is already paused")
         db_task.status = "pausing"
         await session.commit()
         processor = get_task_processor(db_task)
