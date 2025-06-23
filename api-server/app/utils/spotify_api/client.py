@@ -228,7 +228,14 @@ class SpotifyAPIClient:
                 )
 
                 res = await self._parse_response(response, req_meta, endpoint_name)
-                await report_request_meta(req_meta)
+                try:
+                    await report_request_meta(req_meta)
+                except Exception as e:
+                    if req_meta.status_code != 200:
+                        raise e
+                    self.logger.warning(
+                        f"Failed to report metadata for request to {endpoint_name} endpoint with 200 status code: {e}"
+                    )
 
                 if res.status == "success":
                     data = res.data
