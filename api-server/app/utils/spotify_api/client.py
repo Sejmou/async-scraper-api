@@ -17,7 +17,13 @@ from app.utils.spotify_api.helpers import get_list_data_from_response, remove_sp
 from app.utils.spotify_api.token_manager import SpotifyAPIAccessTokenManager
 
 
-class CredentialsBlockedException(Exception):
+class APIBlockException(Exception):
+    """
+    Exception raised when the Spotify API client assumes that it has been blocked.
+
+    Note that this Exception is NOT automatically raised upon receiving a 429 Too Many Requests response from the Spotify API.
+    """
+
     def __init__(self, message: str, blocked_until: datetime | None = None):
         super().__init__(message)
         self.message = message
@@ -62,6 +68,15 @@ class BadGatewayResult:
 MAX_502_ATTEMPTS = 3
 """
 Maximum number of attempts to retry a request that returned a 502 Bad Gateway error.
+"""
+
+PROBABLY_NOT_ACTUALLY_BLOCKED_THRESHOLD = 500
+"""
+The threshold (minimum number of non-429 responses after a 429 error) after which the client will assume it is NOT 'actually' blocked
+
+The idea behind this is that after getting blocked (receiving a 429 HTTP eror) with a set of credentials, the client should just try new ones.
+Only if it gets a 429 error again within the next `PROBABLY_NOT_ACTUALLY_BLOCKED_THRESHOLD` requests, it will assume that it is 'actually blocked' right now (and it was not just the credentials that were 'used up'),
+raising an `APIBlockException` accordingly.
 """
 
 
@@ -123,9 +138,20 @@ class SpotifyAPIClient:
     The default timeout between requests for endpoints not listed in `_timeouts_per_endpoint`, in seconds.
     """
 
+    _last_credentials_producing_429: SpotifyAPICredentials | None = None
+    """
+    Credentials that were used right before switching to new credentials due to receiving a 429 Too Many Requests response from the Spotify API.
+    Only != None after receiving a 429 response, up until MINIMUM_NON_429_REQUESTS_AFTER_BLOCK requests with non-429 response have been made with the new credentials.
+    """
+    _non_429_requests_made_since_block: int = 0
+    """
+    A non-negative integer specifying the number of requests made since the last time the credentials were blocked
+    Only relevant _previously_blocked_credentials is not None
+    """
+
     _credentials: SpotifyAPICredentials | None = None
     _requests_made_with_current_credentials: int = 0
-    _max_requests_with_current_credentials: int = random.randint(2500, 5000)
+    _max_requests_with_current_credentials: int = random.randint(2000, 3000)
     """
     A non-negative integer specifying the maximum number of requests that can be made with the current credentials before they are swapped out for new ones.
 
@@ -169,7 +195,7 @@ class SpotifyAPIClient:
                     self._token_manager.invalidate_access_token()
                     self._requests_made_with_current_credentials = 0
                     self._max_requests_with_current_credentials = random.randint(
-                        2500, 5000
+                        2000, 3000
                     )
                     self.logger.info(
                         f"Got new Spotify API credentials (client ID: {self._credentials.client_id}). Will swap after {self._max_requests_with_current_credentials} requests."
@@ -237,6 +263,20 @@ class SpotifyAPIClient:
                         f"Failed to report metadata for request to {endpoint_name} endpoint with 200 status code: {e}"
                     )
 
+                self._requests_made_with_current_credentials += 1
+                if self._last_credentials_producing_429 and response.status != 429:
+                    self._non_429_requests_made_since_block += 1
+
+                if (
+                    self._non_429_requests_made_since_block
+                    >= PROBABLY_NOT_ACTUALLY_BLOCKED_THRESHOLD
+                ):
+                    self.logger.info(
+                        f"Assuming that credentials {self._last_credentials_producing_429} are not blocked anymore after {self._non_429_requests_made_since_block} non-429 requests."
+                    )
+                    self._last_credentials_producing_429 = None
+                    self._non_429_requests_made_since_block = 0
+
                 if res.status == "success":
                     data = res.data
                     if not isinstance(data, dict):
@@ -256,15 +296,26 @@ class SpotifyAPIClient:
                     self.logger.error(
                         f"API credentials for endpoint {endpoint_name} are blocked: {res.error_msg}"
                     )
+                    if (
+                        self._last_credentials_producing_429
+                        and self._non_429_requests_made_since_block
+                        < PROBABLY_NOT_ACTUALLY_BLOCKED_THRESHOLD
+                    ):
+                        raise APIBlockException(
+                            message=f"Got another 429 response after {self._non_429_requests_made_since_block} non-429 responses with credentials (refreshed due to earlier 429) -> "
+                            + res.error_msg,
+                            blocked_until=res.blocked_until,
+                        )
+
+                    self._last_credentials_producing_429 = self._credentials
+                    self._non_429_requests_made_since_block = 0
 
                     # make sure credentials and associated access token are not used anymore
-                    self._credentials = None
+                    self._credentials = None  # this will trigger a new credentials fetch on the next request
                     self._token_manager.invalidate_access_token()
 
-                    raise CredentialsBlockedException(
-                        message=res.error_msg,
-                        blocked_until=res.blocked_until,
-                    )
+                    # retry the request with new credentials
+                    return await self._make_request(endpoint_path, params)
 
                 elif res.status == "not_found":
                     self.logger.warning(res.msg)
