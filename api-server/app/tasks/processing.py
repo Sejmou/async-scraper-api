@@ -194,10 +194,6 @@ class TaskProcessor[T](ABC):
                     db_task.status = "error"
                     await db_session.commit()
                     self._logger.exception(e)
-                    await self._compress_upload_and_delete_data_written_to_current_output_file(
-                        db_session
-                    )
-                    raise e
 
             db_task.status = "running"
             await db_session.commit()
@@ -220,9 +216,15 @@ class TaskProcessor[T](ABC):
                 db_task.status = "error"
                 await db_session.commit()
                 self._logger.exception(e)
-                await self._compress_upload_and_delete_data_written_to_current_output_file(
-                    db_session
-                )
+                if os.path.exists(self._output_fp) and not is_file_empty(
+                    self._output_fp
+                ):
+                    self._logger.info(
+                        f"Compressing and uploading stuff that was written to output file {self._output_fp} before the error occurred"
+                    )
+                    await self._compress_upload_and_delete_data_written_to_current_output_file(
+                        db_session
+                    )
                 raise e
 
     def pause(self):
