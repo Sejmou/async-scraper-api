@@ -194,6 +194,9 @@ class TaskProcessor[T](ABC):
                     db_task.status = "error"
                     await db_session.commit()
                     self._logger.exception(e)
+                    await self._compress_upload_and_delete_data_written_to_current_output_file(
+                        db_session
+                    )
                     raise e
 
             db_task.status = "running"
@@ -217,6 +220,9 @@ class TaskProcessor[T](ABC):
                 db_task.status = "error"
                 await db_session.commit()
                 self._logger.exception(e)
+                await self._compress_upload_and_delete_data_written_to_current_output_file(
+                    db_session
+                )
                 raise e
 
     def pause(self):
