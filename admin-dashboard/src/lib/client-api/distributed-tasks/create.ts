@@ -5,7 +5,7 @@ import { makeRequestToServerApi } from '..';
 /**
  * Creates a new scraper task on the server, distributing its inputs across the given scrapers.
  */
-export const createDistributedTask = async (task: SupportedTask, scraperIds: number[]) => {
+export const createDistributedTask = async (task: SupportedTask, scraperIds?: number[]) => {
 	return await makeRequestToServerApi({
 		path: `tasks/create`,
 		method: 'POST',

@@ -25,9 +25,9 @@ export async function POST({ request }) {
 
 async function createDistributedTask(request: Request) {
 	const body = await safeParseRequestJSON(request);
-	const { taskData, scraperIds } = validateRequestBody(body);
-	const scrapers = await getScrapersForIds(scraperIds);
-
+	const { taskData, scraperIdsFilter } = parseRequestBody(body);
+	const scrapers = await getScrapers(scraperIdsFilter, taskData.inputs.length);
+	
 	try {
 		const transaction = createTransaction(db);
 		const task = await transaction.transaction(async ({ db, rollback }) => {
@@ -122,8 +122,11 @@ async function distributeAcrossScrapers(
 
 	const results = await Promise.allSettled(
 		subtaskInputs.map(async ({ scraper, taskData }) => {
+			console.time(`[TASK ${taskId}] Sending subtask to scraper ${scraper.id}`);
 			const taskSendResult = await sendTaskToScraper(scraper, taskData);
+			console.timeEnd(`[TASK ${taskId}] Sending subtask to scraper ${scraper.id}`);
 			if (taskSendResult.status === 'success') {
+				console.time(`[TASK ${taskId}] Inserting subtask into database`);
 				const scraperTaskId = taskSendResult.data.id;
 				const subtaskInsertPayload = {
 					taskId,
@@ -147,6 +150,8 @@ async function distributeAcrossScrapers(
 						scraper,
 						taskData
 					);
+				} finally {
+					console.timeEnd(`[TASK ${taskId}] Inserting subtask into database`);
 				}
 			} else {
 				const errorDesc = taskSendResult.httpCode
@@ -196,98 +201,83 @@ class SubtaskCreationError extends Error {
 	}
 }
 
-function parseTask(task: unknown):
-	| {
-			success: true;
-			data: Task;
-	  }
-	| {
-			success: false;
-			errors: string[];
-	  } {
+function parseTaskData(task: unknown): Task {
 	try {
-		return {
-			success: true,
-			data: parseToTaskOrThrowError(task)
-		};
+		return parseToTaskOrThrowError(task)
 	} catch (e) {
+		let errorLines: string[] = ['An unknown error occurred while parsing task data'];
 		if (e instanceof ZodError) {
 			console.error('Zod validation for task provided by client failed', { task, error: e });
-
-			return {
-				success: false,
-				errors: taskCreationZodErrorToLines(e)
-			};
+			errorLines = taskCreationZodErrorToLines(e)
 		} else if (e instanceof Error) {
-			return {
-				success: false,
-				errors: [e.message]
-			};
-		} else
-			return {
-				success: false,
-				errors: ['Unknown error']
-			};
+			errorLines = [e.message];
+		}
+		error(400, `Invalid task data provided by client:\n${errorLines.join('\n')}`);
 	}
 }
 
-function validateRequestBody(body: unknown) {
+function parseScraperIds(scraperIds: unknown): number[] {
+	const scraperIdParseRes = z.array(z.number()).safeParse(scraperIds);
+	if (scraperIdParseRes.success) {
+		return scraperIdParseRes.data
+	} else {
+		error(400, scraperIdParseRes.error.errors.map((err) => err.message).join('\n'));
+	}
+}
+
+function parseRequestBody(body: unknown) {
 	if (!body || typeof body !== 'object') {
-		error(400, 'Invalid request body. Should be object with "task" and "scrapers" properties');
+		error(400, 'Invalid request body. Should be object with "task" and optional "scraperIds" array (numbers; IDs of specific scrapers to use)');
 	}
 	if (!('task' in body)) {
 		return error(400, 'Missing "task" property');
 	}
-	if (!('scraperIds' in body)) {
-		return error(400, 'Missing "scraperIds" property');
-	}
-	const taskParseRes = parseTask(body.task);
-	if (!taskParseRes.success) return error(400, taskParseRes.errors.join('\n'));
-
-	const scraperIdParseRes = z.array(z.number()).safeParse(body.scraperIds);
-	if (!scraperIdParseRes.success) return error(400, scraperIdParseRes.error.errors.join('\n'));
-
-	const taskData = taskParseRes.data;
-	const scraperIds = scraperIdParseRes.data;
-
-	if (scraperIds.length > taskData.inputs.length) {
+	const taskData = parseTaskData(body.task);
+	const scraperIdsFilter = 'scraperIds' in body && !!body.scraperIds ? parseScraperIds( body.scraperIds) : null;
+	
+	if (scraperIdsFilter && scraperIdsFilter.length > taskData.inputs.length) {
 		return error(
 			400,
-			`More scrapers than inputs! (${scraperIds.length} scrapers, ${taskData.inputs.length} inputs)`
+			`More scrapers than inputs! (${scraperIdsFilter.length} scrapers, ${taskData.inputs.length} inputs)`
 		);
 	}
 
 	return {
 		taskData,
-		scraperIds
+		scraperIdsFilter
 	};
 }
 
-async function getScrapersForIds(scraperIds: number[]) {
-	// first, verify that all scraper IDs can in fact be matched to scrapers in our database
-	const scrapers = await db
-		.select()
-		.from(scraperServerTbl)
-		.where(inArray(scraperServerTbl.id, scraperIds));
-
-	if (scrapers.length === 0) {
-		const allScraperCount = await db.$count(scraperServerTbl);
+async function getScrapers(idsFilter: number[] | null, inputsLength: number) {
+	const allScraperCount = await db.$count(scraperServerTbl);
 		if (allScraperCount === 0) {
 			console.error('No scrapers in database');
 			return error(503, 'No scrapers in database');
-		} else {
-			console.error('No scrapers found for IDs provided by client', { scraperIds });
-			return error(400, 'Invalid scraper ID(s) provided');
 		}
+
+	// get scrapers in database (filter by IDs if provided)
+	const scraperSelect = db.select().from(scraperServerTbl);
+	let scrapers = await (!idsFilter ? scraperSelect : scraperSelect.where(inArray(scraperServerTbl.id, idsFilter)));
+	if (scrapers.length > inputsLength) {
+		scrapers = scrapers.slice(0, inputsLength);
+		console.warn(
+			`More scrapers (${scrapers.length}) than inputs (${inputsLength}) provided. Using only ${inputsLength} scrapers.`
+		);
 	}
 
-	if (scrapers.length !== scraperIds.length) {
+	if (idsFilter && scrapers.length !== idsFilter.length) {
 		console.error('Client provided at least one invalid scraper ID', {
-			scraperIds,
+			idsFilter,
 			scrapers
 		});
 		return error(400, 'Invalid scraper ID(s) provided');
 	}
+
+	if (scrapers.length === 0) {
+			console.error('No scrapers found for IDs provided by client', { idsFilter });
+			return error(400, 'Invalid scraper ID(s) provided');
+	}
+
 
 	// finally, check if all scrapers we matched are online and return a descriptive error message if not
 	const scraperMetadataResponses = await Promise.all(
