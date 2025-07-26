@@ -27,6 +27,7 @@ class TaskFormState<TaskType extends SupportedTask, ParamsType extends z.ZodSche
 		taskInputMeta: TaskInputMeta<TaskType['inputs'][0]>
 	) {
 		this.#scrapers = scrapers;
+		this.#selectedScraperIds = scrapers.map((s) => s.id);
 		this.#initialTaskValue = structuredClone(initialTaskValue);
 		this.#paramsSchema = taskParamsSchema;
 		this.#inputMeta = taskInputMeta;

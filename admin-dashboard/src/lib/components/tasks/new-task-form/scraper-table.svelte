@@ -50,6 +50,11 @@
 <DataTable
 	{columns}
 	data={availableScrapers}
+	initialSelection={state.selectedScraperIds.reduce((acc, id) => {
+		const idx = availableScrapers.findIndex((scraper) => scraper.id === id);
+		if (idx !== -1) acc[idx] = true;
+		return acc;
+	}, {} as RowSelectionState)}
 	onSelectionChange={handleSelectionChange}
 	rowDescSingular="scraper"
 	rowDescPlural="scrapers"

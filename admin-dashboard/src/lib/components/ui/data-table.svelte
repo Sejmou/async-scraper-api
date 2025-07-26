@@ -22,6 +22,7 @@
 		rowDescPlural?: string;
 		showSelectedRowCount?: boolean;
 		showColumnFilter?: boolean;
+		initialSelection?: RowSelectionState;
 		onSelectionChange?: (newValue: RowSelectionState) => void;
 	};
 
@@ -29,6 +30,7 @@
 		data,
 		columns,
 		// by specifying default values, our typechecker knows that the optional props cannot be undefined <3
+		initialSelection = {},
 		onSelectionChange = () => {},
 		paginationPageSize = 10,
 		rowDescSingular = 'row',
@@ -45,7 +47,7 @@
 		pageSize: paginationPageSize
 	});
 
-	let rowSelection = $state<RowSelectionState>({});
+	let rowSelection = $state<RowSelectionState>(initialSelection);
 
 	let columnVisibility = $state<VisibilityState>({});
 

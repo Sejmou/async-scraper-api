@@ -19,6 +19,7 @@
 	let form = $derived(state.form);
 	let availableScrapers = $derived(state.availableScrapers);
 	let selectedScraperIds = $derived(state.selectedScraperIds);
+	$inspect(selectedScraperIds);
 </script>
 
 <form method="POST" use:state.enhance onsubmit={(e) => state.handleSubmit(e)}>
